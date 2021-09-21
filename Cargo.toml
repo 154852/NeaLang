@@ -1,0 +1,2 @@
+[workspace]
+members = ["syntax", "nl", "ir", "ofile", "x86"]
