@@ -3,10 +3,12 @@
 mod reg;
 mod encode;
 mod ins;
+mod local_symbols;
 
 pub use reg::*;
 pub use encode::*;
 pub use ins::*;
+pub use local_symbols::*;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 #[allow(dead_code)]
@@ -23,14 +25,14 @@ impl Mode {
         }
     }
 
-    fn stack_ptr(&self) -> Reg {
+    pub fn stack_ptr(&self) -> Reg {
         match self {
             Mode::X86 => Reg::Esp,
             Mode::X8664 => Reg::Rsp
         }
     }
 
-    fn base_ptr(&self) -> Reg {
+    pub fn base_ptr(&self) -> Reg {
         match self {
             Mode::X86 => Reg::Ebp,
             Mode::X8664 => Reg::Rbp

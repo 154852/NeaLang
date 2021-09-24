@@ -7,6 +7,14 @@ name = "ir"
 version = "0.1.0"
 
 [[package]]
+name = "ir2x86"
+version = "0.1.0"
+dependencies = [
+ "ir",
+ "x86",
+]
+
+[[package]]
 name = "nl"
 version = "0.1.0"
 
