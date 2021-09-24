@@ -6,13 +6,13 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
-	/// 
-	/// // Save param to local
-	/// let l1 = func.push_local(ir::Local::new(ir::ValueType::I32)); // Allocate local of type i32
-	/// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1)); // Save the given param to the local
     /// 
-	/// func.push(ir::Ins::PushLocal(ir::ValueType::I32, l1)); // Push the local back onto the stack
-	/// func.push(ir::Ins::Ret);
+    /// // Save param to local
+    /// let l1 = func.push_local(ir::Local::new(ir::ValueType::I32)); // Allocate local of type i32
+    /// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1)); // Save the given param to the local
+    /// 
+    /// func.push(ir::Ins::PushLocal(ir::ValueType::I32, l1)); // Push the local back onto the stack
+    /// func.push(ir::Ins::Ret);
     /// ```
     PushLocal(ValueType, LocalIndex),
     
@@ -20,13 +20,13 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
-	/// 
-	/// // Save param to local
-	/// let l1 = func.push_local(ir::Local::new(ir::ValueType::I32)); // Allocate local of type i32
-	/// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1)); // Save the given param to the local
     /// 
-	/// func.push(ir::Ins::PushLocal(ir::ValueType::I32, l1)); // Push the local back onto the stack
-	/// func.push(ir::Ins::Ret);
+    /// // Save param to local
+    /// let l1 = func.push_local(ir::Local::new(ir::ValueType::I32)); // Allocate local of type i32
+    /// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1)); // Save the given param to the local
+    /// 
+    /// func.push(ir::Ins::PushLocal(ir::ValueType::I32, l1)); // Push the local back onto the stack
+    /// func.push(ir::Ins::Ret);
     /// ```
     PopLocal(ValueType, LocalIndex),
     
@@ -39,11 +39,11 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("divide_10_by_5", ir::Signature::new(vec![], vec![ ValueType::I32 ]));
-	/// 
+    /// 
     /// func.push(ir::Ins::PushLiteral(ValueType::I32, 10));
     /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
-	/// func.push(ir::Ins::Call(divide_function_index));
-	/// func.push(ir::Ins::Ret);
+    /// func.push(ir::Ins::Call(divide_function_index));
+    /// func.push(ir::Ins::Ret);
     /// ```
     Call(FunctionIndex),
     
@@ -52,10 +52,10 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("return_two_values", ir::Signature::new(vec![], vec![ ValueType::I32, ValueType::U8 ]));
-	/// 
+    /// 
     /// func.push(ir::Ins::PushLiteral(ValueType::I32, 10));
     /// func.push(ir::Ins::PushLiteral(ValueType::U8, 5));
-	/// func.push(ir::Ins::Ret);
+    /// func.push(ir::Ins::Ret);
     /// ```
     Ret,
 
@@ -63,9 +63,9 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("add_1", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
-	/// 
+    /// 
     /// func.push(ir::Ins::Inc(ValueType::I32, 1));
-	/// func.push(ir::Ins::Ret);
+    /// func.push(ir::Ins::Ret);
     /// ```
     Inc(ValueType, u64),
 
@@ -73,9 +73,9 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("sub_1", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
-	/// 
+    /// 
     /// func.push(ir::Ins::Dec(ValueType::I32, 1));
-	/// func.push(ir::Ins::Ret);
+    /// func.push(ir::Ins::Ret);
     /// ```
     Dec(ValueType, u64),
 
@@ -83,9 +83,9 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("add", ir::Signature::new(vec![ ValueType::I32, ValueType::I32 ], vec![ ValueType::I32 ]));
-	/// 
+    /// 
     /// func.push(ir::Ins::Add(ValueType::I32));
-	/// func.push(ir::Ins::Ret);
+    /// func.push(ir::Ins::Ret);
     /// ```
     Add(ValueType),
     
@@ -93,9 +93,9 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("mul", ir::Signature::new(vec![ ValueType::I32, ValueType::I32 ], vec![ ValueType::I32 ]));
-	/// 
+    /// 
     /// func.push(ir::Ins::Mul(ValueType::I32));
-	/// func.push(ir::Ins::Ret);
+    /// func.push(ir::Ins::Ret);
     /// ```
     Mul(ValueType),
     
@@ -103,11 +103,11 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("divide_10_by_5", ir::Signature::new(vec![ ValueType::I32, ValueType::I32 ], vec![ ValueType::I32 ]));
-	/// 
+    /// 
     /// func.push(ir::Ins::PushLiteral(ValueType::I32, 10));
     /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
     /// func.push(ir::Ins::Div(ValueType::I32));
-	/// func.push(ir::Ins::Ret);
+    /// func.push(ir::Ins::Ret);
     /// ```
     Div(ValueType),
     
@@ -115,11 +115,11 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("sub_5_from_10", ir::Signature::new(vec![ ValueType::I32, ValueType::I32 ], vec![ ValueType::I32 ]));
-	/// 
+    /// 
     /// func.push(ir::Ins::PushLiteral(ValueType::I32, 10));
     /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
     /// func.push(ir::Ins::Sub(ValueType::I32));
-	/// func.push(ir::Ins::Ret);
+    /// func.push(ir::Ins::Ret);
     /// ```
     Sub(ValueType),
 
@@ -131,10 +131,10 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("loop_5_times", ir::Signature::new(vec![ ], vec![ ]));
-	/// 
+    /// 
     /// let l1 = func.push_local(ir::Local::new(ir::ValueType::I32)); // Allocate local of type i32
     /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
-	/// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1));
+    /// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1));
     ///
     /// func.push(ir::Ins::Loop(
     ///     vec![ // Body
@@ -149,7 +149,7 @@ pub enum Ins {
     ///         ir::Ins::PopLocal(ir::ValueType::I32, l1),
     ///     ]
     /// ));
-	/// func.push(ir::Ins::Ret);
+    /// func.push(ir::Ins::Ret);
     /// ```
     Loop(Vec<Ins>, Vec<Ins>, Vec<Ins>), // Code, Condition, Inc
 
@@ -158,12 +158,12 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("if_1", ir::Signature::new(vec![ ], vec![ ]));
-	/// 
+    /// 
     /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
     /// func.push(ir::Ins::If(vec![
     ///     // Do something
     /// ]));
-	/// func.push(ir::Ins::Ret);
+    /// func.push(ir::Ins::Ret);
     /// ```
     If(Vec<Ins>),
 
@@ -172,14 +172,14 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("if_1_else", ir::Signature::new(vec![ ], vec![ ]));
-	/// 
+    /// 
     /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
     /// func.push(ir::Ins::IfElse(vec![
     ///     // Do something
     /// ], vec![
     ///     // Do something else
     /// ]));
-	/// func.push(ir::Ins::Ret);
+    /// func.push(ir::Ins::Ret);
     /// ```
     IfElse(Vec<Ins>, Vec<Ins>),
 
@@ -187,7 +187,7 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("break_immediately", ir::Signature::new(vec![ ], vec![ ]));
-	/// 
+    /// 
     /// func.push(ir::Ins::Loop(
     ///     vec![ // Body
     ///         ir::Ins::Break(0),
@@ -200,7 +200,7 @@ pub enum Ins {
     ///     vec![ // Increment
     ///     ]
     /// ));
-	/// func.push(ir::Ins::Ret);
+    /// func.push(ir::Ins::Ret);
     /// ```
     Break(BlockMoveDepth),
 
@@ -208,7 +208,7 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("continue_immediately", ir::Signature::new(vec![ ], vec![ ]));
-	/// 
+    /// 
     /// Infinite loop
     /// func.push(ir::Ins::Loop(
     ///     vec![ // Body
@@ -222,7 +222,7 @@ pub enum Ins {
     ///     vec![ // Increment
     ///     ]
     /// ));
-	/// func.push(ir::Ins::Ret);
+    /// func.push(ir::Ins::Ret);
     /// ```
     Continue(BlockMoveDepth),
 
@@ -230,9 +230,9 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
-	/// 
-	/// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 42));
-	/// func.push(ir::Ins::Ret);
+    /// 
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 42));
+    /// func.push(ir::Ins::Ret);
     /// ```
     PushLiteral(ValueType, u64),
 
@@ -241,11 +241,11 @@ pub enum Ins {
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
-	/// 
-	/// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 42));
+    /// 
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 42));
     /// func.push(ir::Ins::Drop);
     /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 21));
-	/// func.push(ir::Ins::Ret);
+    /// func.push(ir::Ins::Ret);
     /// ```
     Drop
 }

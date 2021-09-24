@@ -88,9 +88,9 @@ impl BlockStack {
 
 #[derive(Debug)]
 pub enum ValidationError {
-	StackUnderflow,
-	StackIncorrectType,
-	StackDepthNotZero,
+    StackUnderflow,
+    StackIncorrectType,
+    StackDepthNotZero,
     StackDepthNotOne,
     LocalDoesNotExist,
     LocalIncorrectType,
@@ -147,17 +147,17 @@ impl Ins {
                 }
             },
             Ins::Ret => {
-				if stack.depth() < function.signature().returns().len() {
-					Err(ValidationError::StackUnderflow)
-				} else if stack.depth() > function.signature().returns().len() {
-					Err(ValidationError::StackDepthNotZero)
-				} else {
+                if stack.depth() < function.signature().returns().len() {
+                    Err(ValidationError::StackUnderflow)
+                } else if stack.depth() > function.signature().returns().len() {
+                    Err(ValidationError::StackDepthNotZero)
+                } else {
                     for i in 0..function.signature().returns().len() {
                         stack.pop(function.signature().returns()[function.signature().returns().len() - i - 1])?;
                     }
                     Ok(())
                 }
-			},
+            },
             Ins::Inc(vt, _) => stack.ensure(*vt, 0),
             Ins::Dec(vt, _) => stack.ensure(*vt, 0),
             Ins::Add(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
@@ -248,8 +248,8 @@ fn ensure_returns(block: &Vec<Ins>) -> Result<(), ValidationError> {
 }
 
 impl Function {
-	pub fn validate(&self, unit: &TranslationUnit) -> Result<(), ValidationError> {
-		let mut type_stack = TypeStack::from_signature(&self.signature());
+    pub fn validate(&self, unit: &TranslationUnit) -> Result<(), ValidationError> {
+        let mut type_stack = TypeStack::from_signature(&self.signature());
         let mut block_stack = BlockStack::new();
 
         for ins in self.code().iter() {
@@ -261,7 +261,7 @@ impl Function {
         ensure_returns(self.code())?;
 
         Ok(())
-	}
+    }
 }
 
 impl TranslationUnit {

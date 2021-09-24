@@ -14,8 +14,8 @@ pub enum ProgramHeaderType {
 }
 
 impl ProgramHeaderType {
-	pub fn encode<I: EncodableInt>(&self) -> [u8; 4] {
-		I::u32(match self {
+    pub fn encode<I: EncodableInt>(&self) -> [u8; 4] {
+        I::u32(match self {
             ProgramHeaderType::Null => 0,
             ProgramHeaderType::Load => 1,
             ProgramHeaderType::Dynamic => 2,
@@ -25,7 +25,7 @@ impl ProgramHeaderType {
             ProgramHeaderType::Phdr => 6,
             ProgramHeaderType::Stack => 0x6474e551,
         })
-	}
+    }
 }
 
 pub struct ProgramHeader {
@@ -123,7 +123,7 @@ pub enum SectionHeaderType {
 
 impl SectionHeaderType {
     pub fn encode<I: EncodableInt>(&self) -> [u8; 4] {
-		I::u32(match self {
+        I::u32(match self {
             SectionHeaderType::Null => 0,
             SectionHeaderType::ProgBits => 1,
             SectionHeaderType::SymTab => 2,
@@ -137,7 +137,7 @@ impl SectionHeaderType {
             SectionHeaderType::ShLib => 10,
             SectionHeaderType::DynSym => 11,
         })
-	}
+    }
 }
 
 pub struct SectionHeader {
@@ -275,7 +275,7 @@ pub enum ABI {
 
 impl ABI {
     pub fn encode(&self) -> u8 {
-		match self {
+        match self {
             ABI::SysV => 0,
             ABI::Hpux => 1,
             ABI::NetBSD => 2,
@@ -287,7 +287,7 @@ impl ABI {
             ABI::Arm => 97,
             ABI::Standalone => 255
         }
-	}
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
@@ -301,13 +301,13 @@ pub enum ObjectFileType {
 
 impl ObjectFileType {
     pub fn encode<I: EncodableInt>(&self) -> [u8; 2] {
-		I::u16(match self {
+        I::u16(match self {
             ObjectFileType::Relocatable => 1,
             ObjectFileType::Executable => 2,
             ObjectFileType::Shared => 3,
             ObjectFileType::Core => 4,
         })
-	}
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
