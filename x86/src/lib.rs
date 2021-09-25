@@ -4,6 +4,7 @@ mod reg;
 mod encode;
 mod ins;
 mod local_symbols;
+pub mod opt;
 
 pub use reg::*;
 pub use encode::*;

@@ -50,7 +50,7 @@ impl X86ForIRIns for ir::Ins {
                 assert_eq!(stack.size(), rets_len);
 
                 for (i, ret) in function.signature().returns().iter().enumerate() {
-                    // TODO: There may be issues with multiple return values here, as rdi could be overwritten before it is read
+                    // TODO: There may be issues with multiple return values here, as rdx could be overwritten before it is read
                     ins.push(x86::Ins::MovRegReg(
                         ret.x86_reg(mode, SYS_V_ABI_RET[rets_len - 1 - i]),
                         ret.x86_reg(mode, stack.pop()),
@@ -104,17 +104,21 @@ impl X86ForIRFunction for ir::Function {
 
         stack.push_many(self.signature().params().len());
 
-        x86_ins.push(x86::Ins::PushReg(mode.base_ptr()));
-        x86_ins.push(x86::Ins::MovRegReg(mode.base_ptr(), mode.stack_ptr()));
-        x86_ins.push(x86::Ins::SubRegImm(mode.stack_ptr(), self.local_addr(mode, self.locals().len() - 1)));
+        if self.locals().len() > 0 {
+            x86_ins.push(x86::Ins::PushReg(mode.base_ptr()));
+            x86_ins.push(x86::Ins::MovRegReg(mode.base_ptr(), mode.stack_ptr()));
+            x86_ins.push(x86::Ins::SubRegImm(mode.stack_ptr(), self.local_addr(mode, self.locals().len() - 1)));
+        }
 
         for ins in self.code() {
             ins.build_x86(mode, &mut stack, &mut local_symbol_stack, unit, self, &mut x86_ins);
         }
 
         x86_ins.push(x86::Ins::LocalSymbol(local_symbol_stack.root()));
-        x86_ins.push(x86::Ins::MovRegReg(mode.stack_ptr(), mode.base_ptr()));
-        x86_ins.push(x86::Ins::PopReg(mode.base_ptr()));
+        if self.locals().len() > 0 {
+            x86_ins.push(x86::Ins::MovRegReg(mode.stack_ptr(), mode.base_ptr()));
+            x86_ins.push(x86::Ins::PopReg(mode.base_ptr()));
+        }
         x86_ins.push(x86::Ins::Ret);
 
         x86_ins
