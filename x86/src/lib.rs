@@ -3,13 +3,13 @@
 mod reg;
 mod encode;
 mod ins;
-mod local_symbols;
+mod reloc;
 pub mod opt;
 
 pub use reg::*;
 pub use encode::*;
 pub use ins::*;
-pub use local_symbols::*;
+pub use reloc::*;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 #[allow(dead_code)]

@@ -1,4 +1,4 @@
-use crate::{Ins, RegClass};
+use crate::Ins;
 
 pub fn pass_zero(insns: &mut Vec<Ins>) {
 	remove_zero_jumps(insns);

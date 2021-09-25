@@ -58,11 +58,6 @@ impl StackToReg {
 		*SYS_V_ABI.get(self.idx + 1).expect("Pop from empty stack")
 	}
 
-	pub fn pop_many(&mut self, count: usize) {
-		assert!(count >= self.idx);
-		self.idx -= count;
-	}
-
 	pub fn peek(&self) -> x86::RegClass {
 		SYS_V_ABI[self.idx]
 	}

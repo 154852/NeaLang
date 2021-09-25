@@ -27,7 +27,7 @@ trait X86ForIRIns {
 }
 
 impl X86ForIRIns for ir::Ins {
-    fn build_x86(&self, mode: x86::Mode, stack: &mut StackToReg, local_symbol_stack: &mut LocalSymbolStack, unit: &ir::TranslationUnit, function: &ir::Function, ins: &mut Vec<x86::Ins>) {
+    fn build_x86(&self, mode: x86::Mode, stack: &mut StackToReg, local_symbol_stack: &mut LocalSymbolStack, _unit: &ir::TranslationUnit, function: &ir::Function, ins: &mut Vec<x86::Ins>) {
         match self {
             ir::Ins::PushLocal(vt, idx) => {
                 ins.push(x86::Ins::MovRegMem(

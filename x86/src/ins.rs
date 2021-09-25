@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::{Encoder, LocalSymbolID, Mem, Reg, Size, UnfilledLocalSymbol};
+use crate::{Encoder, LocalSymbolID, Mem, Reg, Size, Relocation};
 
 pub enum Ins {
     LocalSymbol(LocalSymbolID),
@@ -57,7 +57,7 @@ pub enum Ins {
 }
 
 impl Ins {
-    pub fn encode(&self, data: &mut Vec<u8>, local_symbols: &mut HashMap<LocalSymbolID, usize>, unfilled_local_symbols: &mut Vec<UnfilledLocalSymbol>) {
+    pub fn encode(&self, data: &mut Vec<u8>, local_symbols: &mut HashMap<LocalSymbolID, usize>, unfilled_local_symbols: &mut Vec<Relocation>) {
         match *self {
             Ins::LocalSymbol(id) => {
                 local_symbols.insert(id, data.len());
@@ -73,7 +73,7 @@ impl Ins {
             // https://www.felixcloutier.com/x86/jmp
             Ins::JumpLocalSymbol(id) => {
                 Encoder::new(0xe9).imm32(0).to(data);
-                unfilled_local_symbols.push(UnfilledLocalSymbol::new(id, data.len() - 4, -4));
+                unfilled_local_symbols.push(Relocation::new_local_branch(id, data.len() - 4, -4));
             },
 
             // https://www.felixcloutier.com/x86/mov

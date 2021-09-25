@@ -35,7 +35,7 @@ fn main() {
 
     for i in ins { i.encode(&mut raw, &mut local_symbols, &mut unfilled_local_symbols); }
 
-    x86::UnfilledLocalSymbol::fill(&mut raw, &local_symbols, &unfilled_local_symbols);
+    x86::Relocation::fill(&mut raw, &local_symbols, &unfilled_local_symbols);
 
     // View with `objdump -D x86/examples/binary.bin -b binary -m i386 -Mintel,x86-64`
     std::fs::write("x86/examples/binary.bin", &raw).expect("Could not write output");
