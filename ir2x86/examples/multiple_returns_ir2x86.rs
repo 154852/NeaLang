@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use ir::{self, ValueType};
-use ir2x86::{self, X86ForIRFunction};
+use ir2x86::X86ForIRFunction;
 use x86;
 
 fn main() {
