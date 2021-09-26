@@ -37,8 +37,18 @@ impl X86ForIRIns for ir::Ins {
 
                 ins.push(x86::Ins::JumpLocalSymbol(local_symbol_stack.root()));
             },
-            ir::Ins::Inc(_, _) => todo!(),
-            ir::Ins::Dec(_, _) => todo!(),
+            ir::Ins::Inc(vt, i) => {
+                ins.push(x86::Ins::AddRegImm(
+                    vt.x86_reg(mode, stack.peek()),
+                    *i,
+                ));
+            },
+            ir::Ins::Dec(vt, i) => {
+                ins.push(x86::Ins::SubRegImm(
+                    vt.x86_reg(mode, stack.peek()),
+                    *i,
+                ));
+            },
             ir::Ins::Add(vt) => {
                 let b = stack.pop();
                 let a = stack.peek();
@@ -50,7 +60,15 @@ impl X86ForIRIns for ir::Ins {
             },
             ir::Ins::Mul(_) => todo!(),
             ir::Ins::Div(_) => todo!(),
-            ir::Ins::Sub(_) => todo!(),
+            ir::Ins::Sub(vt) => {
+                let b = stack.pop();
+                let a = stack.peek();
+                // a = a - b
+                ins.push(x86::Ins::SubRegReg(
+                    vt.x86_reg(mode, a),
+                    vt.x86_reg(mode, b),
+                ));
+            },
             ir::Ins::Loop(_, _, _) => todo!(),
             ir::Ins::If(_) => todo!(),
             ir::Ins::IfElse(_, _) => todo!(),

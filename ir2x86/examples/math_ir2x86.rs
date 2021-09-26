@@ -6,7 +6,7 @@ use x86;
 fn main() {
     let mut unit = ir::TranslationUnit::new();
 
-    let mut func = ir::Function::new("add_10", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
+    let mut func = ir::Function::new("add_5", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
     
     // Save param to local
     let l1 = func.push_local(ir::Local::new(ir::ValueType::I32));
@@ -15,6 +15,8 @@ fn main() {
     func.push(ir::Ins::PushLocal(ir::ValueType::I32, l1));
     func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 10));
     func.push(ir::Ins::Add(ir::ValueType::I32));
+    func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
+    func.push(ir::Ins::Sub(ir::ValueType::I32));
     func.push(ir::Ins::Ret);
 
     let func_id = unit.add_function(func);
