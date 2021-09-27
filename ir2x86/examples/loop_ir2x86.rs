@@ -23,7 +23,7 @@ fn main() {
 		vec![ // Body
 			ir::Ins::PushLocal(ir::ValueType::I32, value),
 			ir::Ins::PushLocal(ir::ValueType::I32, counter),
-			ir::Ins::Add(ir::ValueType::I32), // Change to mul
+			ir::Ins::Mul(ir::ValueType::I32),
 			ir::Ins::PopLocal(ir::ValueType::I32, value)
 		],
 		vec![ // Condition

@@ -15,6 +15,11 @@ pub enum Ins {
     /// A <- A + B
     AddMemImm(Size, Mem, u64),
 
+    // A <- A * B
+    IMulRegReg(Reg, Reg),
+    // A <- A * B
+    IMulRegMem(Reg, Mem),
+
     /// Jump A
     JumpLocalSymbol(LocalSymbolID),
     /// If ZF = 1 Then Jump A
@@ -78,6 +83,10 @@ impl Ins {
             Ins::AddMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x00 } else { 0x01 }).rm(r, m).to(data),
             Ins::AddRegImm(r, i) => Encoder::new(if r.size() == Size::Byte { 0x80 } else { 0x81 }).rn(r, 0).immn(i as u32, r.size()).to(data),
             Ins::AddMemImm(s, ref m, i) => Encoder::new(if s == Size::Byte { 0x80 } else { 0x81 }).mn(s, m, 0).immn(i as u32, s).to(data),
+
+            // https://www.felixcloutier.com/x86/imul
+            Ins::IMulRegReg(a, b) => Encoder::new_long([0x0f, 0xaf]).rr(a, b).to(data),
+            Ins::IMulRegMem(r, ref m) => Encoder::new_long([0x0f, 0xaf]).rm(r, m).to(data),
 
             // https://www.felixcloutier.com/x86/jmp
             Ins::JumpLocalSymbol(id) => {

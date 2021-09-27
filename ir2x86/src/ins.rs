@@ -58,7 +58,18 @@ impl TranslationContext {
                     a, b,
                 ));
             },
-            ir::Ins::Mul(_) => todo!(),
+            ir::Ins::Mul(vt) => {
+                if vt.signed() {
+                    let b = ftc.stack().pop_vt(*vt);
+                    let a = ftc.stack().peek_vt(*vt);
+                    // a = a * b
+                    ins.push(x86::Ins::IMulRegReg(
+                        a, b,
+                    ));
+                } else {
+                    todo!()
+                }
+            },
             ir::Ins::Div(_) => todo!(),
             ir::Ins::Sub(vt) => {
                 let b = ftc.stack().pop_vt(*vt);
