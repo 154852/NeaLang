@@ -3,7 +3,7 @@ use crate::{registerify::StackToReg};
 pub(crate) enum LocalSymbol {
     If,
     /// Start, End
-    Loop(LocalSymbolStack, LocalSymbolStack)
+    Loop(x86::LocalSymbolID, x86::LocalSymbolID)
 }
 
 pub(crate) struct LocalSymbolStack {

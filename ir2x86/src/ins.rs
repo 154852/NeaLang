@@ -68,7 +68,42 @@ impl TranslationContext {
                     a, b,
                 ));
             },
-            ir::Ins::Loop(_, _, _) => todo!(),
+            ir::Ins::Loop(body, condition, increment) => {
+                let start = ftc.new_local_symbol();
+                ins.push(x86::Ins::LocalSymbol(start));
+
+                for inner_ins in condition {
+                    self.translate_instruction_to(inner_ins, ftc, ins);
+                }
+
+                let cond = ftc.stack().pop().u32();
+                ins.push(x86::Ins::TestRegReg(cond, cond));
+
+                let final_end = ftc.new_local_symbol();
+                ins.push(x86::Ins::JumpIfZeroLocalSymbol(final_end));
+
+                let inc_start = ftc.new_local_symbol();
+
+                ftc.local_symbols().push(LocalSymbol::Loop(
+                    inc_start, final_end
+                ));
+
+                for inner_ins in body {
+                    self.translate_instruction_to(inner_ins, ftc, ins);
+                }
+                
+                ftc.local_symbols().pop();
+
+                ins.push(x86::Ins::LocalSymbol(inc_start));
+
+                for inner_ins in increment {
+                    self.translate_instruction_to(inner_ins, ftc, ins);
+                }
+
+                ins.push(x86::Ins::JumpLocalSymbol(start));
+
+                ins.push(x86::Ins::LocalSymbol(final_end));
+            },
             ir::Ins::If(then) => {
                 let cond = ftc.stack().pop().u32();
                 ins.push(x86::Ins::TestRegReg(cond, cond));
