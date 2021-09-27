@@ -33,16 +33,31 @@ pub(crate) const SYS_V_ABI_RET: &[x86::RegClass] = &[
 	x86::RegClass::R10,
 ];
 
+pub(crate) fn reg_for_vt(vt: ir::ValueType, mode: x86::Mode, class: x86::RegClass) -> x86::Reg {
+	match vt {
+		ir::ValueType::U8 | ir::ValueType::I8 => class.u8(),
+		ir::ValueType::U16 | ir::ValueType::I16 => class.u16(),
+		ir::ValueType::U32 | ir::ValueType::I32 => class.u32(),
+		ir::ValueType::U64 | ir::ValueType::I64 => class.u64(),
+		ir::ValueType::UPtr | ir::ValueType::IPtr => match mode {
+			x86::Mode::X86 => class.u32(),
+			x86::Mode::X8664 => class.u64(),
+		},
+	}
+}
+
 pub(crate) struct StackToReg {
 	idx: usize,
-	is_params: bool
+	is_params: bool,
+	mode: x86::Mode
 }
 
 impl StackToReg {
-	pub fn new() -> StackToReg {
+	pub fn new(mode: x86::Mode) -> StackToReg {
 		StackToReg {
 			idx: 0,
-			is_params: true
+			is_params: true,
+			mode
 		}
 	}
 
@@ -60,12 +75,17 @@ impl StackToReg {
 		self.idx += count;
 	}
 
+	pub fn zero(&mut self) {
+		self.idx = 0;
+		self.is_params = false;
+	}
+
 	pub fn set_no_params(&mut self) {
 		self.is_params = false;
 	}
 
 	pub fn pop(&mut self) -> x86::RegClass {
-		self.idx -= 1;		
+		self.idx -= 1;
 		let ret = if self.is_params {
 			SYS_V_ABI[self.idx]
 		} else {
@@ -80,8 +100,29 @@ impl StackToReg {
 		if self.is_params { SYS_V_ABI[self.idx - 1] }
 		else { SYS_V_ABI_RET[self.idx - 1] }
 	}
+	
+	pub fn peek_at(&self, off: usize) -> x86::RegClass {
+		if self.is_params { SYS_V_ABI[self.idx - 1 - off] }
+		else { SYS_V_ABI_RET[self.idx - 1 - off] }
+	}
 
 	pub fn size(&self) -> usize {
 		self.idx
+	}
+
+	pub fn pop_vt(&mut self, vt: ir::ValueType) -> x86::Reg {
+		reg_for_vt(vt, self.mode, self.pop())
+	}
+
+	pub fn push_vt(&mut self, vt: ir::ValueType) -> x86::Reg {
+		reg_for_vt(vt, self.mode, self.push())
+	}
+
+	pub fn peek_vt(&self, vt: ir::ValueType) -> x86::Reg {
+		reg_for_vt(vt, self.mode, self.peek())
+	}
+
+	pub fn peek_at_vt(&self, off: usize, vt: ir::ValueType) -> x86::Reg {
+		reg_for_vt(vt, self.mode, self.peek_at(off))
 	}
 }

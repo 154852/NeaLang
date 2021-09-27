@@ -1,72 +1,70 @@
-use crate::{LocalSymbolStack, registerify::{SYS_V_ABI_RET, StackToReg}, unit::{X86ForIRFunctionInternal, X86RegForValueType}};
+use crate::{FunctionTranslationContext, TranslationContext, registerify::{SYS_V_ABI_RET, reg_for_vt}};
 
-pub(crate) trait X86ForIRIns {
-    fn build_x86(&self, mode: x86::Mode, stack: &mut StackToReg, local_symbol_stack: &mut LocalSymbolStack, unit: &ir::TranslationUnit, function: &ir::Function, ins: &mut Vec<x86::Ins>);
-}
-
-impl X86ForIRIns for ir::Ins {
-    fn build_x86(&self, mode: x86::Mode, stack: &mut StackToReg, local_symbol_stack: &mut LocalSymbolStack, _unit: &ir::TranslationUnit, function: &ir::Function, ins: &mut Vec<x86::Ins>) {
-        match self {
+impl TranslationContext {
+    pub(crate) fn translate_instruction_to(&self, ir_ins: &ir::Ins, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
+        let mode = ftc.mode();
+        
+        match ir_ins {
             ir::Ins::PushLocal(vt, idx) => {
                 ins.push(x86::Ins::MovRegMem(
-                    vt.x86_reg(mode, stack.push()),
-                    function.local_mem(mode, *idx)
+                    ftc.stack().push_vt(*vt),
+                    ftc.local_mem(*idx)
                 ));
             },
             ir::Ins::PopLocal(vt, idx) => {
                 ins.push(x86::Ins::MovMemReg(
-                    function.local_mem(mode, *idx),
-                    vt.x86_reg(mode, stack.pop())
+                    ftc.local_mem(*idx),
+                    ftc.stack().pop_vt(*vt),
                 ));
             },
             ir::Ins::PushGlobal(_, _, _) => todo!(),
             ir::Ins::PopGlobal(_, _, _) => todo!(),
             ir::Ins::Call(_) => todo!(),
             ir::Ins::Ret => {
-                let rets_len = function.signature().returns().len();
+                let rets_len = ftc.func().signature().returns().len();
 
-                assert_eq!(stack.size(), rets_len);
+                assert_eq!(ftc.stack().size(), rets_len);
 
-                for (i, ret) in function.signature().returns().iter().enumerate() {
+                for (i, ret) in ftc.func().signature().returns().iter().enumerate() {
                     // TODO: There may be issues with multiple return values here, as rdx could be overwritten before it is read
                     ins.push(x86::Ins::MovRegReg(
-                        ret.x86_reg(mode, SYS_V_ABI_RET[rets_len - 1 - i]),
-                        ret.x86_reg(mode, stack.pop()),
+                        reg_for_vt(*ret, mode, SYS_V_ABI_RET[rets_len - 1 - i]),
+                        ftc.stack_ref().peek_at_vt(i, *ret)
                     ));
                 }
 
-                ins.push(x86::Ins::JumpLocalSymbol(local_symbol_stack.root()));
+                ftc.stack().zero();
+
+                ins.push(x86::Ins::JumpLocalSymbol(ftc.local_symbols().root()));
             },
             ir::Ins::Inc(vt, i) => {
                 ins.push(x86::Ins::AddRegImm(
-                    vt.x86_reg(mode, stack.peek()),
+                    ftc.stack().peek_vt(*vt),
                     *i,
                 ));
             },
             ir::Ins::Dec(vt, i) => {
                 ins.push(x86::Ins::SubRegImm(
-                    vt.x86_reg(mode, stack.peek()),
+                    ftc.stack().peek_vt(*vt),
                     *i,
                 ));
             },
             ir::Ins::Add(vt) => {
-                let b = stack.pop();
-                let a = stack.peek();
+                let b = ftc.stack().pop_vt(*vt);
+                let a = ftc.stack().peek_vt(*vt);
                 // a = a + b
                 ins.push(x86::Ins::AddRegReg(
-                    vt.x86_reg(mode, a),
-                    vt.x86_reg(mode, b),
+                    a, b,
                 ));
             },
             ir::Ins::Mul(_) => todo!(),
             ir::Ins::Div(_) => todo!(),
             ir::Ins::Sub(vt) => {
-                let b = stack.pop();
-                let a = stack.peek();
-                // a = a - b
+                let b = ftc.stack().pop_vt(*vt);
+                let a = ftc.stack().peek_vt(*vt);
+                // a = a + b
                 ins.push(x86::Ins::SubRegReg(
-                    vt.x86_reg(mode, a),
-                    vt.x86_reg(mode, b),
+                    a, b,
                 ));
             },
             ir::Ins::Loop(_, _, _) => todo!(),
@@ -76,12 +74,12 @@ impl X86ForIRIns for ir::Ins {
             ir::Ins::Continue(_) => todo!(),
             ir::Ins::PushLiteral(vt, val) => {
                 ins.push(x86::Ins::MovRegImm(
-                    vt.x86_reg(mode, stack.push()),
+                    ftc.stack().push_vt(*vt),
                     *val
                 ));
             },
             ir::Ins::Drop => {
-                stack.pop();
+                ftc.stack().pop();
             },
         }
     }
