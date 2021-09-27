@@ -17,6 +17,8 @@ pub enum Ins {
 
     /// Jump A
     JumpLocalSymbol(LocalSymbolID),
+    /// If ZF = 1 Then Jump A
+    JumpIfZeroLocalSymbol(LocalSymbolID),
 
     /// A <- B
     MovRegReg(Reg, Reg),
@@ -54,6 +56,13 @@ pub enum Ins {
     SubRegImm(Reg, u64),
     /// A <- A - B
     SubMemImm(Size, Mem, u64),
+
+    /// Test A, B
+    TestRegReg(Reg, Reg),
+    /// Test A, B
+    TestMemReg(Mem, Reg),
+    /// Test A, B
+    TestRegImm(Reg, u64),
 }
 
 impl Ins {
@@ -73,6 +82,12 @@ impl Ins {
             // https://www.felixcloutier.com/x86/jmp
             Ins::JumpLocalSymbol(id) => {
                 Encoder::new(0xe9).imm32(0).to(data);
+                unfilled_local_symbols.push(Relocation::new_local_branch(id, data.len() - 4, -4));
+            },
+
+            // https://www.felixcloutier.com/x86/jcc
+            Ins::JumpIfZeroLocalSymbol(id) => {
+                Encoder::new_long([0x0f, 0x84]).imm32(0).to(data);
                 unfilled_local_symbols.push(Relocation::new_local_branch(id, data.len() - 4, -4));
             },
 
@@ -101,6 +116,11 @@ impl Ins {
             Ins::SubMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x28 } else { 0x29 }).rm(r, m).to(data),
             Ins::SubRegImm(r, i) => Encoder::new(if r.size() == Size::Byte { 0x80 } else { 0x81 }).rn(r, 5).immn(i as u32, r.size()).to(data),
             Ins::SubMemImm(s, ref m, i) => Encoder::new(if s == Size::Byte { 0x80 } else { 0x81 }).mn(s, m, 5).immn(i as u32, s).to(data),
+
+            // https://www.felixcloutier.com/x86/test
+            Ins::TestRegReg(a, b) => Encoder::new(if a.size() == Size::Byte { 0x84 } else { 0x85 }).rr(a, b).to(data),
+            Ins::TestMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x84 } else { 0x85 }).mr(m, r).to(data),
+            Ins::TestRegImm(r, i) => Encoder::new(if r.size() == Size::Byte { 0xf6 } else { 0xf7 }).rn(r, 0).immn(i as u32, r.size()).to(data),
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{FunctionTranslationContext, TranslationContext, registerify::{SYS_V_ABI_RET, reg_for_vt}};
+use crate::{FunctionTranslationContext, LocalSymbol, TranslationContext, registerify::{SYS_V_ABI_RET, reg_for_vt}};
 
 impl TranslationContext {
     pub(crate) fn translate_instruction_to(&self, ir_ins: &ir::Ins, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
@@ -35,7 +35,8 @@ impl TranslationContext {
 
                 ftc.stack().zero();
 
-                ins.push(x86::Ins::JumpLocalSymbol(ftc.local_symbols().root()));
+                // Root is always 0
+                ins.push(x86::Ins::JumpLocalSymbol(0));
             },
             ir::Ins::Inc(vt, i) => {
                 ins.push(x86::Ins::AddRegImm(
@@ -68,8 +69,50 @@ impl TranslationContext {
                 ));
             },
             ir::Ins::Loop(_, _, _) => todo!(),
-            ir::Ins::If(_) => todo!(),
-            ir::Ins::IfElse(_, _) => todo!(),
+            ir::Ins::If(then) => {
+                let cond = ftc.stack().pop().u32();
+                ins.push(x86::Ins::TestRegReg(cond, cond));
+                
+                let end = ftc.new_local_symbol();
+                ins.push(x86::Ins::JumpIfZeroLocalSymbol(end));
+
+                ftc.local_symbols().push(LocalSymbol::If);
+                for inner_ins in then {
+                    self.translate_instruction_to(inner_ins, ftc, ins);
+                }
+                ftc.local_symbols().pop();
+
+                ins.push(x86::Ins::LocalSymbol(end));
+            },
+            ir::Ins::IfElse(true_then, false_then) => {
+                let cond = ftc.stack().pop().u32();
+                ins.push(x86::Ins::TestRegReg(cond, cond));
+                
+                let end = ftc.new_local_symbol();
+                let false_start = ftc.new_local_symbol();
+
+                // if false, jump to false_start...
+                ins.push(x86::Ins::JumpIfZeroLocalSymbol(false_start));
+
+                // otherwise (if) true, continue...
+                ftc.local_symbols().push(LocalSymbol::If);
+                for inner_ins in true_then {
+                    self.translate_instruction_to(inner_ins, ftc, ins);
+                }
+                ftc.local_symbols().pop();
+                // then jump to the end
+                ins.push(x86::Ins::JumpLocalSymbol(end));
+
+                ins.push(x86::Ins::LocalSymbol(false_start));
+                ftc.local_symbols().push(LocalSymbol::If);
+                for inner_ins in false_then {
+                    self.translate_instruction_to(inner_ins, ftc, ins);
+                }
+                ftc.local_symbols().pop();
+                // just continue to end
+
+                ins.push(x86::Ins::LocalSymbol(end));
+            },
             ir::Ins::Break(_) => todo!(),
             ir::Ins::Continue(_) => todo!(),
             ir::Ins::PushLiteral(vt, val) => {

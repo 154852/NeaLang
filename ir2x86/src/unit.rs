@@ -1,10 +1,37 @@
-use crate::{LocalSymbolStack, registerify::StackToReg};
+use crate::{registerify::StackToReg};
+
+pub(crate) enum LocalSymbol {
+    If,
+    /// Start, End
+    Loop(LocalSymbolStack, LocalSymbolStack)
+}
+
+pub(crate) struct LocalSymbolStack {
+    symbols: Vec<LocalSymbol>
+}
+
+impl LocalSymbolStack {
+    fn new() -> LocalSymbolStack {
+        LocalSymbolStack {
+            symbols: Vec::new()
+        }
+    }
+
+    pub(crate) fn push(&mut self, symbol: LocalSymbol) {
+        self.symbols.push(symbol);
+    }
+
+    pub(crate) fn pop(&mut self) {
+        self.symbols.pop();
+    }
+}
 
 pub struct FunctionTranslationContext<'a> {
     mode: x86::Mode,
     function: &'a ir::Function,
     stack: StackToReg,
-    local_symbols: LocalSymbolStack
+    local_symbols: LocalSymbolStack,
+    local_symbols_allocated: x86::LocalSymbolID
 }
 
 impl<'a> FunctionTranslationContext<'a> {
@@ -12,8 +39,14 @@ impl<'a> FunctionTranslationContext<'a> {
         FunctionTranslationContext {
             mode, function,
             stack: StackToReg::new(mode),
-            local_symbols: LocalSymbolStack::new()
+            local_symbols: LocalSymbolStack::new(),
+            local_symbols_allocated: 1 // root
         }
+    }
+
+    pub(crate) fn new_local_symbol(&mut self) -> x86::LocalSymbolID {
+        self.local_symbols_allocated += 1;
+        self.local_symbols_allocated - 1
     }
 
     pub(crate) fn stack(&mut self) -> &mut StackToReg {
@@ -85,7 +118,8 @@ impl TranslationContext {
             self.translate_instruction_to(ins, &mut ftc, &mut x86_ins);
         }
 
-        x86_ins.push(x86::Ins::LocalSymbol(ftc.local_symbols().root()));
+        // Root is always 0
+        x86_ins.push(x86::Ins::LocalSymbol(0));
         if func.locals().len() > 0 {
             x86_ins.push(x86::Ins::MovRegReg(self.mode.stack_ptr(), self.mode.base_ptr()));
             x86_ins.push(x86::Ins::PopReg(self.mode.base_ptr()));
