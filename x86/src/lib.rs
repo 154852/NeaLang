@@ -5,11 +5,13 @@ mod encode;
 mod ins;
 mod reloc;
 pub mod opt;
+mod ctx;
 
 pub use reg::*;
 pub use encode::*;
 pub use ins::*;
 pub use reloc::*;
+pub use ctx::*;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 #[allow(dead_code)]

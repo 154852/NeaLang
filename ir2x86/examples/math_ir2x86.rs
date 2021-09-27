@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use ir::{self, ValueType};
 use ir2x86::X86ForIRFunction;
 use x86;
@@ -28,18 +27,13 @@ fn main() {
 
     let func = unit.get_function(func_id);
     
-    let mut x86 = func.build_x86(x86::Mode::X8664, &unit);
-    x86::opt::pass_zero(&mut x86);
-    let mut raw = Vec::new();
-
-    let mut local_symbol_map = HashMap::new();
-    let mut unfilled_local_symbols = Vec::new();
-
-    for ins in x86 {
-        ins.encode(&mut raw, &mut local_symbol_map, &mut unfilled_local_symbols);
-    }
-
-    x86::Relocation::fill(&mut raw, &local_symbol_map, &unfilled_local_symbols);
+    let mut ins = func.build_x86(x86::Mode::X8664, &unit);
+    x86::opt::pass_zero(&mut ins);
+    
+	let mut ctx = x86::EncodeContext::new();
+	ctx.append_function(0, &ins);
+	let raw = ctx.finish();
+	println!("Assembled!");
 
     // View with `objdump -D ir2x86/examples/binary.bin -b binary -m i386 -Mintel,x86-64`
     std::fs::write("ir2x86/examples/binary.bin", &raw).expect("Could not write output");
