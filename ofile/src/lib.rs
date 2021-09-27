@@ -55,7 +55,7 @@ impl EncodableInt for LittleEndian32 {
     }
 
     fn encode(value: u64, arr: &mut Vec<u8>) {
-        arr.extend((value as u32).to_le_bytes());
+        arr.extend(&(value as u32).to_le_bytes());
     }
 }
 
@@ -78,7 +78,7 @@ impl EncodableInt for BigEndian32 {
     }
 
     fn encode(value: u64, arr: &mut Vec<u8>) {
-        arr.extend((value as u32).to_be_bytes());
+        arr.extend(&(value as u32).to_be_bytes());
     }
 }
 
@@ -101,7 +101,7 @@ impl EncodableInt for LittleEndian64 {
     }
 
     fn encode(value: u64, arr: &mut Vec<u8>) {
-        arr.extend(value.to_le_bytes());
+        arr.extend(&value.to_le_bytes());
     }
 }
 
@@ -124,6 +124,6 @@ impl EncodableInt for BigEndian64 {
     }
 
     fn encode(value: u64, arr: &mut Vec<u8>) {
-        arr.extend(value.to_be_bytes());
+        arr.extend(&value.to_be_bytes());
     }
 }

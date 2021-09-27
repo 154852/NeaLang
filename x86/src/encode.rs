@@ -65,12 +65,12 @@ impl Mem {
                             data.push((0b10 << 6) | (r << 3) | base.id());
                         }
 
-                        data.extend((disp as u32).to_le_bytes());
+                        data.extend(&(disp as u32).to_le_bytes());
                     }
                 }
             } else {
                 data.push((0b00 << 6) | (r << 3) | 0b101);
-                data.extend((self.disp as u32).to_le_bytes());
+                data.extend(&(self.disp as u32).to_le_bytes());
             }
         } else {
             todo!();
@@ -173,19 +173,19 @@ impl Encoder {
 
     /// 16 bit immediate
     pub fn imm16(mut self, value: u16) -> Self {
-        self.imm.extend(value.to_le_bytes());
+        self.imm.extend(&value.to_le_bytes());
         self
     }
 
     /// 32 bit immediate
     pub fn imm32(mut self, value: u32) -> Self {
-        self.imm.extend(value.to_le_bytes());
+        self.imm.extend(&value.to_le_bytes());
         self
     }
 
     /// 64 bit immediate
     pub fn imm64(mut self, value: u64) -> Self {
-        self.imm.extend(value.to_le_bytes());
+        self.imm.extend(&value.to_le_bytes());
         self
     }
 

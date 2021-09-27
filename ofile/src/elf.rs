@@ -74,7 +74,7 @@ impl ProgramHeader {
     pub fn encode<I: EncodableInt>(&self, data: &mut Vec<u8>) {
         data.reserve(ProgramHeader::size::<I>());
 
-        data.extend(self.header_type.encode::<I>());
+        data.extend(&self.header_type.encode::<I>());
 
         let mut flags: u32 = 0;
         if self.executable { flags |= 1 << 0; }
@@ -82,7 +82,7 @@ impl ProgramHeader {
         if self.readable { flags |= 1 << 2; }
 
         if I::size() == 8 {
-            data.extend(I::u32(flags));
+            data.extend(&I::u32(flags));
         }
 
         I::encode(self.offset, data);
@@ -93,7 +93,7 @@ impl ProgramHeader {
         I::encode(self.mem_size, data);
 
         if I::size() == 4 {
-            data.extend(I::u32(flags));
+            data.extend(&I::u32(flags));
         }
 
         I::encode(match self.header_type {
@@ -237,8 +237,8 @@ impl SectionHeader {
     pub fn encode<I: EncodableInt>(&self, data: &mut Vec<u8>) {
         data.reserve(SectionHeader::size::<I>());
 
-        data.extend(I::u32(self.name_index as u32));
-        data.extend(self.header_type.encode::<I>());
+        data.extend(&I::u32(self.name_index as u32));
+        data.extend(&self.header_type.encode::<I>());
 
         let mut flags = 0u64;
         if self.writable { flags |= 1 << 0; }
@@ -250,8 +250,8 @@ impl SectionHeader {
         I::encode(self.file_offset, data);
         I::encode(self.size, data);
 
-        data.extend(I::u32(self.link));
-        data.extend(I::u32(self.info));
+        data.extend(&I::u32(self.link));
+        data.extend(&I::u32(self.info));
 
         I::encode(self.addralign, data);
         I::encode(self.entsize, data);
@@ -391,17 +391,17 @@ impl Header {
     pub fn encode_beginning<I: EncodableInt>(&self, data: &mut Vec<u8>) {
         data.reserve(Header::size::<I>());
 
-        data.extend([0x7f, 'E' as u8, 'L' as u8, 'F' as u8]);
+        data.extend(&[0x7f, 'E' as u8, 'L' as u8, 'F' as u8]);
         data.push(if I::size() == 4 { 1 } else { 2 }); // ELFCLASS*
         data.push(if I::endian() == Endian::Little { 1 } else { 2 }); // ELFDATA*
         data.push(1); // EV_CURRENT
         data.push(self.abi.encode());
         data.push(0); // ABI Version
-        data.extend([ 0, 0, 0, 0, 0, 0, 0 ]);
+        data.extend(&[ 0, 0, 0, 0, 0, 0, 0 ]);
 
-        data.extend(self.file_type.encode::<I>());
-        data.extend(self.machine.encode::<I>());
-        data.extend(I::u32(1));
+        data.extend(&self.file_type.encode::<I>());
+        data.extend(&self.machine.encode::<I>());
+        data.extend(&I::u32(1));
 
         I::encode(self.entry_point, data);
     }
@@ -468,17 +468,17 @@ impl ELF {
         // Section Header Table starts at sizeof(header) + sizeof(programheader) * programheadercount
         I::encode(if self.section_headers.len() == 0 { 0 } else { Header::size::<I>() as u64 + (ProgramHeader::size::<I>() as u64 * self.program_headers.len() as u64) }, &mut data);
 
-        data.extend(I::u32(0)); // Flags
+        data.extend(&I::u32(0)); // Flags
 
-        data.extend(I::u16(Header::size::<I>() as u16));
+        data.extend(&I::u16(Header::size::<I>() as u16));
 
-        data.extend(I::u16(ProgramHeader::size::<I>() as u16));
-        data.extend(I::u16(self.program_headers.len() as u16));
+        data.extend(&I::u16(ProgramHeader::size::<I>() as u16));
+        data.extend(&I::u16(self.program_headers.len() as u16));
 
-        data.extend(I::u16(SectionHeader::size::<I>() as u16));
-        data.extend(I::u16(self.section_headers.len() as u16));
+        data.extend(&I::u16(SectionHeader::size::<I>() as u16));
+        data.extend(&I::u16(self.section_headers.len() as u16));
 
-        data.extend(I::u16(self.section_strtab as u16));
+        data.extend(&I::u16(self.section_strtab as u16));
 
         assert_eq!(data.len(), Header::size::<I>() as usize);
 
@@ -632,18 +632,18 @@ impl Symbol {
     pub fn encode<I: EncodableInt>(&self, data: &mut Vec<u8>) {
         data.reserve(Symbol::size::<I>());
 
-        data.extend(I::u32(self.name_index as u32));
+        data.extend(&I::u32(self.name_index as u32));
 
         if I::size() == 4 {
             I::encode(self.value, data);
             I::encode(self.size, data);
             data.push(Symbol::binding_and_type(&self.symbol_type, &self.symbol_bind));
             data.push(self.visibility.encode());
-            data.extend(I::u16(self.section));
+            data.extend(&I::u16(self.section));
         } else {
             data.push(Symbol::binding_and_type(&self.symbol_type, &self.symbol_bind));
             data.push(self.visibility.encode());
-            data.extend(I::u16(self.section));
+            data.extend(&I::u16(self.section));
             I::encode(self.value, data);
             I::encode(self.size, data);
         }
