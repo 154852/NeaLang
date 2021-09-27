@@ -29,15 +29,16 @@ impl LocalSymbolStack {
 pub struct FunctionTranslationContext<'a> {
     mode: x86::Mode,
     function: &'a ir::Function,
+    unit: &'a ir::TranslationUnit,
     stack: StackToReg,
     local_symbols: LocalSymbolStack,
     local_symbols_allocated: x86::LocalSymbolID
 }
 
 impl<'a> FunctionTranslationContext<'a> {
-    fn new(mode: x86::Mode, function: &'a ir::Function) -> FunctionTranslationContext<'a> {
+    fn new(mode: x86::Mode, function: &'a ir::Function, unit: &'a ir::TranslationUnit) -> FunctionTranslationContext<'a> {
         FunctionTranslationContext {
-            mode, function,
+            mode, function, unit,
             stack: StackToReg::new(mode),
             local_symbols: LocalSymbolStack::new(),
             local_symbols_allocated: 1 // root
@@ -69,6 +70,10 @@ impl<'a> FunctionTranslationContext<'a> {
         &self.function
     }
 
+    pub(crate) fn unit(&self) -> &ir::TranslationUnit {
+        &self.unit
+    }
+
     pub(crate) fn local_addr(&self, idx: ir::LocalIndex) -> u64 {
         let mut addr = 0;
 
@@ -97,10 +102,10 @@ impl TranslationContext {
         }
     }
 
-    pub fn translate_function(&self, func: &ir::Function, _unit: &ir::TranslationUnit) -> Vec<x86::Ins> {
+    pub fn translate_function(&self, func: &ir::Function, unit: &ir::TranslationUnit) -> Vec<x86::Ins> {
         let mut x86_ins = Vec::new();
 
-        let mut ftc = FunctionTranslationContext::new(self.mode, func);
+        let mut ftc = FunctionTranslationContext::new(self.mode, func, unit);
 
         if func.signature().params().len() == 0 {
             ftc.stack().set_no_params();

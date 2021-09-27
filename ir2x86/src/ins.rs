@@ -1,4 +1,4 @@
-use crate::{FunctionTranslationContext, LocalSymbol, TranslationContext, registerify::{SYS_V_ABI_RET, reg_for_vt}};
+use crate::{FunctionTranslationContext, LocalSymbol, TranslationContext, registerify::{SYS_V_ABI, SYS_V_ABI_RET, reg_for_vt}};
 
 impl TranslationContext {
     pub(crate) fn translate_instruction_to(&self, ir_ins: &ir::Ins, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
@@ -21,15 +21,38 @@ impl TranslationContext {
             ir::Ins::PopGlobal(_, _, _) => todo!(),
             ir::Ins::Call(idx) => {
                 // TODO: This push/pop is quite unfortuante, but sort of required without a bit of optimisation to move calls to be done earlier, while the stack is empty
+
+                let params = ftc.unit().get_function(*idx).signature().params().len();
+                ftc.stack().pop_many(params);
                 
-                for i in 0..ftc.stack().size() {
+                let old_stack_size = ftc.stack().size();
+                for i in 0..old_stack_size {
                     ins.push(x86::Ins::PushReg(ftc.stack().at(i).u32()));
+                }
+
+                // Move param values to new places on stack
+                for (i, param) in ftc.unit().get_function(*idx).signature().params().iter().enumerate() {
+                    ins.push(x86::Ins::MovRegReg(
+                        reg_for_vt(*param, mode, SYS_V_ABI[i]),
+                        ftc.stack_ref().at_vt(ftc.stack_ref().size() + i, *param),
+                    ));
                 }
 
                 ins.push(x86::Ins::CallGlobalSymbol(*idx));
 
-                for i in 0..ftc.stack().size() {
-                    ins.push(x86::Ins::PopReg(ftc.stack_ref().at(ftc.stack_ref().size() - i - 1).u32()));
+                // Move return values to new places on stack
+                for (i, ret) in ftc.unit().get_function(*idx).signature().returns().iter().enumerate() {
+                    ins.push(x86::Ins::MovRegReg(
+                        ftc.stack_ref().at_vt(ftc.stack_ref().size() + i, *ret),
+                        reg_for_vt(*ret, mode, SYS_V_ABI_RET[i]),
+                    ));
+                }
+
+                let returns = ftc.unit().get_function(*idx).signature().returns().len();
+                ftc.stack().push_many(returns);
+
+                for i in 0..old_stack_size {
+                    ins.push(x86::Ins::PopReg(ftc.stack_ref().at(old_stack_size - i - 1).u32()));
                 }
             },
             ir::Ins::Ret => {

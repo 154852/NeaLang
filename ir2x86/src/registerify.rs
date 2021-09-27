@@ -75,6 +75,11 @@ impl StackToReg {
 		self.idx += count;
 	}
 
+	pub fn pop_many(&mut self, count: usize) {
+		self.idx -= count;
+		if self.idx == 0 { self.is_params = false; }
+	}
+
 	pub fn zero(&mut self) {
 		self.idx = 0;
 		self.is_params = false;
@@ -129,5 +134,9 @@ impl StackToReg {
 
 	pub fn peek_at_vt(&self, off: usize, vt: ir::ValueType) -> x86::Reg {
 		reg_for_vt(vt, self.mode, self.peek_at(off))
+	}
+
+	pub fn at_vt(&self, off: usize, vt: ir::ValueType) -> x86::Reg {
+		reg_for_vt(vt, self.mode, self.at(off))
 	}
 }

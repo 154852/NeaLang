@@ -8,7 +8,9 @@ fn main() {
     let func_b_id = unit.add_function(ir::Function::new("ret_add_1", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ])));
 
 	let func_a = unit.get_function_mut(func_a_id);
+    func_a.push(ir::Ins::PushLiteral(ir::ValueType::I32, 7));
     func_a.push(ir::Ins::Call(func_b_id));
+    func_a.push(ir::Ins::Add(ir::ValueType::I32));
     func_a.push(ir::Ins::Ret);
 
 	let func_b = unit.get_function_mut(func_b_id);
