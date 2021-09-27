@@ -106,6 +106,11 @@ impl StackToReg {
 		else { SYS_V_ABI_RET[self.idx - 1 - off] }
 	}
 
+	pub(crate) fn at(&self, idx: usize) -> x86::RegClass {
+		if self.is_params { SYS_V_ABI[idx] }
+		else { SYS_V_ABI_RET[idx] }
+	}
+
 	pub fn size(&self) -> usize {
 		self.idx
 	}

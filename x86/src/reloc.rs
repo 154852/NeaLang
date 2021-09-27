@@ -22,6 +22,13 @@ impl Relocation {
         }
     }
 
+	pub fn new_global_call(symbol: GlobalSymbolID, offset: usize, addend: i64) -> Relocation {
+        Relocation {
+            kind: RelocationType::GlobalFunctionSymbol(symbol),
+            offset, addend
+        }
+    }
+
 	pub fn is_local(&self) -> bool {
 		matches!(&self.kind, RelocationType::LocalFunctionSymbol(_))
 	}

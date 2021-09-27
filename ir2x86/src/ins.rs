@@ -19,7 +19,19 @@ impl TranslationContext {
             },
             ir::Ins::PushGlobal(_, _, _) => todo!(),
             ir::Ins::PopGlobal(_, _, _) => todo!(),
-            ir::Ins::Call(_) => todo!(),
+            ir::Ins::Call(idx) => {
+                // TODO: This push/pop is quite unfortuante, but sort of required without a bit of optimisation to move calls to be done earlier, while the stack is empty
+                
+                for i in 0..ftc.stack().size() {
+                    ins.push(x86::Ins::PushReg(ftc.stack().at(i).u32()));
+                }
+
+                ins.push(x86::Ins::CallGlobalSymbol(*idx));
+
+                for i in 0..ftc.stack().size() {
+                    ins.push(x86::Ins::PopReg(ftc.stack_ref().at(ftc.stack_ref().size() - i - 1).u32()));
+                }
+            },
             ir::Ins::Ret => {
                 let rets_len = ftc.func().signature().returns().len();
 

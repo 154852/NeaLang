@@ -23,6 +23,10 @@ impl TranslationUnit {
         &self.functions[idx]
     }
 
+    pub fn get_function_mut(&mut self, idx: FunctionIndex) -> &mut Function {
+        &mut self.functions[idx]
+    }
+
     pub fn add_global(&mut self, global: Global) {
         self.globals.push(global);
     }

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::{Encoder, LocalSymbolID, Mem, Reg, Size, Relocation};
+use crate::{Encoder, GlobalSymbolID, LocalSymbolID, Mem, Reg, Relocation, Size};
 
 pub enum Ins {
     LocalSymbol(LocalSymbolID),
@@ -14,6 +14,9 @@ pub enum Ins {
     AddRegImm(Reg, u64),
     /// A <- A + B
     AddMemImm(Size, Mem, u64),
+
+    // Call A
+    CallGlobalSymbol(GlobalSymbolID),
 
     // A <- A * B
     IMulRegReg(Reg, Reg),
@@ -83,6 +86,12 @@ impl Ins {
             Ins::AddMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x00 } else { 0x01 }).rm(r, m).to(data),
             Ins::AddRegImm(r, i) => Encoder::new(if r.size() == Size::Byte { 0x80 } else { 0x81 }).rn(r, 0).immn(i as u32, r.size()).to(data),
             Ins::AddMemImm(s, ref m, i) => Encoder::new(if s == Size::Byte { 0x80 } else { 0x81 }).mn(s, m, 0).immn(i as u32, s).to(data),
+
+            // https://www.felixcloutier.com/x86/call
+            Ins::CallGlobalSymbol(id) => {
+                Encoder::new(0xe8).imm32(0).to(data);
+                unfilled_local_symbols.push(Relocation::new_global_call(id, data.len() - 4, -4));
+            },
 
             // https://www.felixcloutier.com/x86/imul
             Ins::IMulRegReg(a, b) => Encoder::new_long([0x0f, 0xaf]).rr(a, b).to(data),
