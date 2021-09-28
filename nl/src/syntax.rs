@@ -7,13 +7,19 @@ impl syntax::Parseable<TokenKind> for ast::Code {
 	type Output = ast::Code;
 	
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Code> {
-        match stream.token().map(|x| x.kind()) {
+        while syntax::tk_iss!(stream, TokenKind::Semi) {}
+        
+        let ok = match stream.token().map(|x| x.kind()) {
             // Safe to unwrap here as the only way these can fail is if the initial keyword is not what is expected, which it is - because we wouldn't go into that parser otherwise
             Some(TokenKind::ReturnKeyword) => MatchResult::Ok(ast::Code::ReturnStmt(syntax::parse!(stream, ast::ReturnStmt::parse).unwrap())),
 			Some(TokenKind::VarKeyword) => MatchResult::Ok(ast::Code::VarDeclaration(syntax::parse!(stream, ast::VarDeclaration::parse).unwrap())),
             
-            _ => MatchResult::Fail
-        }
+            _ => return MatchResult::Fail
+        };
+
+        while syntax::tk_iss!(stream, TokenKind::Semi) {}
+
+        ok
     }
 }
 
@@ -111,7 +117,7 @@ impl syntax::Parseable<TokenKind> for ast::ReturnStmt {
 
         let expr = syntax::parse!(stream, ast::Expr::parse);
 
-        while syntax::tk_iss!(stream, TokenKind::Semi) {}
+        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));
 
         syntax::MatchResult::Ok(ast::ReturnStmt {
             span: syntax::Span::new(start, stream.tell_start()),
@@ -135,6 +141,8 @@ impl syntax::Parseable<TokenKind> for ast::VarDeclaration {
         if syntax::tk_iss!(stream, TokenKind::Eq) {
 			expr = Some(syntax::ex!(syntax::parse!(stream, ast::Expr::parse), stream.error("Expected expression")));
 		}
+
+        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));
 
         syntax::MatchResult::Ok(ast::VarDeclaration {
             span: syntax::Span::new(start, stream.tell_start()),
