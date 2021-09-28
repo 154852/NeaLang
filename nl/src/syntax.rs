@@ -143,6 +143,26 @@ impl syntax::Parseable<TokenKind> for ast::VarDeclaration {
     }
 }
 
+impl syntax::Parseable<TokenKind> for ast::TypeExpr {
+	type Output = ast::TypeExpr;
+
+    fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::TypeExpr> {
+        let start = stream.tell_start();
+        let mut path = Vec::new();
+        loop {
+            path.push(syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident), stream.error("Expected identifier")).to_owned());
+            stream.step();
+
+            if !syntax::tk_iss!(stream, TokenKind::Dot) { break }
+        }
+
+        syntax::MatchResult::Ok(ast::TypeExpr {
+            span: syntax::Span::new(start, stream.tell_start()),
+            path
+        })
+    }
+}
+
 impl syntax::Parseable<TokenKind> for ast::FunctionParam {
 	type Output = ast::FunctionParam;
 
@@ -151,13 +171,14 @@ impl syntax::Parseable<TokenKind> for ast::FunctionParam {
         let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident)).to_owned();
         stream.step();
 
+        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Colon), stream.error("Expected ':'"));
+
+        let param_type = syntax::ex!(syntax::parse!(stream, ast::TypeExpr::parse), stream.error("Expected type"));
+
         syntax::MatchResult::Ok(ast::FunctionParam {
             span: syntax::Span::new(start, stream.tell_start()),
             name,
-			param_type: ast::TypeExpr {
-                span: syntax::Span::new(0, 0),
-				path: vec!["i32".to_string()]
-			}
+			param_type
         })
     }
 }
@@ -181,10 +202,28 @@ impl syntax::Parseable<TokenKind> for ast::Function {
                 None => break
             });
 
-            while syntax::tk_iss!(stream, TokenKind::Comma) {}
+            if !syntax::tk_iss!(stream, TokenKind::Comma) { break }
         }
 
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseParen), stream.error("Expected ')'"));
+
+        let mut returns = Vec::new();
+        if syntax::tk_iss!(stream, TokenKind::Colon) {
+            if syntax::tk_iss!(stream, TokenKind::OpenParen) {
+                loop {
+                    returns.push(match syntax::parse!(stream, ast::TypeExpr::parse) {
+                        Some(x) => x,
+                        None => break
+                    });
+        
+                    if !syntax::tk_iss!(stream, TokenKind::Comma) { break }
+                }
+
+                syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseParen), stream.error("Expected ')'"));
+            } else {
+                returns.push(syntax::ex!(syntax::parse!(stream, ast::TypeExpr::parse), stream.error("Expected return type")));
+            }
+        }
         
         let end = stream.tell_start();
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::OpenCurly), stream.error("Expected '{'"));
@@ -202,7 +241,7 @@ impl syntax::Parseable<TokenKind> for ast::Function {
         syntax::MatchResult::Ok(ast::Function {
             span: syntax::Span::new(start, end),
             name, params, code,
-			return_types: Vec::new(),
+			return_types: returns,
 			annotations: Vec::new()
         })
     }

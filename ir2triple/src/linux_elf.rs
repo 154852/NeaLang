@@ -6,11 +6,6 @@ use ofile::{elf, elfbuilder};
 const TEXT_BASE: u64 = 0x401000;
 
 pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) {
-	match unit.validate() {
-		Ok(_) => println!("Validated!"),
-		Err(e) => panic!("Validation error: {:#?}", e)
-	}
-	
 	let mut elf = if relocatable {
 		elfbuilder::StaticELF::new_relocatable()
 	} else {
@@ -32,7 +27,6 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) {
 	}
 
 	let text = x86_encoding.finish();
-	println!("Assembled!");
 
 	elf.set_text(text_base, text);
 	// elf.set_data(0x402000, data);

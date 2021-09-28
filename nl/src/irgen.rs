@@ -119,6 +119,13 @@ impl<'a> IrGenFunctionContext<'a> {
 	fn func_mut(&mut self) -> &mut ir::Function {
 		self.ir_unit.get_function_mut(self.function_idx)
 	}
+
+	fn push_local(&mut self, name: &'a str, vt: ir::ValueType) -> ir::LocalIndex {
+		let idx = self.func_mut().push_local(ir::Local::new(vt));
+		self.local_map.insert(name, idx);
+
+		idx
+	}
 }
 
 impl ast::Function {
@@ -144,6 +151,13 @@ impl ast::Function {
 			local_map: HashMap::new()
 		};
 
+		// Put params into locals
+		for param in self.params.iter().rev() {
+			let vt = param.param_type.to_ir_valuetype(unit)?;
+			let local = ctx.push_local(&param.name, vt);
+			ctx.func_mut().push(ir::Ins::PopLocal(vt, local));
+		}
+
 		for code in &self.code {
 			code.append_ir(&mut ctx)?;
 		}
@@ -167,6 +181,12 @@ impl ast::Code {
 
 impl ast::ReturnStmt {
 	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<(), IrGenError> {
+		if let Some(expr) = &self.expr {
+			expr.append_ir(ctx)?;
+		}
+
+		ctx.func_mut().push(ir::Ins::Ret);
+
 		Ok(())
 	}
 }
@@ -174,8 +194,7 @@ impl ast::ReturnStmt {
 impl ast::VarDeclaration {
 	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<(), IrGenError> {
 		// TODO: Make this either inferred or explicitly given
-		let idx = ctx.func_mut().push_local(ir::Local::new(ir::ValueType::I32));
-		ctx.local_map.insert(&self.name, idx);
+		let idx = ctx.push_local(&self.name, ir::ValueType::I32);
 
 		if let Some(expr) = &self.expr {
 			// TODO: Type check, once types actually exist
