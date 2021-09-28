@@ -12,7 +12,10 @@ pub enum IrGenErrorKind {
 	InvalidInteger,
 	BinaryOpTypeMismatch,
 	AssignmentTypeMismatch,
-	CannotInferType
+	CannotInferType,
+	CallArgParamCountMismatch,
+	CallArgTypeMismatch,
+	CallNotOneReturnInExpr,
 }
 
 impl IrGenErrorKind {
@@ -25,6 +28,9 @@ impl IrGenErrorKind {
 			IrGenErrorKind::BinaryOpTypeMismatch => "Binary operation type mismatch".to_string(),
 			IrGenErrorKind::AssignmentTypeMismatch => "Assignment type mismatch".to_string(),
 			IrGenErrorKind::CannotInferType => "Cannot infer type".to_string(),
+			IrGenErrorKind::CallArgParamCountMismatch => "Incorrect number of arguments to function".to_string(),
+			IrGenErrorKind::CallArgTypeMismatch => "Incorrect argument type".to_string(),
+			IrGenErrorKind::CallNotOneReturnInExpr => "Can only call functions with one return value in an expression".to_string(),
 		}
 	}
 }
@@ -80,6 +86,20 @@ impl ast::TranslationUnit {
 			match node {
     			ast::TopLevelNode::Function(func) => {
 					if func.name == name { return Some(id); }
+					id += 1;
+				},
+			}
+		}
+
+		None
+	}
+
+	fn func(&self, name: &str) -> Option<(usize, &ast::Function)> {
+		let mut id = 0;
+		for node in &self.nodes {
+			match node {
+    			ast::TopLevelNode::Function(func) => {
+					if func.name == name { return Some((id, func)); }
 					id += 1;
 				},
 			}
@@ -239,7 +259,40 @@ impl ast::Expr {
 			ast::Expr::Name(name_expr) => name_expr.append_ir(ctx),
 			ast::Expr::Closed(closed_expr) => closed_expr.append_ir(ctx),
 			ast::Expr::NumberLit(number_lit) => number_lit.append_ir(ctx),
+			ast::Expr::Call(call_expr) => call_expr.append_ir(ctx),
 		}
+	}
+}
+
+impl ast::CallExpr {
+	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
+		let (func_id, func) = match self.object.as_ref() {
+			ast::Expr::Name(name) => {
+				match ctx.unit.func(&name.name) {
+					Some(x) => x,
+					_ => todo!() // Possibly a local or global
+				}
+			},
+			_ => todo!()
+		};
+
+		if self.args.len() != func.params.len() {
+			return Err(IrGenError::new(self.span, IrGenErrorKind::CallArgParamCountMismatch));
+		}
+
+		if func.return_types.len() != 1 {
+			return Err(IrGenError::new(self.span, IrGenErrorKind::CallNotOneReturnInExpr));
+		}
+
+		for (a, arg) in self.args.iter().enumerate() {
+			if arg.append_ir(ctx)? != ctx.ir_unit.get_function(func_id).signature().params()[a] {
+				return Err(IrGenError::new(self.span, IrGenErrorKind::CallArgTypeMismatch));
+			}
+		}
+
+		ctx.func_mut().push(ir::Ins::Call(func_id));
+
+		Ok(ctx.ir_unit.get_function(func_id).signature().returns()[0])
 	}
 }
 

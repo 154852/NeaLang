@@ -39,35 +39,64 @@ impl ast::Expr {
     fn parse_primary<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Expr> {
         let start = stream.tell_start();
 
-        match stream.token().map(|x| x.kind()) {
+        let mut expr = match stream.token().map(|x| x.kind()) {
             Some(TokenKind::OpenParen) => {
                 stream.step();
                 let expr = Box::new(syntax::ex!(syntax::parse!(stream, ast::Expr::parse), stream.error("Expected expression inside of parenthesis")));
                 syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseParen), stream.error("Expected ')'"));
                 
-                MatchResult::Ok(ast::Expr::Closed(ast::ClosedExpr {
+                ast::Expr::Closed(ast::ClosedExpr {
                     span: syntax::Span::new(start, stream.tell_start()),
                     expr
-                }))
+                })
             },
             Some(TokenKind::Number(s)) => {
                 let number = s.to_string();
                 stream.step();
-                MatchResult::Ok(ast::Expr::NumberLit(ast::NumberLitExpr {
+                ast::Expr::NumberLit(ast::NumberLitExpr {
                     span: syntax::Span::new(start, stream.tell_start()),
                     number
-                }))
+                })
             },
             Some(TokenKind::Ident(s)) => {
                 let name = s.to_string();
                 stream.step();
-                MatchResult::Ok(ast::Expr::Name(ast::NameExpr {
+                ast::Expr::Name(ast::NameExpr {
                     span: syntax::Span::new(start, stream.tell_start()),
                     name
-                }))
+                })
             },
-            _ => MatchResult::Fail
+            _ => return MatchResult::Fail
+        };
+
+        loop {
+            match stream.token().map(|x| x.kind()) {
+                Some(TokenKind::OpenParen) => {
+                    stream.step();
+                    
+                    let mut args = Vec::new();
+                    loop {
+                        args.push(match syntax::parse!(stream, ast::Expr::parse) {
+                            Some(x) => x,
+                            None => break
+                        });
+            
+                        if !syntax::tk_iss!(stream, TokenKind::Comma) { break }
+                    }
+    
+                    syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseParen), stream.error("Expected ')'"));
+
+                    expr = ast::Expr::Call(ast::CallExpr {
+                        span: syntax::Span::new(start, stream.tell_start()),
+                        object: Box::new(expr),
+                        args
+                    });
+                },
+                _ => break
+            }
         }
+
+        syntax::MatchResult::Ok(expr)
     }
 }
 

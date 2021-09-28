@@ -34,7 +34,15 @@ pub enum Expr {
 	BinaryExpr(BinaryExpr),
 	Name(NameExpr),
 	Closed(ClosedExpr),
-	NumberLit(NumberLitExpr)
+	NumberLit(NumberLitExpr),
+	Call(CallExpr)
+}
+
+#[derive(Debug)]
+pub struct CallExpr {
+	pub span: Span,
+	pub object: Box<Expr>,
+	pub args: Vec<Expr>
 }
 
 #[derive(Debug)]
