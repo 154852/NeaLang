@@ -1,15 +1,20 @@
+use syntax::Span;
+
 #[derive(Debug)]
 pub struct TypeExpr {
+	pub span: Span,
 	pub path: Vec<String>
 }
 
 #[derive(Debug)]
 pub struct FunctionAnnotation {
+	pub span: Span,
 	pub name: String
 }
 
 #[derive(Debug)]
 pub struct Function {
+	pub span: Span,
 	pub name: String,
 	pub params: Vec<FunctionParam>,
 	pub code: Vec<Code>,
@@ -19,6 +24,7 @@ pub struct Function {
 
 #[derive(Debug)]
 pub struct FunctionParam {
+	pub span: Span,
 	pub name: String,
 	pub param_type: TypeExpr
 }
@@ -33,21 +39,25 @@ pub enum Expr {
 
 #[derive(Debug)]
 pub struct ClosedExpr {
+	pub span: Span,
 	pub expr: Box<Expr>
 }
 
 #[derive(Debug)]
 pub struct NameExpr {
+	pub span: Span,
 	pub name: String
 }
 
 #[derive(Debug)]
 pub struct NumberLitExpr {
+	pub span: Span,
 	pub number: String
 }
 
 #[derive(Debug)]
 pub struct BinaryExpr {
+	pub span: Span,
 	pub op: BinaryOp,
 	pub left: Box<Expr>,
 	pub right: Box<Expr>
@@ -60,11 +70,13 @@ pub enum BinaryOp {
 
 #[derive(Debug)]
 pub struct ReturnStmt {
+	pub span: Span,
 	pub expr: Option<Expr>
 }
 
 #[derive(Debug)]
 pub struct VarDeclaration {
+	pub span: Span,
 	pub name: String,
 	pub expr: Option<Expr>
 }

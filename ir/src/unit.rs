@@ -156,6 +156,10 @@ impl Function {
         self.locals.len() - 1
     }
 
+    pub fn get_local(&self, idx: LocalIndex) -> Option<&Local> {
+        self.locals.get(idx)
+    }
+
     pub fn push(&mut self, code: Ins) {
         self.code.push(code);
     }

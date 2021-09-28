@@ -31,23 +31,34 @@ impl syntax::Parseable<TokenKind> for ast::TopLevelNode {
 
 impl ast::Expr {
     fn parse_primary<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Expr> {
+        let start = stream.tell_start();
+
         match stream.token().map(|x| x.kind()) {
             Some(TokenKind::OpenParen) => {
                 stream.step();
                 let expr = Box::new(syntax::ex!(syntax::parse!(stream, ast::Expr::parse), stream.error("Expected expression inside of parenthesis")));
                 syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseParen), stream.error("Expected ')'"));
                 
-                MatchResult::Ok(ast::Expr::Closed(ast::ClosedExpr { expr }))
+                MatchResult::Ok(ast::Expr::Closed(ast::ClosedExpr {
+                    span: syntax::Span::new(start, stream.tell_start()),
+                    expr
+                }))
             },
             Some(TokenKind::Number(s)) => {
                 let number = s.to_string();
                 stream.step();
-                MatchResult::Ok(ast::Expr::NumberLit(ast::NumberLitExpr { number }))
+                MatchResult::Ok(ast::Expr::NumberLit(ast::NumberLitExpr {
+                    span: syntax::Span::new(start, stream.tell_start()),
+                    number
+                }))
             },
             Some(TokenKind::Ident(s)) => {
                 let name = s.to_string();
                 stream.step();
-                MatchResult::Ok(ast::Expr::Name(ast::NameExpr { name }))
+                MatchResult::Ok(ast::Expr::Name(ast::NameExpr {
+                    span: syntax::Span::new(start, stream.tell_start()),
+                    name
+                }))
             },
             _ => MatchResult::Fail
         }
@@ -59,6 +70,7 @@ impl syntax::Parseable<TokenKind> for ast::Expr {
 
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Expr> {
         let mut expr = syntax::ex!(syntax::parse!(stream, ast::Expr::parse_primary));
+        let start = stream.tell_start();
 
         loop {
             match stream.token().map(|x| x.kind()) {
@@ -75,6 +87,7 @@ impl syntax::Parseable<TokenKind> for ast::Expr {
                     let right = syntax::ex!(syntax::parse!(stream, ast::Expr::parse), stream.error("Expected right hand side to expression"));
 
                     expr = ast::Expr::BinaryExpr(ast::BinaryExpr {
+                        span: syntax::Span::new(start, stream.tell_start()),
                         op,
                         left: Box::new(expr),
                         right: Box::new(right)
@@ -92,6 +105,8 @@ impl syntax::Parseable<TokenKind> for ast::ReturnStmt {
 	type Output = ast::ReturnStmt;
 
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::ReturnStmt> {
+        let start = stream.tell_start();
+
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::ReturnKeyword));
 
         let expr = syntax::parse!(stream, ast::Expr::parse);
@@ -99,6 +114,7 @@ impl syntax::Parseable<TokenKind> for ast::ReturnStmt {
         while syntax::tk_iss!(stream, TokenKind::Semi) {}
 
         syntax::MatchResult::Ok(ast::ReturnStmt {
+            span: syntax::Span::new(start, stream.tell_start()),
             expr
         })
     }
@@ -108,6 +124,8 @@ impl syntax::Parseable<TokenKind> for ast::VarDeclaration {
 	type Output = ast::VarDeclaration;
 
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::VarDeclaration> {
+        let start = stream.tell_start();
+
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::VarKeyword));
 
 		let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident), stream.error("Expected a name")).to_owned();
@@ -119,6 +137,7 @@ impl syntax::Parseable<TokenKind> for ast::VarDeclaration {
 		}
 
         syntax::MatchResult::Ok(ast::VarDeclaration {
+            span: syntax::Span::new(start, stream.tell_start()),
             name, expr
         })
     }
@@ -128,12 +147,15 @@ impl syntax::Parseable<TokenKind> for ast::FunctionParam {
 	type Output = ast::FunctionParam;
 
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::FunctionParam> {
+        let start = stream.tell_start();
         let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident)).to_owned();
         stream.step();
 
         syntax::MatchResult::Ok(ast::FunctionParam {
+            span: syntax::Span::new(start, stream.tell_start()),
             name,
 			param_type: ast::TypeExpr {
+                span: syntax::Span::new(0, 0),
 				path: vec!["i32".to_string()]
 			}
         })
@@ -144,6 +166,7 @@ impl syntax::Parseable<TokenKind> for ast::Function {
 	type Output = ast::Function;
 
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Function> {
+        let start = stream.tell_start();
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::FuncKeyword));
 
         let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident), stream.error("Expected a name")).to_owned();
@@ -163,6 +186,7 @@ impl syntax::Parseable<TokenKind> for ast::Function {
 
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseParen), stream.error("Expected ')'"));
         
+        let end = stream.tell_start();
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::OpenCurly), stream.error("Expected '{'"));
 
         let mut code = Vec::new();
@@ -176,6 +200,7 @@ impl syntax::Parseable<TokenKind> for ast::Function {
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseCurly), stream.error("Expected '}'"));
 
         syntax::MatchResult::Ok(ast::Function {
+            span: syntax::Span::new(start, end),
             name, params, code,
 			return_types: Vec::new(),
 			annotations: Vec::new()

@@ -41,6 +41,7 @@ pub struct TokenStream<'a, T: std::fmt::Debug + TokenKind> {
     string: &'a str,
     offset: usize,
     token: Option<Token<T>>,
+    token_length: Option<usize>,
     matcher: Box<dyn TokenMatcher<T>>,
     skip_whitespace: bool
 }
@@ -51,6 +52,7 @@ impl<'a, T: std::fmt::Debug + TokenKind> TokenStream<'a, T> {
             string,
             offset: 0,
             token: None,
+            token_length: None,
             matcher: matcher,
             skip_whitespace: true
         }
@@ -64,9 +66,11 @@ impl<'a, T: std::fmt::Debug + TokenKind> TokenStream<'a, T> {
                 self.offset += len;
 
                 if !self.skip_whitespace || !token.kind.is_whitespace() {
+                    self.token_length = Some(len);
                     self.token = Some(token);
                     return;
                 } else {
+                    self.token_length = None;
                     self.token = None;
                 }
             } else {
@@ -88,6 +92,14 @@ impl<'a, T: std::fmt::Debug + TokenKind> TokenStream<'a, T> {
             None => Span::new(self.offset, self.offset),
             Some(t) => t.span
         }, msg.into())
+    }
+
+    pub fn tell(&self) -> usize {
+        self.offset
+    }
+
+    pub fn tell_start(&self) -> usize {
+        self.offset - self.token_length.unwrap_or(0)
     }
 }
 

@@ -8,3 +8,5 @@ edition = "2018"
 [dependencies]
 syntax = { path = "../syntax" }
 clap = "3.0.0-beta.4"
+ir = { path = "../ir" }
+ir2triple = { path = "../ir2triple" }
