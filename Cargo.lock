@@ -25,6 +25,9 @@ dependencies = [
 [[package]]
 name = "nl"
 version = "0.1.0"
+dependencies = [
+ "syntax",
+]
 
 [[package]]
 name = "ofile"
