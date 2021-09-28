@@ -9,9 +9,20 @@ impl syntax::Parseable<TokenKind> for ast::Code {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Code> {
         match stream.token().map(|x| x.kind()) {
             // Safe to unwrap here as the only way these can fail is if the initial keyword is not what is expected, which it is - because we wouldn't go into that parser otherwise
-            Some(TokenKind::FuncKeyword) => MatchResult::Ok(ast::Code::Function(syntax::parse!(stream, ast::Function::parse).unwrap())),
             Some(TokenKind::ReturnKeyword) => MatchResult::Ok(ast::Code::ReturnStmt(syntax::parse!(stream, ast::ReturnStmt::parse).unwrap())),
 			Some(TokenKind::VarKeyword) => MatchResult::Ok(ast::Code::VarDeclaration(syntax::parse!(stream, ast::VarDeclaration::parse).unwrap())),
+            
+            _ => MatchResult::Fail
+        }
+    }
+}
+
+impl syntax::Parseable<TokenKind> for ast::TopLevelNode {
+	type Output = ast::TopLevelNode;
+	
+    fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::TopLevelNode> {
+        match stream.token().map(|x| x.kind()) {
+            Some(TokenKind::FuncKeyword) => MatchResult::Ok(ast::TopLevelNode::Function(syntax::parse!(stream, ast::Function::parse).unwrap())),
             
             _ => MatchResult::Fail
         }
@@ -168,6 +179,22 @@ impl syntax::Parseable<TokenKind> for ast::Function {
             name, params, code,
 			return_types: Vec::new(),
 			annotations: Vec::new()
+        })
+    }
+}
+
+impl syntax::Parseable<TokenKind> for ast::TranslationUnit {
+	type Output = ast::TranslationUnit;
+
+    fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::TranslationUnit> {
+        let mut nodes = Vec::new();
+
+        while !stream.finished() {
+            nodes.push(syntax::ex!(syntax::parse!(stream, ast::TopLevelNode::parse), stream.error("Expected a function")));
+        }
+
+        syntax::MatchResult::Ok(ast::TranslationUnit {
+            nodes
         })
     }
 }

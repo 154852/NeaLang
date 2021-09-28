@@ -7,3 +7,4 @@ edition = "2018"
 
 [dependencies]
 syntax = { path = "../syntax" }
+clap = "3.0.0-beta.4"

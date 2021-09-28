@@ -71,7 +71,16 @@ pub struct VarDeclaration {
 
 #[derive(Debug)]
 pub enum Code {
-	Function(Function),
 	ReturnStmt(ReturnStmt),
 	VarDeclaration(VarDeclaration)
+}
+
+#[derive(Debug)]
+pub enum TopLevelNode {
+	Function(Function),
+}
+
+#[derive(Debug)]
+pub struct TranslationUnit {
+	pub nodes: Vec<TopLevelNode>
 }
