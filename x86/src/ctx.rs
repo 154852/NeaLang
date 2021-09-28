@@ -16,7 +16,7 @@ impl EncodeContext {
 		}
 	}
 
-	pub fn append_function(&mut self, global_id: GlobalSymbolID, code: &Vec<Ins>) -> usize {
+	pub fn append_function(&mut self, global_id: GlobalSymbolID, code: &Vec<Ins>) -> (usize, usize) {
 		let add = 8 - (self.raw.len() % 8);
 		if add != 8 {
 			// Pad with nops to be 8 byte aligned
@@ -40,7 +40,7 @@ impl EncodeContext {
 			}
 		}
 
-		addr as usize
+		(addr, self.raw.len() - addr)
 	}
 
 	pub fn finish(mut self) -> Vec<u8> {

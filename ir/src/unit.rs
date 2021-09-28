@@ -23,16 +23,16 @@ impl TranslationUnit {
         &self.functions[idx]
     }
 
+	pub fn functions(&self) -> &Vec<Function> {
+		&self.functions
+	}
+
     pub fn get_function_mut(&mut self, idx: FunctionIndex) -> &mut Function {
         &mut self.functions[idx]
     }
 
     pub fn add_global(&mut self, global: Global) {
         self.globals.push(global);
-    }
-
-    pub fn functions(&self) -> &Vec<Function> {
-        &self.functions
     }
 
     pub fn globals(&self) -> &Vec<Global> {
@@ -146,6 +146,10 @@ impl Function {
             code: Vec::new()
         }
     }
+
+	pub fn name(&self) -> &str {
+		&self.name
+	}
 
     pub fn push_local(&mut self, local: Local) -> LocalIndex {
         self.locals.push(local);

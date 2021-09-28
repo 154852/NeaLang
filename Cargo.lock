@@ -5,6 +5,16 @@ name = "ir"
 version = "0.1.0"
 
 [[package]]
+name = "ir2triple"
+version = "0.1.0"
+dependencies = [
+ "ir",
+ "ir2x86",
+ "ofile",
+ "x86",
+]
+
+[[package]]
 name = "ir2x86"
 version = "0.1.0"
 dependencies = [
