@@ -78,7 +78,8 @@ pub struct ReturnStmt {
 pub struct VarDeclaration {
 	pub span: Span,
 	pub name: String,
-	pub expr: Option<Expr>
+	pub expr: Option<Expr>,
+	pub var_type: Option<TypeExpr>
 }
 
 #[derive(Debug)]

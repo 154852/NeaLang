@@ -10,7 +10,9 @@ pub enum IrGenErrorKind {
 	FunctionDoesNotExist,
 	VariableDoesNotExist,
 	InvalidInteger,
-	BinaryOpTypeMismatch
+	BinaryOpTypeMismatch,
+	AssignmentTypeMismatch,
+	CannotInferType
 }
 
 impl IrGenErrorKind {
@@ -20,7 +22,9 @@ impl IrGenErrorKind {
 			IrGenErrorKind::FunctionDoesNotExist => "Function does not exist".to_string(),
 			IrGenErrorKind::VariableDoesNotExist => "Variable does not exist".to_string(),
 			IrGenErrorKind::InvalidInteger => "Invalid integer".to_string(),
-			IrGenErrorKind::BinaryOpTypeMismatch => "Binary operation type mismatch".to_string()
+			IrGenErrorKind::BinaryOpTypeMismatch => "Binary operation type mismatch".to_string(),
+			IrGenErrorKind::AssignmentTypeMismatch => "Assignment type mismatch".to_string(),
+			IrGenErrorKind::CannotInferType => "Cannot infer type".to_string(),
 		}
 	}
 }
@@ -51,7 +55,7 @@ impl IrGenError {
 }
 
 impl ast::TypeExpr {
-	fn to_ir_valuetype(&self, unit: &ast::TranslationUnit) -> Result<ir::ValueType, IrGenError> {
+	fn to_ir_valuetype(&self, _unit: &ast::TranslationUnit) -> Result<ir::ValueType, IrGenError> {
 		// There must be a first item, or else this shouldn't have parsed
 		match self.path.get(0).unwrap().as_str() {
 			"i32" => Ok(ir::ValueType::I32),
@@ -61,6 +65,12 @@ impl ast::TypeExpr {
 			_ => Err(IrGenError::new(self.span, IrGenErrorKind::UnknownType))
 		}
 	}
+}
+
+impl PartialEq for ast::TypeExpr {
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path
+    }
 }
 
 impl ast::TranslationUnit {
@@ -193,13 +203,29 @@ impl ast::ReturnStmt {
 
 impl ast::VarDeclaration {
 	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<(), IrGenError> {
-		// TODO: Make this either inferred or explicitly given
-		let idx = ctx.push_local(&self.name, ir::ValueType::I32);
+		let mut expr_type = if let Some(expr) = &self.expr {
+			Some(expr.append_ir(ctx)?)
+		} else {
+			None
+		};
 
-		if let Some(expr) = &self.expr {
-			// TODO: Type check, once types actually exist
-			expr.append_ir(ctx)?;
-			ctx.func_mut().push(ir::Ins::PopLocal(ir::ValueType::I32, idx));
+		if let Some(var_type) = &self.var_type {
+			let var_type = var_type.to_ir_valuetype(ctx.unit)?;
+			if let Some(expr_type) = expr_type {
+				if var_type != expr_type {
+					return Err(IrGenError::new(self.span, IrGenErrorKind::AssignmentTypeMismatch));
+				}
+			} else {
+				expr_type = Some(var_type);
+			}
+		} else if expr_type.is_none() {
+			return Err(IrGenError::new(self.span, IrGenErrorKind::CannotInferType));
+		}
+
+		let idx = ctx.push_local(&self.name, expr_type.unwrap());
+
+		if self.expr.is_some() {
+			ctx.func_mut().push(ir::Ins::PopLocal(expr_type.unwrap(), idx));
 		}
 
 		Ok(())

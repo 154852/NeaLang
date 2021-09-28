@@ -137,6 +137,11 @@ impl syntax::Parseable<TokenKind> for ast::VarDeclaration {
 		let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident), stream.error("Expected a name")).to_owned();
         stream.step();
 
+        let mut var_type = None;
+        if syntax::tk_iss!(stream, TokenKind::Colon) {
+            var_type = Some(syntax::ex!(syntax::parse!(stream, ast::TypeExpr::parse), stream.error("Expected type")));
+        }
+
 		let mut expr = None;
         if syntax::tk_iss!(stream, TokenKind::Eq) {
 			expr = Some(syntax::ex!(syntax::parse!(stream, ast::Expr::parse), stream.error("Expected expression")));
@@ -146,7 +151,7 @@ impl syntax::Parseable<TokenKind> for ast::VarDeclaration {
 
         syntax::MatchResult::Ok(ast::VarDeclaration {
             span: syntax::Span::new(start, stream.tell_start()),
-            name, expr
+            name, expr, var_type
         })
     }
 }
