@@ -37,6 +37,15 @@ pub enum Ins {
     // If Condition Then A <- B
     CMovRegMem(Condition, Reg, Mem),
 
+    /// Cmp A, B
+    CmpRegReg(Reg, Reg),
+    /// Cmp A, B
+    CmpRegImm(Reg, u64),
+    /// Cmp A, B
+    CmpRegMem(Reg, Mem),
+    /// Cmp A, B
+    CmpMemReg(Mem, Reg),
+
     // A <- A * B
     IMulRegReg(Reg, Reg),
     // A <- A * B
@@ -115,6 +124,12 @@ impl Ins {
             // https://www.felixcloutier.com/x86/cmovcc
             Ins::CMovRegReg(c, a, b) => Encoder::new_long([0x0f, 0x40 + c.base()]).rr(a, b).to(data),
             Ins::CMovRegMem(c, r, ref m) => Encoder::new_long([0x0f, 0x40 + c.base()]).rm(r, m).to(data),
+
+            // https://www.felixcloutier.com/x86/cmp
+            Ins::CmpRegReg(a, b) => Encoder::new(if a.size() == Size::Byte { 0x3a } else { 0x3b }).rr(a, b).to(data),
+            Ins::CmpRegImm(r, i) => Encoder::new(if r.size() == Size::Byte { 0x80 } else { 0x81 }).rn(r, 7).immn(i as u32, r.size()).to(data),
+            Ins::CmpRegMem(r, ref m) => Encoder::new(if r.size() == Size::Byte { 0x3a } else { 0x3b }).rm(r, m).to(data),
+            Ins::CmpMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x38 } else { 0x39 }).rm(r, m).to(data),
 
             // https://www.felixcloutier.com/x86/imul
             Ins::IMulRegReg(a, b) => Encoder::new_long([0x0f, 0xaf]).rr(a, b).to(data),
