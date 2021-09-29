@@ -164,6 +164,12 @@ impl Ins {
             Ins::Mul(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
             Ins::Div(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
             Ins::Sub(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
+            Ins::Eq(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
+            Ins::Ne(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
+            Ins::Lt(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
+            Ins::Le(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
+            Ins::Gt(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
+            Ins::Ge(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
             Ins::Loop(block, condition, inc) => {
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::Loop, |blocks| {

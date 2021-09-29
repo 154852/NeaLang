@@ -129,6 +129,15 @@ impl RegClass {
         }
     }
 
+    pub fn byte_forces_rex(&self) -> bool {
+        use RegClass::*;
+
+        match self {
+            Ebp | Esp | Esi | Edi => true,
+            _ => false
+        }
+    }
+
     pub fn is_rn(&self) -> bool {
         use RegClass::*;
 

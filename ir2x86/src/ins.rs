@@ -114,6 +114,48 @@ impl TranslationContext {
                     a, b,
                 ));
             },
+            ir::Ins::Eq(vt) => {
+                let b = ftc.stack().pop_vt(*vt);
+                let a = ftc.stack().peek_vt(*vt);
+                // a = (a == b)
+                ins.push(x86::Ins::CmpRegReg(a, b));
+                ins.push(x86::Ins::ConditionalSet(x86::Condition::Zero, a.class()));
+            },
+            ir::Ins::Ne(vt) => {
+                let b = ftc.stack().pop_vt(*vt);
+                let a = ftc.stack().peek_vt(*vt);
+                // a = (a == b)
+                ins.push(x86::Ins::CmpRegReg(a, b));
+                ins.push(x86::Ins::ConditionalSet(x86::Condition::NotZero, a.class()));
+            },
+            ir::Ins::Lt(vt) => {
+                let b = ftc.stack().pop_vt(*vt);
+                let a = ftc.stack().peek_vt(*vt);
+                // a = (a == b)
+                ins.push(x86::Ins::CmpRegReg(a, b));
+                ins.push(x86::Ins::ConditionalSet(x86::Condition::Less, a.class()));
+            },
+            ir::Ins::Le(vt) => {
+                let b = ftc.stack().pop_vt(*vt);
+                let a = ftc.stack().peek_vt(*vt);
+                // a = (a == b)
+                ins.push(x86::Ins::CmpRegReg(a, b));
+                ins.push(x86::Ins::ConditionalSet(x86::Condition::LessOrEqual, a.class()));
+            },
+            ir::Ins::Gt(vt) => {
+                let b = ftc.stack().pop_vt(*vt);
+                let a = ftc.stack().peek_vt(*vt);
+                // a = (a == b)
+                ins.push(x86::Ins::CmpRegReg(a, b));
+                ins.push(x86::Ins::ConditionalSet(x86::Condition::Greater, a.class()));
+            },
+            ir::Ins::Ge(vt) => {
+                let b = ftc.stack().pop_vt(*vt);
+                let a = ftc.stack().peek_vt(*vt);
+                // a = (a == b)
+                ins.push(x86::Ins::CmpRegReg(a, b));
+                ins.push(x86::Ins::ConditionalSet(x86::Condition::GreaterOrEqual, a.class()));
+            },
             ir::Ins::Loop(body, condition, increment) => {
                 let start = ftc.new_local_symbol();
                 ins.push(x86::Ins::LocalSymbol(start));
@@ -126,7 +168,7 @@ impl TranslationContext {
                 ins.push(x86::Ins::TestRegReg(cond, cond));
 
                 let final_end = ftc.new_local_symbol();
-                ins.push(x86::Ins::JumpIfZeroLocalSymbol(final_end));
+                ins.push(x86::Ins::JumpConditionalLocalSymbol(x86::Condition::Zero, final_end));
 
                 let inc_start = ftc.new_local_symbol();
 
@@ -155,7 +197,7 @@ impl TranslationContext {
                 ins.push(x86::Ins::TestRegReg(cond, cond));
                 
                 let end = ftc.new_local_symbol();
-                ins.push(x86::Ins::JumpIfZeroLocalSymbol(end));
+                ins.push(x86::Ins::JumpConditionalLocalSymbol(x86::Condition::Zero, end));
 
                 ftc.local_symbols().push(LocalSymbol::If);
                 for inner_ins in then {
@@ -173,7 +215,7 @@ impl TranslationContext {
                 let false_start = ftc.new_local_symbol();
 
                 // if false, jump to false_start...
-                ins.push(x86::Ins::JumpIfZeroLocalSymbol(false_start));
+                ins.push(x86::Ins::JumpConditionalLocalSymbol(x86::Condition::Zero, false_start));
 
                 // otherwise (if) true, continue...
                 ftc.local_symbols().push(LocalSymbol::If);

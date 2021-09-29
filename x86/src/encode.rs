@@ -153,6 +153,12 @@ impl Encoder {
         }
     }
 
+    /// Forces the presence of an empty REX prefix
+    pub fn rex(mut self) -> Self {
+        self.prefix = Some(Prefix::new());
+        self
+    }
+
     /// Sets the 0x66 prefix, meaning that an otherwise 32 bit instruction operates on 16 bits instead
     pub fn opsize_override(mut self) -> Self {
         self.operand_size_override = true;
@@ -228,6 +234,7 @@ impl Encoder {
         if a.class().is_rn() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).r()) }
         if b.class().is_rn() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).b()) }
         
+        if matches!(a.size(), Size::Byte) && a.class().byte_forces_rex() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new())); }
         if matches!(a.size(), Size::Quad) { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).w()) }
         if matches!(a.size(), Size::Word) { self.operand_size_override = true; }
 
@@ -240,6 +247,7 @@ impl Encoder {
         
         if a.class().is_rn() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).b()) }
         
+        if matches!(a.size(), Size::Byte) && a.class().byte_forces_rex() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new())); }
         if matches!(a.size(), Size::Quad) { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).w()) }
         if matches!(a.size(), Size::Word) { self.operand_size_override = true; }
 
@@ -255,6 +263,7 @@ impl Encoder {
         if b.base.is_some() && b.base.unwrap().is_rn() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).b()) }
         if b.index.is_some() && b.index.unwrap().is_rn() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).x()) }
         
+        if matches!(a.size(), Size::Byte) && a.class().byte_forces_rex() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new())); }
         if matches!(a.size(), Size::Quad) { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).w()) }
         if matches!(a.size(), Size::Word) { self.operand_size_override = true; }
 

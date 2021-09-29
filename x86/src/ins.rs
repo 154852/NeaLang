@@ -3,14 +3,23 @@ use crate::{Encoder, GlobalSymbolID, LocalSymbolID, Mem, Reg, RegClass, Relocati
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Condition {
-    // ZF = 1
-    Zero
+    Zero,
+    NotZero,
+    Less,
+    LessOrEqual,
+    Greater,
+    GreaterOrEqual
 }
 
 impl Condition {
     fn base(&self) -> u8 {
         match self {
             Condition::Zero => 0x4,
+            Condition::NotZero => 0x5,
+            Condition::Less => 0xc,
+            Condition::LessOrEqual => 0xe,
+            Condition::Greater => 0xf,
+            Condition::GreaterOrEqual => 0xd,
         }
     }
 }
@@ -135,7 +144,7 @@ impl Ins {
             Ins::CmpMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x38 } else { 0x39 }).rm(r, m).to(data),
 
             // https://www.felixcloutier.com/x86/setcc
-            Ins::ConditionalSet(c, r) => Encoder::new_long([0x0f, 0x90 + c.base()]).rn(r.u32(), 0).to(data),
+            Ins::ConditionalSet(c, r) => Encoder::new_long([0x0f, 0x90 + c.base()]).rn(r.u8(), 0).to(data),
 
             // https://www.felixcloutier.com/x86/imul
             Ins::IMulRegReg(a, b) => Encoder::new_long([0x0f, 0xaf]).rr(a, b).to(data),

@@ -102,7 +102,7 @@ pub enum Ins {
     /// Divides the second to last item by the last item on the stack, and pushes the result. The two items must both have the given value type, and the result will have the same value type.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("divide_10_by_5", ir::Signature::new(vec![ ValueType::I32, ValueType::I32 ], vec![ ValueType::I32 ]));
+    /// let mut func = ir::Function::new("divide_10_by_5", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
     /// 
     /// func.push(ir::Ins::PushLiteral(ValueType::I32, 10));
     /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
@@ -114,7 +114,7 @@ pub enum Ins {
     /// Subtracts the last item from the second to last item on the stack, and pushes the result. The two items must both have the given value type, and the result will have the same value type.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("sub_5_from_10", ir::Signature::new(vec![ ValueType::I32, ValueType::I32 ], vec![ ValueType::I32 ]));
+    /// let mut func = ir::Function::new("sub_5_from_10", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
     /// 
     /// func.push(ir::Ins::PushLiteral(ValueType::I32, 10));
     /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
@@ -122,6 +122,78 @@ pub enum Ins {
     /// func.push(ir::Ins::Ret);
     /// ```
     Sub(ValueType),
+
+    /// Pushes 1 if the last two items on the stack are equal, and 0 otherwise. The two items must both have the given value type, and the result will have the same value type.
+    /// # Examples
+    /// ```
+    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// 
+    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
+    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
+    /// func.push(ir::Ins::Eq(ValueType::I32));
+    /// func.push(ir::Ins::Ret);
+    /// ```
+    Eq(ValueType),
+
+    /// Pushes 0 if the last two items on the stack are equal, and 1 otherwise. The two items must both have the given value type, and the result will have the same value type.
+    /// # Examples
+    /// ```
+    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// 
+    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
+    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 2));
+    /// func.push(ir::Ins::Ne(ValueType::I32));
+    /// func.push(ir::Ins::Ret);
+    /// ```
+    Ne(ValueType),
+
+    /// Pushes 1 if the second to last item on the stack is less than the last. The two items must both have the given value type, and the result will have the same value type.
+    /// # Examples
+    /// ```
+    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// 
+    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
+    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 2));
+    /// func.push(ir::Ins::Lt(ValueType::I32));
+    /// func.push(ir::Ins::Ret);
+    /// ```
+    Lt(ValueType),
+
+    /// Pushes 1 if the second to last item on the stack is less than or equal to the last. The two items must both have the given value type, and the result will have the same value type.
+    /// # Examples
+    /// ```
+    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// 
+    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
+    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
+    /// func.push(ir::Ins::Le(ValueType::I32));
+    /// func.push(ir::Ins::Ret);
+    /// ```
+    Le(ValueType),
+
+    /// Pushes 1 if the second to last item on the stack is greater than the last. The two items must both have the given value type, and the result will have the same value type.
+    /// # Examples
+    /// ```
+    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// 
+    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 2));
+    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
+    /// func.push(ir::Ins::Gt(ValueType::I32));
+    /// func.push(ir::Ins::Ret);
+    /// ```
+    Gt(ValueType),
+
+    /// Pushes 1 if the second to last item on the stack is greater than or equal to the last. The two items must both have the given value type, and the result will have the same value type.
+    /// # Examples
+    /// ```
+    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// 
+    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 2));
+    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
+    /// func.push(ir::Ins::Ge(ValueType::I32));
+    /// func.push(ir::Ins::Ret);
+    /// ```
+    Ge(ValueType),
 
     /// Continues to loop over it's code while it's condition does not evaluate to zero, running inc after each iteration
     /// Initially evaluates the condition. If it is zero, it breaks. Otherwise it runs code, followed by inc, and then re-evaluates.

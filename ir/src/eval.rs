@@ -156,6 +156,54 @@ impl Ins {
 
                 Ok(EvalResultAction::Next)
             },
+            Ins::Eq(vt) => {
+                let right = stack.pop(*vt);
+                let left = stack.pop(*vt);
+
+                stack.push(StackElement::new(if left.value == right.value { 1 } else { 0 }, *vt));
+
+                Ok(EvalResultAction::Next)
+            },
+            Ins::Ne(vt) => {
+                let right = stack.pop(*vt);
+                let left = stack.pop(*vt);
+
+                stack.push(StackElement::new(if left.value != right.value { 1 } else { 0 }, *vt));
+
+                Ok(EvalResultAction::Next)
+            },
+            Ins::Lt(vt) => {
+                let right = stack.pop(*vt);
+                let left = stack.pop(*vt);
+
+                stack.push(StackElement::new(if left.value < right.value { 1 } else { 0 }, *vt));
+
+                Ok(EvalResultAction::Next)
+            },
+            Ins::Le(vt) => {
+                let right = stack.pop(*vt);
+                let left = stack.pop(*vt);
+
+                stack.push(StackElement::new(if left.value <= right.value { 1 } else { 0 }, *vt));
+
+                Ok(EvalResultAction::Next)
+            },
+            Ins::Gt(vt) => {
+                let right = stack.pop(*vt);
+                let left = stack.pop(*vt);
+
+                stack.push(StackElement::new(if left.value > right.value { 1 } else { 0 }, *vt));
+
+                Ok(EvalResultAction::Next)
+            },
+            Ins::Ge(vt) => {
+                let right = stack.pop(*vt);
+                let left = stack.pop(*vt);
+
+                stack.push(StackElement::new(if left.value >= right.value { 1 } else { 0 }, *vt));
+
+                Ok(EvalResultAction::Next)
+            },
             Ins::Loop(body, condition, inc) => {
                 'outer: loop {
                     for ins in condition {

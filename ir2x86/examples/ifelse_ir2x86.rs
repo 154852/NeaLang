@@ -4,8 +4,9 @@ use x86;
 fn main() {
     let mut unit = ir::TranslationUnit::new();
 
-    let mut func = ir::Function::new("not", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
+    let mut func = ir::Function::new("not_eq", ir::Signature::new(vec![ ValueType::I32, ValueType::I32 ], vec![ ValueType::I32 ]));
     
+    func.push(ir::Ins::Eq(ValueType::I32));
     func.push(ir::Ins::IfElse(vec![
 		ir::Ins::PushLiteral(ir::ValueType::I32, 0),
 		ir::Ins::Ret,
