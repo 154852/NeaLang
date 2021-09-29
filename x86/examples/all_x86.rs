@@ -25,6 +25,8 @@ fn main() {
         x86::Ins::SubMemReg(x86::Mem::new().base(x86::RegClass::R8).disp(0x10), x86::Reg::R15B),
         x86::Ins::SubRegImm(x86::Reg::R15D, 0x64),
         x86::Ins::SubMemImm(x86::Size::Quad, x86::Mem::new().base(x86::RegClass::R13).disp(0x10), 0x64),
+
+        x86::Ins::CMovRegReg(x86::Condition::Zero, x86::Reg::Rax, x86::Reg::Rdx)
     ];
 
 	let mut ctx = x86::EncodeContext::new();

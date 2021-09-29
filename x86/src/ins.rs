@@ -1,6 +1,20 @@
 use std::collections::HashMap;
 use crate::{Encoder, GlobalSymbolID, LocalSymbolID, Mem, Reg, Relocation, Size};
 
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum Condition {
+    // ZF = 1
+    Zero
+}
+
+impl Condition {
+    fn base(&self) -> u8 {
+        match self {
+            Condition::Zero => 0x4,
+        }
+    }
+}
+
 pub enum Ins {
     LocalSymbol(LocalSymbolID),
 
@@ -18,6 +32,11 @@ pub enum Ins {
     // Call A
     CallGlobalSymbol(GlobalSymbolID),
 
+    // If Condition Then A <- B
+    CMovRegReg(Condition, Reg, Reg),
+    // If Condition Then A <- B
+    CMovRegMem(Condition, Reg, Mem),
+
     // A <- A * B
     IMulRegReg(Reg, Reg),
     // A <- A * B
@@ -25,8 +44,8 @@ pub enum Ins {
 
     /// Jump A
     JumpLocalSymbol(LocalSymbolID),
-    /// If ZF = 1 Then Jump A
-    JumpIfZeroLocalSymbol(LocalSymbolID),
+    /// If Condition Then Jump A
+    JumpConditionalLocalSymbol(Condition, LocalSymbolID),
 
     /// A <- B
     MovRegReg(Reg, Reg),
@@ -93,6 +112,10 @@ impl Ins {
                 unfilled_local_symbols.push(Relocation::new_global_call(id, data.len() - 4, -4));
             },
 
+            // https://www.felixcloutier.com/x86/cmovcc
+            Ins::CMovRegReg(c, a, b) => Encoder::new_long([0x0f, 0x40 + c.base()]).rr(a, b).to(data),
+            Ins::CMovRegMem(c, r, ref m) => Encoder::new_long([0x0f, 0x40 + c.base()]).rm(r, m).to(data),
+
             // https://www.felixcloutier.com/x86/imul
             Ins::IMulRegReg(a, b) => Encoder::new_long([0x0f, 0xaf]).rr(a, b).to(data),
             Ins::IMulRegMem(r, ref m) => Encoder::new_long([0x0f, 0xaf]).rm(r, m).to(data),
@@ -104,8 +127,8 @@ impl Ins {
             },
 
             // https://www.felixcloutier.com/x86/jcc
-            Ins::JumpIfZeroLocalSymbol(id) => {
-                Encoder::new_long([0x0f, 0x84]).imm32(0).to(data);
+            Ins::JumpConditionalLocalSymbol(c, id) => {
+                Encoder::new_long([0x0f, 0x80 + c.base()]).imm32(0).to(data);
                 unfilled_local_symbols.push(Relocation::new_local_branch(id, data.len() - 4, -4));
             },
 

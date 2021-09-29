@@ -34,7 +34,7 @@ pub fn collapse_sequential_symbols(insns: &mut Vec<Ins>) {
 
 	for ins in insns.iter_mut() {
 		match ins {
-			Ins::JumpLocalSymbol(jump_target) | Ins::JumpIfZeroLocalSymbol(jump_target) => {
+			Ins::JumpLocalSymbol(jump_target) | Ins::JumpConditionalLocalSymbol(_, jump_target) => {
 				if let Some(new) = symbol_translation.get(jump_target) {
 					*jump_target = *new;
 				}
