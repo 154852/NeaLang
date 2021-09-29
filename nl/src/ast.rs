@@ -93,7 +93,8 @@ pub struct VarDeclaration {
 #[derive(Debug)]
 pub enum Code {
 	ReturnStmt(ReturnStmt),
-	VarDeclaration(VarDeclaration)
+	VarDeclaration(VarDeclaration),
+	ExprStmt(Expr)
 }
 
 #[derive(Debug)]

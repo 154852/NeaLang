@@ -7,7 +7,6 @@ use syntax::Span;
 
 pub enum IrGenErrorKind {
 	UnknownType,
-	FunctionDoesNotExist,
 	VariableDoesNotExist,
 	InvalidInteger,
 	BinaryOpTypeMismatch,
@@ -22,7 +21,6 @@ impl IrGenErrorKind {
 	pub fn message(&self) -> String {
 		match self {
 			IrGenErrorKind::UnknownType => "Unknown type".to_string(),
-			IrGenErrorKind::FunctionDoesNotExist => "Function does not exist".to_string(),
 			IrGenErrorKind::VariableDoesNotExist => "Variable does not exist".to_string(),
 			IrGenErrorKind::InvalidInteger => "Invalid integer".to_string(),
 			IrGenErrorKind::BinaryOpTypeMismatch => "Binary operation type mismatch".to_string(),
@@ -80,20 +78,6 @@ impl PartialEq for ast::TypeExpr {
 }
 
 impl ast::TranslationUnit {
-	fn id_of_func(&self, name: &str) -> Option<usize> {
-		let mut id = 0;
-		for node in &self.nodes {
-			match node {
-    			ast::TopLevelNode::Function(func) => {
-					if func.name == name { return Some(id); }
-					id += 1;
-				},
-			}
-		}
-
-		None
-	}
-
 	fn func(&self, name: &str) -> Option<(usize, &ast::Function)> {
 		let mut id = 0;
 		for node in &self.nodes {
@@ -205,6 +189,21 @@ impl ast::Code {
 		match self {
 			ast::Code::ReturnStmt(stmt) => stmt.append_ir(ctx),
 			ast::Code::VarDeclaration(vardecl) => vardecl.append_ir(ctx),
+			ast::Code::ExprStmt(expr) => {
+				let drop_count = match expr {
+					ast::Expr::Call(call_expr) => call_expr.append_ir_out_expr(ctx)?,
+					_ => {
+						expr.append_ir(ctx)?;
+						1
+					}
+				};
+
+				for _ in 0..drop_count {
+					ctx.func_mut().push(ir::Ins::Drop);
+				}
+
+				Ok(())
+			},
 		}
 	}
 }
@@ -259,13 +258,13 @@ impl ast::Expr {
 			ast::Expr::Name(name_expr) => name_expr.append_ir(ctx),
 			ast::Expr::Closed(closed_expr) => closed_expr.append_ir(ctx),
 			ast::Expr::NumberLit(number_lit) => number_lit.append_ir(ctx),
-			ast::Expr::Call(call_expr) => call_expr.append_ir(ctx),
+			ast::Expr::Call(call_expr) => call_expr.append_ir_in_expr(ctx),
 		}
 	}
 }
 
 impl ast::CallExpr {
-	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
+	fn append_ir_in_expr<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
 		let (func_id, func) = match self.object.as_ref() {
 			ast::Expr::Name(name) => {
 				match ctx.unit.func(&name.name) {
@@ -293,6 +292,32 @@ impl ast::CallExpr {
 		ctx.func_mut().push(ir::Ins::Call(func_id));
 
 		Ok(ctx.ir_unit.get_function(func_id).signature().returns()[0])
+	}
+
+	fn append_ir_out_expr<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<usize, IrGenError> {
+		let (func_id, func) = match self.object.as_ref() {
+			ast::Expr::Name(name) => {
+				match ctx.unit.func(&name.name) {
+					Some(x) => x,
+					_ => todo!() // Possibly a local or global
+				}
+			},
+			_ => todo!()
+		};
+
+		if self.args.len() != func.params.len() {
+			return Err(IrGenError::new(self.span, IrGenErrorKind::CallArgParamCountMismatch));
+		}
+
+		for (a, arg) in self.args.iter().enumerate() {
+			if arg.append_ir(ctx)? != ctx.ir_unit.get_function(func_id).signature().params()[a] {
+				return Err(IrGenError::new(self.span, IrGenErrorKind::CallArgTypeMismatch));
+			}
+		}
+
+		ctx.func_mut().push(ir::Ins::Call(func_id));
+
+		Ok(ctx.ir_unit.get_function(func_id).signature().returns().len())
 	}
 }
 

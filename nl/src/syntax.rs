@@ -14,7 +14,11 @@ impl syntax::Parseable<TokenKind> for ast::Code {
             Some(TokenKind::ReturnKeyword) => MatchResult::Ok(ast::Code::ReturnStmt(syntax::parse!(stream, ast::ReturnStmt::parse).unwrap())),
 			Some(TokenKind::VarKeyword) => MatchResult::Ok(ast::Code::VarDeclaration(syntax::parse!(stream, ast::VarDeclaration::parse).unwrap())),
             
-            _ => return MatchResult::Fail
+            _ => {
+                let res = MatchResult::Ok(ast::Code::ExprStmt(syntax::ex!(syntax::parse!(stream, ast::Expr::parse))));
+                syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));
+                res
+            }
         };
 
         while syntax::tk_iss!(stream, TokenKind::Semi) {}
