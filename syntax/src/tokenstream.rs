@@ -165,6 +165,17 @@ macro_rules! exact {
 }
 
 #[macro_export]
+macro_rules! exact_long {
+    ( $string:expr , $offset:expr , $( $str:expr => $( $i:ident )::* ),* ) => {
+        $(
+            if $string.starts_with($str) {
+                return Some(($str.len(), Token::new($( $i )::*, ::syntax::Span::new($offset, $offset + $str.len()))));
+            }
+        )*
+    };
+}
+
+#[macro_export]
 macro_rules! char {
     ( $string:expr , $offset:expr , $( $i:ident )::* ) => {
         return Some((1, Token::new($( $i )::* ($string.as_bytes()[0] as char), ::syntax::Span::new($offset, $offset + 1))));

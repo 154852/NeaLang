@@ -4,7 +4,7 @@ func main() {
 
 	do_something(11);
 
-	if 5 {
+	if 1 < 2 {
 		a = a + 1;
 	} else {
 		a = a - 1;

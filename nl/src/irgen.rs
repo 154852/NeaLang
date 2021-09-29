@@ -415,6 +415,14 @@ impl ast::BinaryExpr {
 			ast::BinaryOp::Mul => ir::Ins::Mul(left),
 			ast::BinaryOp::Div => ir::Ins::Div(left),
 			ast::BinaryOp::Sub => ir::Ins::Sub(left),
+			
+			ast::BinaryOp::Eq => ir::Ins::Eq(left),
+			ast::BinaryOp::Ne => ir::Ins::Ne(left),
+			
+			ast::BinaryOp::Lt => ir::Ins::Lt(left),
+			ast::BinaryOp::Le => ir::Ins::Le(left),
+			ast::BinaryOp::Gt => ir::Ins::Gt(left),
+			ast::BinaryOp::Ge => ir::Ins::Ge(left),
 		});
 
 		Ok(left)
@@ -442,7 +450,7 @@ impl ast::ClosedExpr {
 }
 
 impl ast::NumberLitExpr {
-	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
+	fn append_ir<'a>(&'a self, _ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
 		if let Ok(num) = i32::from_str(&self.number) {
 			target.push(ir::Ins::PushLiteral(ir::ValueType::I32, num as u64));
 			Ok(ir::ValueType::I32)

@@ -6,6 +6,7 @@ pub enum TokenKind {
     Number(String),
     OpenCurly, CloseCurly, OpenParen, CloseParen,
     Colon, Semi, Dot, Comma, Add, Mul, Div, Sub, Eq,
+    DblEq, NotEq, Lt, Gt, Le, Ge,
     Whitespace
 }
 
@@ -21,6 +22,13 @@ pub type TokenStream<'a> = syntax::TokenStream<'a, TokenKind>;
 pub struct Matcher;
 impl syntax::TokenMatcher<TokenKind> for Matcher {
     fn next<'a>(&mut self, string: &'a str, offset: usize) -> Option<(usize, syntax::Token<TokenKind>)> {
+        syntax::exact_long!(string, offset, 
+            "==" => TokenKind::DblEq,
+            "!=" => TokenKind::NotEq,
+            "<=" => TokenKind::Le,
+            ">=" => TokenKind::Ge
+        );
+
         syntax::exact!(string, offset, 
             '{' => TokenKind::OpenCurly,
             '}' => TokenKind::CloseCurly,
@@ -34,7 +42,9 @@ impl syntax::TokenMatcher<TokenKind> for Matcher {
             '*' => TokenKind::Mul,
             '/' => TokenKind::Div,
             '-' => TokenKind::Sub,
-			'=' => TokenKind::Eq
+			'=' => TokenKind::Eq,
+            '<' => TokenKind::Lt,
+            '>' => TokenKind::Gt
         );
 
         syntax::keywords!(string, offset,

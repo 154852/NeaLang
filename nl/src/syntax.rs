@@ -186,12 +186,22 @@ impl syntax::Parseable<TokenKind> for ast::Expr {
 
         loop {
             match stream.token().map(|x| x.kind()) {
-                Some(TokenKind::Add) | Some(TokenKind::Mul) | Some(TokenKind::Div) | Some(TokenKind::Sub) => {
+                Some(TokenKind::Add) | Some(TokenKind::Mul) | Some(TokenKind::Div) | Some(TokenKind::Sub) |
+                Some(TokenKind::DblEq) | Some(TokenKind::NotEq) | 
+                Some(TokenKind::Lt) | Some(TokenKind::Le) | Some(TokenKind::Gt) | Some(TokenKind::Ge) => {
                     let op = match stream.token().map(|x| x.kind()).unwrap() {
                         TokenKind::Add => ast::BinaryOp::Add,
                         TokenKind::Mul => ast::BinaryOp::Mul,
                         TokenKind::Sub => ast::BinaryOp::Sub,
                         TokenKind::Div => ast::BinaryOp::Div,
+                        
+                        TokenKind::DblEq => ast::BinaryOp::Eq,
+                        TokenKind::NotEq => ast::BinaryOp::Ne,
+                        
+                        TokenKind::Lt => ast::BinaryOp::Lt,
+                        TokenKind::Le => ast::BinaryOp::Le,
+                        TokenKind::Gt => ast::BinaryOp::Gt,
+                        TokenKind::Ge => ast::BinaryOp::Ge,
                         _ => unreachable!()
                     };
                     stream.step();

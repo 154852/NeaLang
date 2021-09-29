@@ -73,7 +73,8 @@ pub struct BinaryExpr {
 
 #[derive(Debug)]
 pub enum BinaryOp {
-	Add, Mul, Div, Sub
+	Add, Mul, Div, Sub,
+	Eq, Ne, Lt, Le, Gt, Ge
 }
 
 #[derive(Debug)]
