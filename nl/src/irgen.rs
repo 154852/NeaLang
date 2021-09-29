@@ -68,7 +68,7 @@ impl ast::TypeExpr {
 			"u32" => Ok(ir::ValueType::U32),
 			"i64" => Ok(ir::ValueType::I64),
 			"u64" => Ok(ir::ValueType::U64),
-			_ => Err(IrGenError::new(self.span, IrGenErrorKind::UnknownType))
+			_ => Err(IrGenError::new(self.span.clone(), IrGenErrorKind::UnknownType))
 		}
 	}
 }
@@ -221,7 +221,7 @@ impl ast::Assignment {
 					let local_idx = *local_idx;
 					let local = ctx.func().get_local(local_idx).unwrap();
 					if local.value_type() != vt {
-						return Err(IrGenError::new(self.span, IrGenErrorKind::AssignmentTypeMismatch));
+						return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
 					}
 
 					ctx.func_mut().push(ir::Ins::PopLocal(vt, local_idx));
@@ -229,7 +229,7 @@ impl ast::Assignment {
 					todo!() // Global?
 				}
 			},
-			_ => return Err(IrGenError::new(self.span, IrGenErrorKind::InvalidLHS))
+			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS))
 		}
 
 		Ok(())
@@ -260,13 +260,13 @@ impl ast::VarDeclaration {
 			let var_type = var_type.to_ir_valuetype(ctx.unit)?;
 			if let Some(expr_type) = expr_type {
 				if var_type != expr_type {
-					return Err(IrGenError::new(self.span, IrGenErrorKind::AssignmentTypeMismatch));
+					return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
 				}
 			} else {
 				expr_type = Some(var_type);
 			}
 		} else if expr_type.is_none() {
-			return Err(IrGenError::new(self.span, IrGenErrorKind::CannotInferType));
+			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CannotInferType));
 		}
 
 		let idx = ctx.push_local(&self.name, expr_type.unwrap());
@@ -304,16 +304,16 @@ impl ast::CallExpr {
 		};
 
 		if self.args.len() != func.params.len() {
-			return Err(IrGenError::new(self.span, IrGenErrorKind::CallArgParamCountMismatch));
+			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch));
 		}
 
 		if func.return_types.len() != 1 {
-			return Err(IrGenError::new(self.span, IrGenErrorKind::CallNotOneReturnInExpr));
+			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallNotOneReturnInExpr));
 		}
 
 		for (a, arg) in self.args.iter().enumerate() {
 			if arg.append_ir(ctx)? != ctx.ir_unit.get_function(func_id).signature().params()[a] {
-				return Err(IrGenError::new(self.span, IrGenErrorKind::CallArgTypeMismatch));
+				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgTypeMismatch));
 			}
 		}
 
@@ -334,12 +334,12 @@ impl ast::CallExpr {
 		};
 
 		if self.args.len() != func.params.len() {
-			return Err(IrGenError::new(self.span, IrGenErrorKind::CallArgParamCountMismatch));
+			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch));
 		}
 
 		for (a, arg) in self.args.iter().enumerate() {
 			if arg.append_ir(ctx)? != ctx.ir_unit.get_function(func_id).signature().params()[a] {
-				return Err(IrGenError::new(self.span, IrGenErrorKind::CallArgTypeMismatch));
+				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgTypeMismatch));
 			}
 		}
 
@@ -354,7 +354,7 @@ impl ast::BinaryExpr {
 		let left = self.left.append_ir(ctx)?;
 		let right = self.right.append_ir(ctx)?;
 
-		if left != right { return Err(IrGenError::new(self.span, IrGenErrorKind::BinaryOpTypeMismatch)) }
+		if left != right { return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::BinaryOpTypeMismatch)) }
 
 		ctx.func_mut().push(match self.op {
 			ast::BinaryOp::Add => ir::Ins::Add(left),
@@ -376,7 +376,7 @@ impl ast::NameExpr {
 			ctx.func_mut().push(ir::Ins::PushLocal(vt, idx));
 			Ok(vt)
 		} else {
-			Err(IrGenError::new(self.span, IrGenErrorKind::VariableDoesNotExist))
+			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::VariableDoesNotExist))
 		}
 	}
 }
@@ -393,7 +393,7 @@ impl ast::NumberLitExpr {
 			ctx.func_mut().push(ir::Ins::PushLiteral(ir::ValueType::I32, num as u64));
 			Ok(ir::ValueType::I32)
 		} else {
-			Err(IrGenError::new(self.span, IrGenErrorKind::InvalidInteger))
+			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidInteger))
 		}
 	}
 }

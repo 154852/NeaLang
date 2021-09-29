@@ -1,6 +1,6 @@
 use crate::SyntaxError;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Span {
     pub start: usize,
     pub end: usize
@@ -90,7 +90,7 @@ impl<'a, T: std::fmt::Debug + TokenKind> TokenStream<'a, T> {
     pub fn error<U: Into<String>>(&self, msg: U) -> SyntaxError {
         SyntaxError::new(match &self.token {
             None => Span::new(self.offset, self.offset),
-            Some(t) => t.span
+            Some(t) => t.span.clone()
         }, msg.into())
     }
 
