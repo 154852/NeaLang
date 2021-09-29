@@ -4,6 +4,12 @@ func main() {
 
 	do_something(11);
 
+	if 5 {
+		a = a + 1;
+	} else {
+		a = a - 1;
+	}
+
 	b = b + 1;
 }
 

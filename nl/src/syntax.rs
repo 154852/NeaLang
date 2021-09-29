@@ -14,6 +14,7 @@ impl syntax::Parseable<TokenKind> for ast::Code {
             // Safe to unwrap here as the only way these can fail is if the initial keyword is not what is expected, which it is - because we wouldn't go into that parser otherwise
             Some(TokenKind::ReturnKeyword) => syntax::MatchResult::Ok(ast::Code::ReturnStmt(syntax::parse!(stream, ast::ReturnStmt::parse).unwrap())),
 			Some(TokenKind::VarKeyword) => syntax::MatchResult::Ok(ast::Code::VarDeclaration(syntax::parse!(stream, ast::VarDeclaration::parse).unwrap())),
+            Some(TokenKind::IfKeyword) => syntax::MatchResult::Ok(ast::Code::IfStmt(syntax::parse!(stream, ast::IfStmt::parse).unwrap())),
             
             _ => {
                 let expr = syntax::ex!(syntax::parse!(stream, ast::Expr::parse));
@@ -35,6 +36,67 @@ impl syntax::Parseable<TokenKind> for ast::Code {
         while syntax::tk_iss!(stream, TokenKind::Semi) {}
 
         ok
+    }
+}
+
+impl syntax::Parseable<TokenKind> for ast::IfStmt {
+	type Output = ast::IfStmt;
+	
+    fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::IfStmt> {
+        let start = stream.tell_start();
+        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::IfKeyword));
+
+        let expr = syntax::ex!(syntax::parse!(stream, ast::Expr::parse));
+
+        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::OpenCurly), stream.error("Expected '{'"));
+
+        let code = if syntax::tk_iss!(stream, TokenKind::OpenCurly) {
+            let mut code = Vec::new();
+            loop {
+                code.push(match syntax::parse!(stream, ast::Code::parse) {
+                    Some(x) => x,
+                    None => break
+                });
+            }
+
+            syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseCurly), stream.error("Expected '}'"));
+
+            code
+        } else {
+            vec![
+                syntax::ex!(syntax::parse!(stream, ast::Code::parse), stream.error("Expected statement"))
+            ]
+        };
+
+        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseCurly), stream.error("Expected '}'"));
+
+        let else_code = if syntax::tk_iss!(stream, TokenKind::ElseKeyword) {
+            if syntax::tk_iss!(stream, TokenKind::OpenCurly) {
+                let mut code = Vec::new();
+                loop {
+                    code.push(match syntax::parse!(stream, ast::Code::parse) {
+                        Some(x) => x,
+                        None => break
+                    });
+                }
+
+                syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseCurly), stream.error("Expected '}'"));
+
+                Some(code)
+            } else {
+                Some(vec![
+                    syntax::ex!(syntax::parse!(stream, ast::Code::parse), stream.error("Expected statement"))
+                ])
+            }
+        } else {
+            None
+        };
+
+        syntax::MatchResult::Ok(ast::IfStmt {
+            span: syntax::Span::new(start, stream.tell_start()),
+            condition: expr,
+            code, else_code
+        })
     }
 }
 

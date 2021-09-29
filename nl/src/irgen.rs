@@ -144,6 +144,26 @@ impl<'a> IrGenFunctionContext<'a> {
 	}
 }
 
+struct IrGenCodeTarget {
+	ins: Vec<ir::Ins>
+}
+
+impl IrGenCodeTarget {
+	fn new() -> IrGenCodeTarget {
+		IrGenCodeTarget {
+			ins: Vec::new()
+		}
+	}
+
+	fn push(&mut self, ins: ir::Ins) {
+		self.ins.push(ins);
+	}
+
+	fn take(self) -> Vec<ir::Ins> {
+		self.ins
+	}
+}
+
 impl ast::Function {
 	fn to_ir_base(&self, unit: &ast::TranslationUnit) -> Result<ir::Function, IrGenError> {
 		let mut params = Vec::with_capacity(self.params.len());
@@ -167,53 +187,87 @@ impl ast::Function {
 			local_map: HashMap::new()
 		};
 
+		let mut target = IrGenCodeTarget::new();
+
 		// Put params into locals
 		for param in self.params.iter().rev() {
 			let vt = param.param_type.to_ir_valuetype(unit)?;
 			let local = ctx.push_local(&param.name, vt);
-			ctx.func_mut().push(ir::Ins::PopLocal(vt, local));
+			target.push(ir::Ins::PopLocal(vt, local));
 		}
 
 		for code in &self.code {
-			code.append_ir(&mut ctx)?;
+			code.append_ir(&mut ctx, &mut target)?;
 		}
 
 		if ctx.func().signature().returns().len() == 0 && !matches!(ctx.func().code().last(), Some(ir::Ins::Ret)) {
-			ctx.func_mut().push(ir::Ins::Ret);
+			target.push(ir::Ins::Ret);
 		}
+
+		ctx.func_mut().code_mut().extend(target.take());
 		
 		Ok(())
 	}
 }
 
 impl ast::Code {
-	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<(), IrGenError> {
+	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
 		match self {
-			ast::Code::ReturnStmt(stmt) => stmt.append_ir(ctx),
-			ast::Code::VarDeclaration(vardecl) => vardecl.append_ir(ctx),
+			ast::Code::ReturnStmt(stmt) => stmt.append_ir(ctx, target),
+			ast::Code::VarDeclaration(vardecl) => vardecl.append_ir(ctx, target),
 			ast::Code::ExprStmt(expr) => {
 				let drop_count = match expr {
-					ast::Expr::Call(call_expr) => call_expr.append_ir_out_expr(ctx)?,
+					ast::Expr::Call(call_expr) => call_expr.append_ir_out_expr(ctx, target)?,
 					_ => {
-						expr.append_ir(ctx)?;
+						expr.append_ir(ctx, target)?;
 						1
 					}
 				};
 
 				for _ in 0..drop_count {
-					ctx.func_mut().push(ir::Ins::Drop);
+					target.push(ir::Ins::Drop);
 				}
 
 				Ok(())
 			},
-			ast::Code::Assignment(assignment) => assignment.append_ir(ctx)
+			ast::Code::Assignment(assignment) => assignment.append_ir(ctx, target),
+			ast::Code::IfStmt(if_stmt) => if_stmt.append_ir(ctx, target),
 		}
 	}
 }
 
+impl ast::IfStmt {
+	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
+		self.condition.append_ir(ctx, target)?;
+
+		let mut true_then = IrGenCodeTarget::new();
+		for code in &self.code {
+			code.append_ir(ctx, &mut true_then)?;
+		}
+
+		if let Some(else_code) = &self.else_code {
+			let mut false_then = IrGenCodeTarget::new();
+			for code in else_code {
+				code.append_ir(ctx, &mut false_then)?;
+			}
+
+			target.push(ir::Ins::IfElse(
+				true_then.take(),
+				false_then.take()
+			));
+		} else {
+			target.push(ir::Ins::If(
+				true_then.take()
+			));
+		}
+
+		Ok(())
+	}
+}
+
 impl ast::Assignment {
-	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<(), IrGenError> {
-		let vt = self.right.append_ir(ctx)?;
+	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
+		let vt = self.right.append_ir(ctx, target)?;
 
 		match &self.left {
 			ast::Expr::Name(name) => {
@@ -224,7 +278,7 @@ impl ast::Assignment {
 						return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
 					}
 
-					ctx.func_mut().push(ir::Ins::PopLocal(vt, local_idx));
+					target.push(ir::Ins::PopLocal(vt, local_idx));
 				} else {
 					todo!() // Global?
 				}
@@ -237,21 +291,21 @@ impl ast::Assignment {
 }
 
 impl ast::ReturnStmt {
-	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<(), IrGenError> {
+	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
 		if let Some(expr) = &self.expr {
-			expr.append_ir(ctx)?;
+			expr.append_ir(ctx, target)?;
 		}
 
-		ctx.func_mut().push(ir::Ins::Ret);
+		target.push(ir::Ins::Ret);
 
 		Ok(())
 	}
 }
 
 impl ast::VarDeclaration {
-	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<(), IrGenError> {
+	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
 		let mut expr_type = if let Some(expr) = &self.expr {
-			Some(expr.append_ir(ctx)?)
+			Some(expr.append_ir(ctx, target)?)
 		} else {
 			None
 		};
@@ -272,7 +326,7 @@ impl ast::VarDeclaration {
 		let idx = ctx.push_local(&self.name, expr_type.unwrap());
 
 		if self.expr.is_some() {
-			ctx.func_mut().push(ir::Ins::PopLocal(expr_type.unwrap(), idx));
+			target.push(ir::Ins::PopLocal(expr_type.unwrap(), idx));
 		}
 
 		Ok(())
@@ -280,19 +334,19 @@ impl ast::VarDeclaration {
 }
 
 impl ast::Expr {
-	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
+	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
 		match self {
-			ast::Expr::BinaryExpr(binary_expr) => binary_expr.append_ir(ctx),
-			ast::Expr::Name(name_expr) => name_expr.append_ir(ctx),
-			ast::Expr::Closed(closed_expr) => closed_expr.append_ir(ctx),
-			ast::Expr::NumberLit(number_lit) => number_lit.append_ir(ctx),
-			ast::Expr::Call(call_expr) => call_expr.append_ir_in_expr(ctx),
+			ast::Expr::BinaryExpr(binary_expr) => binary_expr.append_ir(ctx, target),
+			ast::Expr::Name(name_expr) => name_expr.append_ir(ctx, target),
+			ast::Expr::Closed(closed_expr) => closed_expr.append_ir(ctx, target),
+			ast::Expr::NumberLit(number_lit) => number_lit.append_ir(ctx, target),
+			ast::Expr::Call(call_expr) => call_expr.append_ir_in_expr(ctx, target),
 		}
 	}
 }
 
 impl ast::CallExpr {
-	fn append_ir_in_expr<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
+	fn append_ir_in_expr<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
 		let (func_id, func) = match self.object.as_ref() {
 			ast::Expr::Name(name) => {
 				match ctx.unit.func(&name.name) {
@@ -312,17 +366,17 @@ impl ast::CallExpr {
 		}
 
 		for (a, arg) in self.args.iter().enumerate() {
-			if arg.append_ir(ctx)? != ctx.ir_unit.get_function(func_id).signature().params()[a] {
+			if arg.append_ir(ctx, target)? != ctx.ir_unit.get_function(func_id).signature().params()[a] {
 				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgTypeMismatch));
 			}
 		}
 
-		ctx.func_mut().push(ir::Ins::Call(func_id));
+		target.push(ir::Ins::Call(func_id));
 
 		Ok(ctx.ir_unit.get_function(func_id).signature().returns()[0])
 	}
 
-	fn append_ir_out_expr<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<usize, IrGenError> {
+	fn append_ir_out_expr<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<usize, IrGenError> {
 		let (func_id, func) = match self.object.as_ref() {
 			ast::Expr::Name(name) => {
 				match ctx.unit.func(&name.name) {
@@ -338,25 +392,25 @@ impl ast::CallExpr {
 		}
 
 		for (a, arg) in self.args.iter().enumerate() {
-			if arg.append_ir(ctx)? != ctx.ir_unit.get_function(func_id).signature().params()[a] {
+			if arg.append_ir(ctx, target)? != ctx.ir_unit.get_function(func_id).signature().params()[a] {
 				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgTypeMismatch));
 			}
 		}
 
-		ctx.func_mut().push(ir::Ins::Call(func_id));
+		target.push(ir::Ins::Call(func_id));
 
 		Ok(ctx.ir_unit.get_function(func_id).signature().returns().len())
 	}
 }
 
 impl ast::BinaryExpr {
-	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
-		let left = self.left.append_ir(ctx)?;
-		let right = self.right.append_ir(ctx)?;
+	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
+		let left = self.left.append_ir(ctx, target)?;
+		let right = self.right.append_ir(ctx, target)?;
 
 		if left != right { return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::BinaryOpTypeMismatch)) }
 
-		ctx.func_mut().push(match self.op {
+		target.push(match self.op {
 			ast::BinaryOp::Add => ir::Ins::Add(left),
 			ast::BinaryOp::Mul => ir::Ins::Mul(left),
 			ast::BinaryOp::Div => ir::Ins::Div(left),
@@ -368,12 +422,12 @@ impl ast::BinaryExpr {
 }
 
 impl ast::NameExpr {
-	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
+	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
 		if let Some(idx) = ctx.local_map.get(self.name.as_str()) {
 			let idx = *idx;
 			
 			let vt = ctx.func().get_local(idx).unwrap().value_type();
-			ctx.func_mut().push(ir::Ins::PushLocal(vt, idx));
+			target.push(ir::Ins::PushLocal(vt, idx));
 			Ok(vt)
 		} else {
 			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::VariableDoesNotExist))
@@ -382,15 +436,15 @@ impl ast::NameExpr {
 }
 
 impl ast::ClosedExpr {
-	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
-		self.expr.append_ir(ctx)
+	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
+		self.expr.append_ir(ctx, target)
 	}
 }
 
 impl ast::NumberLitExpr {
-	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
+	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
 		if let Ok(num) = i32::from_str(&self.number) {
-			ctx.func_mut().push(ir::Ins::PushLiteral(ir::ValueType::I32, num as u64));
+			target.push(ir::Ins::PushLiteral(ir::ValueType::I32, num as u64));
 			Ok(ir::ValueType::I32)
 		} else {
 			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidInteger))

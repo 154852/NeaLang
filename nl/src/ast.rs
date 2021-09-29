@@ -95,7 +95,16 @@ pub enum Code {
 	ReturnStmt(ReturnStmt),
 	VarDeclaration(VarDeclaration),
 	ExprStmt(Expr),
-	Assignment(Assignment)
+	Assignment(Assignment),
+	IfStmt(IfStmt)
+}
+
+#[derive(Debug)]
+pub struct IfStmt {
+	pub span: Span,
+	pub condition: Expr,
+	pub code: Vec<Code>,
+	pub else_code: Option<Vec<Code>>
 }
 
 #[derive(Debug)]

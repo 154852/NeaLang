@@ -172,6 +172,10 @@ impl Function {
         &self.code
     }
 
+    pub fn code_mut(&mut self) -> &mut Vec<Ins> {
+        &mut self.code
+    }
+
     pub fn signature(&self) -> &Signature {
         &self.signature
     }
