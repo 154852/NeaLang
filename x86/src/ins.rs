@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::{Encoder, GlobalSymbolID, LocalSymbolID, Mem, Reg, Relocation, Size};
+use crate::{Encoder, GlobalSymbolID, LocalSymbolID, Mem, Reg, RegClass, Relocation, Size};
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Condition {
@@ -45,6 +45,9 @@ pub enum Ins {
     CmpRegMem(Reg, Mem),
     /// Cmp A, B
     CmpMemReg(Mem, Reg),
+
+    /// If Condition Then A = 1
+    ConditionalSet(Condition, RegClass),
 
     // A <- A * B
     IMulRegReg(Reg, Reg),
@@ -130,6 +133,9 @@ impl Ins {
             Ins::CmpRegImm(r, i) => Encoder::new(if r.size() == Size::Byte { 0x80 } else { 0x81 }).rn(r, 7).immn(i as u32, r.size()).to(data),
             Ins::CmpRegMem(r, ref m) => Encoder::new(if r.size() == Size::Byte { 0x3a } else { 0x3b }).rm(r, m).to(data),
             Ins::CmpMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x38 } else { 0x39 }).rm(r, m).to(data),
+
+            // https://www.felixcloutier.com/x86/setcc
+            Ins::ConditionalSet(c, r) => Encoder::new_long([0x0f, 0x90 + c.base()]).rn(r.u32(), 0).to(data),
 
             // https://www.felixcloutier.com/x86/imul
             Ins::IMulRegReg(a, b) => Encoder::new_long([0x0f, 0xaf]).rr(a, b).to(data),
