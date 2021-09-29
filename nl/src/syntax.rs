@@ -1,7 +1,7 @@
 use syntax;
 use crate::ast;
 use crate::lexer::*;
-use syntax::{Parseable, MatchResult};
+use syntax::{Parseable};
 
 impl syntax::Parseable<TokenKind> for ast::Code {
 	type Output = ast::Code;
@@ -9,15 +9,26 @@ impl syntax::Parseable<TokenKind> for ast::Code {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Code> {
         while syntax::tk_iss!(stream, TokenKind::Semi) {}
         
+        let start = stream.tell_start();
         let ok = match stream.token().map(|x| x.kind()) {
             // Safe to unwrap here as the only way these can fail is if the initial keyword is not what is expected, which it is - because we wouldn't go into that parser otherwise
-            Some(TokenKind::ReturnKeyword) => MatchResult::Ok(ast::Code::ReturnStmt(syntax::parse!(stream, ast::ReturnStmt::parse).unwrap())),
-			Some(TokenKind::VarKeyword) => MatchResult::Ok(ast::Code::VarDeclaration(syntax::parse!(stream, ast::VarDeclaration::parse).unwrap())),
+            Some(TokenKind::ReturnKeyword) => syntax::MatchResult::Ok(ast::Code::ReturnStmt(syntax::parse!(stream, ast::ReturnStmt::parse).unwrap())),
+			Some(TokenKind::VarKeyword) => syntax::MatchResult::Ok(ast::Code::VarDeclaration(syntax::parse!(stream, ast::VarDeclaration::parse).unwrap())),
             
             _ => {
-                let res = MatchResult::Ok(ast::Code::ExprStmt(syntax::ex!(syntax::parse!(stream, ast::Expr::parse))));
-                syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));
-                res
+                let expr = syntax::ex!(syntax::parse!(stream, ast::Expr::parse));
+                if syntax::tk_iss!(stream, TokenKind::Eq) {
+                    let right = syntax::ex!(syntax::parse!(stream, ast::Expr::parse), stream.error("Expected RHS"));
+                    syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));
+                    syntax::MatchResult::Ok(ast::Code::Assignment(ast::Assignment {
+                        span: syntax::Span::new(start, stream.tell_start()),
+                        left: expr,
+                        right
+                    }))
+                } else {
+                    syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));
+                    syntax::MatchResult::Ok(ast::Code::ExprStmt(expr))
+                }
             }
         };
 
@@ -32,9 +43,9 @@ impl syntax::Parseable<TokenKind> for ast::TopLevelNode {
 	
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::TopLevelNode> {
         match stream.token().map(|x| x.kind()) {
-            Some(TokenKind::FuncKeyword) => MatchResult::Ok(ast::TopLevelNode::Function(syntax::parse!(stream, ast::Function::parse).unwrap())),
+            Some(TokenKind::FuncKeyword) => syntax::MatchResult::Ok(ast::TopLevelNode::Function(syntax::parse!(stream, ast::Function::parse).unwrap())),
             
-            _ => MatchResult::Fail
+            _ => syntax::MatchResult::Fail
         }
     }
 }
@@ -70,7 +81,7 @@ impl ast::Expr {
                     name
                 })
             },
-            _ => return MatchResult::Fail
+            _ => return syntax::MatchResult::Fail
         };
 
         loop {

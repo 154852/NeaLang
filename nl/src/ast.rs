@@ -94,7 +94,15 @@ pub struct VarDeclaration {
 pub enum Code {
 	ReturnStmt(ReturnStmt),
 	VarDeclaration(VarDeclaration),
-	ExprStmt(Expr)
+	ExprStmt(Expr),
+	Assignment(Assignment)
+}
+
+#[derive(Debug)]
+pub struct Assignment {
+	pub span: Span,
+	pub left: Expr,
+	pub right: Expr
 }
 
 #[derive(Debug)]

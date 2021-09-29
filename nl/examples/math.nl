@@ -3,6 +3,8 @@ func main() {
 	var b = do_something(10);
 
 	do_something(11);
+
+	b = b + 1;
 }
 
 func do_something(a: i32): i32 {

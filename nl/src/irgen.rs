@@ -15,6 +15,7 @@ pub enum IrGenErrorKind {
 	CallArgParamCountMismatch,
 	CallArgTypeMismatch,
 	CallNotOneReturnInExpr,
+	InvalidLHS
 }
 
 impl IrGenErrorKind {
@@ -29,6 +30,7 @@ impl IrGenErrorKind {
 			IrGenErrorKind::CallArgParamCountMismatch => "Incorrect number of arguments to function".to_string(),
 			IrGenErrorKind::CallArgTypeMismatch => "Incorrect argument type".to_string(),
 			IrGenErrorKind::CallNotOneReturnInExpr => "Can only call functions with one return value in an expression".to_string(),
+			IrGenErrorKind::InvalidLHS => "Invalid left hand side".to_string(),
 		}
 	}
 }
@@ -204,7 +206,33 @@ impl ast::Code {
 
 				Ok(())
 			},
+			ast::Code::Assignment(assignment) => assignment.append_ir(ctx)
 		}
+	}
+}
+
+impl ast::Assignment {
+	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>) -> Result<(), IrGenError> {
+		let vt = self.right.append_ir(ctx)?;
+
+		match &self.left {
+			ast::Expr::Name(name) => {
+				if let Some(local_idx) = ctx.local_map.get(name.name.as_str()) {
+					let local_idx = *local_idx;
+					let local = ctx.func().get_local(local_idx).unwrap();
+					if local.value_type() != vt {
+						return Err(IrGenError::new(self.span, IrGenErrorKind::AssignmentTypeMismatch));
+					}
+
+					ctx.func_mut().push(ir::Ins::PopLocal(vt, local_idx));
+				} else {
+					todo!() // Global?
+				}
+			},
+			_ => return Err(IrGenError::new(self.span, IrGenErrorKind::InvalidLHS))
+		}
+
+		Ok(())
 	}
 }
 
