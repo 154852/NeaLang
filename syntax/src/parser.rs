@@ -1,11 +1,3 @@
-use crate::{TokenStream, MatchResult, TokenKind};
-
-pub trait Parseable<T: std::fmt::Debug + TokenKind> {
-	type Output;
-
-	fn parse<'a>(stream: &mut TokenStream<'a, T>) -> MatchResult<Self::Output>;
-}
-
 #[macro_export]
 macro_rules! tk_is {
     ( $stream:expr , $p:pat ) => {

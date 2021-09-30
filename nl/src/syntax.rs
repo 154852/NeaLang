@@ -1,11 +1,8 @@
 use syntax;
 use crate::ast;
 use crate::lexer::*;
-use syntax::{Parseable};
 
-impl syntax::Parseable<TokenKind> for ast::Code {
-	type Output = ast::Code;
-	
+impl ast::Code {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Code> {
         while syntax::tk_iss!(stream, TokenKind::Semi) {}
         
@@ -39,9 +36,7 @@ impl syntax::Parseable<TokenKind> for ast::Code {
     }
 }
 
-impl syntax::Parseable<TokenKind> for ast::IfStmt {
-	type Output = ast::IfStmt;
-	
+impl ast::IfStmt {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::IfStmt> {
         let start = stream.tell_start();
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::IfKeyword));
@@ -100,9 +95,7 @@ impl syntax::Parseable<TokenKind> for ast::IfStmt {
     }
 }
 
-impl syntax::Parseable<TokenKind> for ast::TopLevelNode {
-	type Output = ast::TopLevelNode;
-	
+impl ast::TopLevelNode {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::TopLevelNode> {
         match stream.token().map(|x| x.kind()) {
             Some(TokenKind::FuncKeyword) => syntax::MatchResult::Ok(ast::TopLevelNode::Function(syntax::parse!(stream, ast::Function::parse).unwrap())),
@@ -177,9 +170,7 @@ impl ast::Expr {
     }
 }
 
-impl syntax::Parseable<TokenKind> for ast::Expr {
-	type Output = ast::Expr;
-
+impl ast::Expr {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Expr> {
         let mut expr = syntax::ex!(syntax::parse!(stream, ast::Expr::parse_primary));
         let start = stream.tell_start();
@@ -223,9 +214,7 @@ impl syntax::Parseable<TokenKind> for ast::Expr {
     }
 }
 
-impl syntax::Parseable<TokenKind> for ast::ReturnStmt {
-	type Output = ast::ReturnStmt;
-
+impl ast::ReturnStmt {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::ReturnStmt> {
         let start = stream.tell_start();
 
@@ -242,9 +231,7 @@ impl syntax::Parseable<TokenKind> for ast::ReturnStmt {
     }
 }
 
-impl syntax::Parseable<TokenKind> for ast::VarDeclaration {
-	type Output = ast::VarDeclaration;
-
+impl ast::VarDeclaration {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::VarDeclaration> {
         let start = stream.tell_start();
 
@@ -272,9 +259,7 @@ impl syntax::Parseable<TokenKind> for ast::VarDeclaration {
     }
 }
 
-impl syntax::Parseable<TokenKind> for ast::TypeExpr {
-	type Output = ast::TypeExpr;
-
+impl ast::TypeExpr {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::TypeExpr> {
         let start = stream.tell_start();
         let mut path = Vec::new();
@@ -292,9 +277,7 @@ impl syntax::Parseable<TokenKind> for ast::TypeExpr {
     }
 }
 
-impl syntax::Parseable<TokenKind> for ast::FunctionParam {
-	type Output = ast::FunctionParam;
-
+impl ast::FunctionParam {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::FunctionParam> {
         let start = stream.tell_start();
         let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident)).to_owned();
@@ -312,9 +295,7 @@ impl syntax::Parseable<TokenKind> for ast::FunctionParam {
     }
 }
 
-impl syntax::Parseable<TokenKind> for ast::Function {
-	type Output = ast::Function;
-
+impl ast::Function {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Function> {
         let start = stream.tell_start();
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::FuncKeyword));
@@ -376,10 +357,8 @@ impl syntax::Parseable<TokenKind> for ast::Function {
     }
 }
 
-impl syntax::Parseable<TokenKind> for ast::TranslationUnit {
-	type Output = ast::TranslationUnit;
-
-    fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::TranslationUnit> {
+impl ast::TranslationUnit {
+    pub fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::TranslationUnit> {
         let mut nodes = Vec::new();
 
         while !stream.finished() {

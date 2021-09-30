@@ -4,7 +4,6 @@ mod syntax;
 mod irgen;
 
 use clap::{AppSettings, Clap};
-use ::syntax::Parseable;
 use ir2triple;
 
 #[derive(Clap)]

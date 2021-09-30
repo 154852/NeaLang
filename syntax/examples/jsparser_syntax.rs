@@ -1,4 +1,4 @@
-use syntax::{self, MatchResult, Parseable};
+use syntax::{self, MatchResult};
 mod ast {
     #[derive(Debug)]
     pub struct Function {
@@ -79,9 +79,7 @@ impl syntax::TokenKind for TokenKind {
 type Token = syntax::Token<TokenKind>;
 type TokenStream<'a> = syntax::TokenStream<'a, TokenKind>;
 
-impl syntax::Parseable<TokenKind> for ast::Code {
-	type Output = ast::Code;
-	
+impl ast::Code {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Code> {
         match stream.token().map(|x| x.kind()) {
             // Safe to unwrap here as the only way these can fail is if the initial keyword is not what is expected, which it is - because we wouldn't go into that parser otherwise
@@ -116,11 +114,6 @@ impl ast::Expr {
             _ => MatchResult::Fail
         }
     }
-}
-
-impl syntax::Parseable<TokenKind> for ast::Expr {
-	type Output = ast::Expr;
-
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Expr> {
         let mut expr = syntax::ex!(syntax::parse!(stream, ast::Expr::parse_primary));
 
@@ -152,9 +145,7 @@ impl syntax::Parseable<TokenKind> for ast::Expr {
     }
 }
 
-impl syntax::Parseable<TokenKind> for ast::ReturnStmt {
-	type Output = ast::ReturnStmt;
-
+impl ast::ReturnStmt {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::ReturnStmt> {
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::ReturnKeyword));
 
@@ -168,9 +159,7 @@ impl syntax::Parseable<TokenKind> for ast::ReturnStmt {
     }
 }
 
-impl syntax::Parseable<TokenKind> for ast::FunctionParam {
-	type Output = ast::FunctionParam;
-
+impl ast::FunctionParam {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::FunctionParam> {
         let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident)).to_owned();
         stream.step();
@@ -181,9 +170,7 @@ impl syntax::Parseable<TokenKind> for ast::FunctionParam {
     }
 }
 
-impl syntax::Parseable<TokenKind> for ast::Function {
-	type Output = ast::Function;
-
+impl ast::Function {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Function> {
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::FunctionKeyword));
 
