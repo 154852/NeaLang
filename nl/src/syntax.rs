@@ -3,36 +3,103 @@ use crate::ast;
 use crate::lexer::*;
 
 impl ast::Code {
-    fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Code> {
-        while syntax::tk_iss!(stream, TokenKind::Semi) {}
+    fn parse<'a>(stream: &mut TokenStream<'a>, terminated: bool) -> syntax::MatchResult<ast::Code> {
+        if terminated {
+            while syntax::tk_iss!(stream, TokenKind::Semi) {}
+        }
         
         let start = stream.tell_start();
-        let ok = match stream.token().map(|x| x.kind()) {
+        let code = match stream.token().map(|x| x.kind()) {
             // Safe to unwrap here as the only way these can fail is if the initial keyword is not what is expected, which it is - because we wouldn't go into that parser otherwise
-            Some(TokenKind::ReturnKeyword) => syntax::MatchResult::Ok(ast::Code::ReturnStmt(syntax::parse!(stream, ast::ReturnStmt::parse).unwrap())),
-			Some(TokenKind::VarKeyword) => syntax::MatchResult::Ok(ast::Code::VarDeclaration(syntax::parse!(stream, ast::VarDeclaration::parse).unwrap())),
-            Some(TokenKind::IfKeyword) => syntax::MatchResult::Ok(ast::Code::IfStmt(syntax::parse!(stream, ast::IfStmt::parse).unwrap())),
+            Some(TokenKind::ReturnKeyword) => ast::Code::ReturnStmt(syntax::parse!(stream, ast::ReturnStmt::parse, terminated).unwrap()),
+			Some(TokenKind::VarKeyword) => ast::Code::VarDeclaration(syntax::parse!(stream, ast::VarDeclaration::parse, terminated).unwrap()),
+            Some(TokenKind::IfKeyword) => ast::Code::IfStmt(syntax::parse!(stream, ast::IfStmt::parse).unwrap()),
+            Some(TokenKind::ForKeyword) => ast::Code::ForStmt(syntax::parse!(stream, ast::ForStmt::parse).unwrap()),
             
             _ => {
                 let expr = syntax::ex!(syntax::parse!(stream, ast::Expr::parse));
                 if syntax::tk_iss!(stream, TokenKind::Eq) {
                     let right = syntax::ex!(syntax::parse!(stream, ast::Expr::parse), stream.error("Expected RHS"));
-                    syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));
-                    syntax::MatchResult::Ok(ast::Code::Assignment(ast::Assignment {
+                    
+                    if terminated { syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'")); }
+
+                    ast::Code::Assignment(ast::Assignment {
                         span: syntax::Span::new(start, stream.tell_start()),
                         left: expr,
                         right
-                    }))
+                    })
                 } else {
-                    syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));
-                    syntax::MatchResult::Ok(ast::Code::ExprStmt(expr))
+                    if terminated { syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'")); }
+
+                    ast::Code::ExprStmt(expr)
                 }
             }
         };
 
-        while syntax::tk_iss!(stream, TokenKind::Semi) {}
+        if terminated {
+            while syntax::tk_iss!(stream, TokenKind::Semi) {}
+        }
 
-        ok
+        syntax::MatchResult::Ok(code)
+    }
+}
+
+impl ast::ForStmt {
+    fn parse_ici<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<(Option<Box<ast::Code>>, Option<ast::Expr>, Option<Box<ast::Code>>)> {
+        let mut init = None;
+        let mut condition = None;
+        let mut inc = None;
+
+        if !syntax::tk_iss!(stream, TokenKind::OpenCurly) {
+            if !syntax::tk_iss!(stream, TokenKind::Semi) {
+                init = Some(Box::new(syntax::ex!(syntax::parse!(stream, ast::Code::parse, false), stream.error("Expected initial statement"))));
+
+                if syntax::tk_iss!(stream, TokenKind::OpenCurly) {
+                    condition = match *init.take().unwrap() {
+                        ast::Code::ExprStmt(expr) => Some(expr),
+                        _ => return syntax::MatchResult::Err(stream.error("Cannot use statement as condition"))
+                    };
+                    return syntax::MatchResult::Ok((init, condition, inc));
+                }
+
+                syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));
+            }
+
+            condition = Some(syntax::ex!(syntax::parse!(stream, ast::Expr::parse), stream.error("Expected condition")));
+
+            syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));
+
+            inc = Some(Box::new(syntax::ex!(syntax::parse!(stream, ast::Code::parse, false), stream.error("Expected increment"))));
+
+            syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::OpenCurly), stream.error("Expected '{'"));
+        }
+
+        syntax::MatchResult::Ok((init, condition, inc))
+    }
+
+    fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::ForStmt> {
+        let start = stream.tell_start();
+        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::ForKeyword));
+
+        let (init, condition, inc) = syntax::ex!(syntax::parse!(stream, ast::ForStmt::parse_ici));
+
+        let mut code = Vec::new();
+        loop {
+            code.push(match syntax::parse!(stream, ast::Code::parse, true) {
+                Some(x) => x,
+                None => break
+            });
+        }
+
+        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseCurly), stream.error("Expected '}'"));
+
+        syntax::MatchResult::Ok(ast::ForStmt {
+            span: syntax::Span::new(start, stream.tell_start()),
+            init,
+            condition,
+            inc,
+            code,
+        })
     }
 }
 
@@ -48,7 +115,7 @@ impl ast::IfStmt {
         let code = if syntax::tk_iss!(stream, TokenKind::OpenCurly) {
             let mut code = Vec::new();
             loop {
-                code.push(match syntax::parse!(stream, ast::Code::parse) {
+                code.push(match syntax::parse!(stream, ast::Code::parse, true) {
                     Some(x) => x,
                     None => break
                 });
@@ -59,7 +126,7 @@ impl ast::IfStmt {
             code
         } else {
             vec![
-                syntax::ex!(syntax::parse!(stream, ast::Code::parse), stream.error("Expected statement"))
+                syntax::ex!(syntax::parse!(stream, ast::Code::parse, true), stream.error("Expected statement"))
             ]
         };
 
@@ -69,7 +136,7 @@ impl ast::IfStmt {
             if syntax::tk_iss!(stream, TokenKind::OpenCurly) {
                 let mut code = Vec::new();
                 loop {
-                    code.push(match syntax::parse!(stream, ast::Code::parse) {
+                    code.push(match syntax::parse!(stream, ast::Code::parse, true) {
                         Some(x) => x,
                         None => break
                     });
@@ -80,7 +147,7 @@ impl ast::IfStmt {
                 Some(code)
             } else {
                 Some(vec![
-                    syntax::ex!(syntax::parse!(stream, ast::Code::parse), stream.error("Expected statement"))
+                    syntax::ex!(syntax::parse!(stream, ast::Code::parse, true), stream.error("Expected statement"))
                 ])
             }
         } else {
@@ -215,14 +282,16 @@ impl ast::Expr {
 }
 
 impl ast::ReturnStmt {
-    fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::ReturnStmt> {
+    fn parse<'a>(stream: &mut TokenStream<'a>, terminated: bool) -> syntax::MatchResult<ast::ReturnStmt> {
         let start = stream.tell_start();
 
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::ReturnKeyword));
 
         let expr = syntax::parse!(stream, ast::Expr::parse);
 
-        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));
+        if terminated {
+            syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));
+        }
 
         syntax::MatchResult::Ok(ast::ReturnStmt {
             span: syntax::Span::new(start, stream.tell_start()),
@@ -232,7 +301,7 @@ impl ast::ReturnStmt {
 }
 
 impl ast::VarDeclaration {
-    fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::VarDeclaration> {
+    fn parse<'a>(stream: &mut TokenStream<'a>, terminated: bool) -> syntax::MatchResult<ast::VarDeclaration> {
         let start = stream.tell_start();
 
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::VarKeyword));
@@ -250,7 +319,9 @@ impl ast::VarDeclaration {
 			expr = Some(syntax::ex!(syntax::parse!(stream, ast::Expr::parse), stream.error("Expected expression")));
 		}
 
-        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));
+        if terminated {
+            syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));
+        }
 
         syntax::MatchResult::Ok(ast::VarDeclaration {
             span: syntax::Span::new(start, stream.tell_start()),
@@ -340,7 +411,7 @@ impl ast::Function {
 
         let mut code = Vec::new();
         loop {
-            code.push(match syntax::parse!(stream, ast::Code::parse) {
+            code.push(match syntax::parse!(stream, ast::Code::parse, true) {
                 Some(x) => x,
                 None => break
             });

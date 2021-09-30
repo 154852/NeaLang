@@ -232,7 +232,39 @@ impl ast::Code {
 			},
 			ast::Code::Assignment(assignment) => assignment.append_ir(ctx, target),
 			ast::Code::IfStmt(if_stmt) => if_stmt.append_ir(ctx, target),
+			ast::Code::ForStmt(for_stmt) => for_stmt.append_ir(ctx, target)
 		}
+	}
+}
+
+impl ast::ForStmt {
+	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
+		if let Some(init) = &self.init {
+			init.append_ir(ctx, target)?;
+		}
+
+		let mut body = IrGenCodeTarget::new();
+		for code in &self.code {
+			code.append_ir(ctx, &mut body)?;
+		}
+
+		let mut inc_body = IrGenCodeTarget::new();
+		if let Some(inc) = &self.inc {
+			inc.append_ir(ctx, &mut inc_body)?;
+		}
+
+		let mut condition_body = IrGenCodeTarget::new();
+		if let Some(condition) = &self.condition {
+			condition.append_ir(ctx, &mut condition_body)?;
+		}
+
+		target.push(ir::Ins::Loop(
+			body.take(),
+			condition_body.take(),
+			inc_body.take(),
+		));
+
+		Ok(())
 	}
 }
 

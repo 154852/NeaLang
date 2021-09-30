@@ -10,6 +10,10 @@ func main() {
 		a = a - 1;
 	}
 
+	for var i = 0; i < 10; i = i + 1 {
+		a = a + 1;
+	}
+
 	b = b + 1;
 }
 

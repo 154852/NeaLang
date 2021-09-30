@@ -38,6 +38,13 @@ macro_rules! parse {
             ::syntax::MatchResult::Fail => None
         }
     };
+    ( $stream:expr , $e:expr , $( $arg:expr ),+ ) => {
+        match $e ($stream, $( $arg ),+) {
+            ::syntax::MatchResult::Ok(x) => Some(x),
+            ::syntax::MatchResult::Err(e) => return ::syntax::MatchResult::Err(e),
+            ::syntax::MatchResult::Fail => None
+        }
+    };
 }
 
 #[macro_export]

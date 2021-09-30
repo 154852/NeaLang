@@ -97,7 +97,8 @@ pub enum Code {
 	VarDeclaration(VarDeclaration),
 	ExprStmt(Expr),
 	Assignment(Assignment),
-	IfStmt(IfStmt)
+	IfStmt(IfStmt),
+	ForStmt(ForStmt)
 }
 
 #[derive(Debug)]
@@ -106,6 +107,15 @@ pub struct IfStmt {
 	pub condition: Expr,
 	pub code: Vec<Code>,
 	pub else_code: Option<Vec<Code>>
+}
+
+#[derive(Debug)]
+pub struct ForStmt {
+	pub span: Span,
+	pub init: Option<Box<Code>>,
+	pub condition: Option<Expr>,
+	pub inc: Option<Box<Code>>,
+	pub code: Vec<Code>,
 }
 
 #[derive(Debug)]
