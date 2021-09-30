@@ -33,7 +33,7 @@ fn main() {
     x86::opt::pass_zero(&mut ins_b);
 	encode_ctx.append_function(func_b_id, &ins_b);
     
-	let raw = encode_ctx.finish();
+	let (raw, _) = encode_ctx.finish();
 	println!("Assembled!");
 
     // View with `objdump -D ir2x86/examples/binary.bin -b binary -m i386 -Mintel,x86-64`

@@ -109,7 +109,9 @@ impl ast::TranslationUnit {
 		for node in &self.nodes {
 			match node {
     			ast::TopLevelNode::Function(func) => {
-					func.append_ir(self, &mut unit, id)?;
+					if func.code.is_some() {
+						func.append_ir(self, &mut unit, id)?;
+					}
 					id += 1;
 				},
 			}
@@ -176,7 +178,11 @@ impl ast::Function {
 			returns.push(return_type.to_ir_valuetype(unit)?);
 		}
 
-		Ok(ir::Function::new(&self.name, ir::Signature::new(params, returns)))
+		Ok(if self.code.is_some() {
+			ir::Function::new(&self.name, ir::Signature::new(params, returns))
+		} else {
+			ir::Function::new_extern(&self.name, ir::Signature::new(params, returns))
+		})
 	}
 
 	fn append_ir(&self, unit: &ast::TranslationUnit, ir_unit: &mut ir::TranslationUnit, idx: ir::FunctionIndex) -> Result<(), IrGenError> {
@@ -196,7 +202,7 @@ impl ast::Function {
 			target.push(ir::Ins::PopLocal(vt, local));
 		}
 
-		for code in &self.code {
+		for code in self.code.as_ref().unwrap() {
 			code.append_ir(&mut ctx, &mut target)?;
 		}
 

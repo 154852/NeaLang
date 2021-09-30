@@ -405,20 +405,27 @@ impl ast::Function {
                 returns.push(syntax::ex!(syntax::parse!(stream, ast::TypeExpr::parse), stream.error("Expected return type")));
             }
         }
-        
+
         let end = stream.tell_start();
-        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::OpenCurly), stream.error("Expected '{'"));
 
-        let mut code = Vec::new();
-        loop {
-            code.push(match syntax::parse!(stream, ast::Code::parse, true) {
-                Some(x) => x,
-                None => break
-            });
-        }
+        let code = if syntax::tk_iss!(stream, TokenKind::ExternKeyword) {
+            None
+        } else {
+            syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::OpenCurly), stream.error("Expected '{'"));
 
-        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseCurly), stream.error("Expected '}'"));
+            let mut code = Vec::new();
+            loop {
+                code.push(match syntax::parse!(stream, ast::Code::parse, true) {
+                    Some(x) => x,
+                    None => break
+                });
+            }
+    
+            syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseCurly), stream.error("Expected '}'"));
 
+            Some(code)
+        };
+    
         syntax::MatchResult::Ok(ast::Function {
             span: syntax::Span::new(start, end),
             name, params, code,

@@ -255,6 +255,8 @@ fn ensure_returns(block: &Vec<Ins>) -> Result<(), ValidationError> {
 
 impl Function {
     pub fn validate(&self, unit: &TranslationUnit) -> Result<(), ValidationError> {
+        if self.is_extern() { return Ok(()); }
+
         let mut type_stack = TypeStack::from_signature(&self.signature());
         let mut block_stack = BlockStack::new();
 

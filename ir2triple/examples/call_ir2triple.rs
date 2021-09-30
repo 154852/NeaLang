@@ -18,5 +18,5 @@ fn main() {
 	func_b.push(ir::Ins::Ret);
 
 	// Link with `gcc ir2triple/examples/binary.elf ir2triple/examples/entry.c -o ir2triple/examples/out`
-	ir2triple::linux_elf::encode(&unit, "ir2triple/examples/binary.elf", true);
+	ir2triple::linux_elf::encode(&unit, "ir2triple/examples/binary.elf", true).expect("Could not encode");
 }

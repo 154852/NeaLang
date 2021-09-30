@@ -90,7 +90,7 @@ impl FunctionContext {
 
 #[derive(Debug)]
 pub enum EvalError {
-
+    CallToExtern
 }
 
 enum EvalResultAction {
@@ -303,6 +303,8 @@ impl Ins {
 
 impl Function {
     fn evaluate_on(&self, stack: &mut Stack, unit: &TranslationUnit) -> Result<(), EvalError> {
+        if self.is_extern() { return Err(EvalError::CallToExtern); }
+
         let mut ctx = FunctionContext::new(self.locals());
 
         for ins in self.code() {

@@ -17,7 +17,7 @@ pub struct Function {
 	pub span: Span,
 	pub name: String,
 	pub params: Vec<FunctionParam>,
-	pub code: Vec<Code>,
+	pub code: Option<Vec<Code>>,
 	pub annotations: Vec<FunctionAnnotation>,
 	pub return_types: Vec<TypeExpr>
 }

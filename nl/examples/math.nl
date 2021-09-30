@@ -1,3 +1,5 @@
+func exit(code: i32) extern
+
 func main() {
 	var a: i32 = 1 + 2;
 	var b = do_something(10);
@@ -15,6 +17,8 @@ func main() {
 	}
 
 	b = b + 1;
+
+	exit(10);
 }
 
 func do_something(a: i32): i32 {

@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub enum TokenKind {
-    FuncKeyword, ReturnKeyword, VarKeyword, IfKeyword, ElseKeyword, ForKeyword,
+    FuncKeyword, ReturnKeyword, VarKeyword, IfKeyword, ElseKeyword, ForKeyword, ExternKeyword,
     Ident(String),
     Char(char),
     Number(String),
@@ -53,7 +53,8 @@ impl syntax::TokenMatcher<TokenKind> for Matcher {
 			"var" => TokenKind::VarKeyword,
             "if" => TokenKind::IfKeyword,
             "else" => TokenKind::ElseKeyword,
-            "for" => TokenKind::ForKeyword
+            "for" => TokenKind::ForKeyword,
+            "extern" => TokenKind::ExternKeyword
         );
 
         syntax::ident!(string, offset, TokenKind::Ident);

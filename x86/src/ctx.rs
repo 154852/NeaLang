@@ -43,11 +43,14 @@ impl EncodeContext {
 		(addr, self.raw.len() - addr)
 	}
 
-	pub fn finish(mut self) -> Vec<u8> {
+	pub fn finish(mut self) -> (Vec<u8>, Vec<Relocation>) {
+		let mut incomplete = Vec::new();
 		for reloc in self.relocations {
-			reloc.write_global(&mut self.raw, &self.global_symbols);
+			if !reloc.write_global(&mut self.raw, &self.global_symbols) {
+				incomplete.push(reloc);
+			}
 		}
 
-		self.raw
+		(self.raw, incomplete)
 	}
 }

@@ -18,7 +18,7 @@ enum SubCommand {
 	Build(BuildOpts)
 }
 
-#[derive(Clap)]
+#[derive(Clap, Debug)]
 struct BuildOpts {
 	path: String,
 
@@ -72,7 +72,13 @@ fn build(build_opts: &BuildOpts) {
 
 	match build_opts.triple.as_str() {
 		"linux-elf-x86_64" => {
-			ir2triple::linux_elf::encode(&ir_unit, &build_opts.output, build_opts.relocatable)
+			match ir2triple::linux_elf::encode(&ir_unit, &build_opts.output, build_opts.relocatable) {
+				Ok(_) => {},
+				Err(err) => {
+					println!("EncodeError: {}", err);
+					std::process::exit(1);
+				}
+			}
 		},
 		_ => {
 			println!("Unknown triple: {}", build_opts.triple);

@@ -103,6 +103,8 @@ impl TranslationContext {
     }
 
     pub fn translate_function(&self, func: &ir::Function, unit: &ir::TranslationUnit) -> Vec<x86::Ins> {
+        if func.is_extern() { panic!("Cannot translate extern function"); }
+
         let mut x86_ins = Vec::new();
 
         let mut ftc = FunctionTranslationContext::new(self.mode, func, unit);

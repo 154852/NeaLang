@@ -134,7 +134,7 @@ pub struct Function {
     name: String,
     locals: Vec<Local>,
     signature: Signature,
-    code: Vec<Ins>
+    code: Option<Vec<Ins>>
 }
 
 impl Function {
@@ -143,8 +143,21 @@ impl Function {
             name: name.into(),
             locals: Vec::new(),
             signature,
-            code: Vec::new()
+            code: Some(Vec::new())
         }
+    }
+
+    pub fn new_extern<T: Into<String>>(name: T, signature: Signature) -> Function {
+        Function {
+            name: name.into(),
+            locals: Vec::new(),
+            signature,
+            code: None
+        }
+    }
+
+    pub fn is_extern(&self) -> bool {
+        self.code.is_none()
     }
 
 	pub fn name(&self) -> &str {
@@ -161,7 +174,7 @@ impl Function {
     }
 
     pub fn push(&mut self, code: Ins) {
-        self.code.push(code);
+        self.code.as_mut().expect("Cannot push to extern function").push(code);
     }
 
     pub fn locals(&self) -> &Vec<Local> {
@@ -169,11 +182,11 @@ impl Function {
     }
 
     pub fn code(&self) -> &Vec<Ins> {
-        &self.code
+        self.code.as_ref().expect("Attempt to get code from extern function")
     }
 
     pub fn code_mut(&mut self) -> &mut Vec<Ins> {
-        &mut self.code
+        self.code.as_mut().expect("Attempt to get code from extern function")
     }
 
     pub fn signature(&self) -> &Signature {

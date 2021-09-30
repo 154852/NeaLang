@@ -54,7 +54,7 @@ fn main() {
     
 	let mut ctx = x86::EncodeContext::new();
 	ctx.append_function(0, &ins);
-	let raw = ctx.finish();
+	let (raw, _) = ctx.finish();
 	println!("Assembled!");
 
     // View with `objdump -D ir2x86/examples/binary.bin -b binary -m i386 -Mintel,x86-64`
