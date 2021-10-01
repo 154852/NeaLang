@@ -110,8 +110,6 @@ impl ast::IfStmt {
 
         let expr = syntax::ex!(syntax::parse!(stream, ast::Expr::parse));
 
-        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::OpenCurly), stream.error("Expected '{'"));
-
         let code = if syntax::tk_iss!(stream, TokenKind::OpenCurly) {
             let mut code = Vec::new();
             loop {
@@ -129,8 +127,6 @@ impl ast::IfStmt {
                 syntax::ex!(syntax::parse!(stream, ast::Code::parse, true), stream.error("Expected statement"))
             ]
         };
-
-        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseCurly), stream.error("Expected '}'"));
 
         let else_code = if syntax::tk_iss!(stream, TokenKind::ElseKeyword) {
             if syntax::tk_iss!(stream, TokenKind::OpenCurly) {
