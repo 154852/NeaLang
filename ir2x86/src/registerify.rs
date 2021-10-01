@@ -35,7 +35,7 @@ pub(crate) const SYS_V_ABI_RET: &[x86::RegClass] = &[
 
 pub(crate) fn reg_for_vt(vt: ir::ValueType, mode: x86::Mode, class: x86::RegClass) -> x86::Reg {
 	match vt {
-		ir::ValueType::U8 | ir::ValueType::I8 => class.u8(),
+		ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool => class.u8(),
 		ir::ValueType::U16 | ir::ValueType::I16 => class.u16(),
 		ir::ValueType::U32 | ir::ValueType::I32 => class.u32(),
 		ir::ValueType::U64 | ir::ValueType::I64 => class.u64(),

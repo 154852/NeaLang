@@ -160,7 +160,7 @@ impl Ins {
                 let right = stack.pop(*vt);
                 let left = stack.pop(*vt);
 
-                stack.push(StackElement::new(if left.value == right.value { 1 } else { 0 }, *vt));
+                stack.push(StackElement::new(if left.value == right.value { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
@@ -168,7 +168,7 @@ impl Ins {
                 let right = stack.pop(*vt);
                 let left = stack.pop(*vt);
 
-                stack.push(StackElement::new(if left.value != right.value { 1 } else { 0 }, *vt));
+                stack.push(StackElement::new(if left.value != right.value { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
@@ -176,7 +176,7 @@ impl Ins {
                 let right = stack.pop(*vt);
                 let left = stack.pop(*vt);
 
-                stack.push(StackElement::new(if left.value < right.value { 1 } else { 0 }, *vt));
+                stack.push(StackElement::new(if left.value < right.value { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
@@ -184,7 +184,7 @@ impl Ins {
                 let right = stack.pop(*vt);
                 let left = stack.pop(*vt);
 
-                stack.push(StackElement::new(if left.value <= right.value { 1 } else { 0 }, *vt));
+                stack.push(StackElement::new(if left.value <= right.value { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
@@ -192,7 +192,7 @@ impl Ins {
                 let right = stack.pop(*vt);
                 let left = stack.pop(*vt);
 
-                stack.push(StackElement::new(if left.value > right.value { 1 } else { 0 }, *vt));
+                stack.push(StackElement::new(if left.value > right.value { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
@@ -200,7 +200,7 @@ impl Ins {
                 let right = stack.pop(*vt);
                 let left = stack.pop(*vt);
 
-                stack.push(StackElement::new(if left.value >= right.value { 1 } else { 0 }, *vt));
+                stack.push(StackElement::new(if left.value >= right.value { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
@@ -215,7 +215,7 @@ impl Ins {
                         }
                     }
 
-                    if stack.pop_any().value == 0 { break }
+                    if stack.pop(ValueType::Bool).value == 0 { break }
 
                     'inner: for ins in body {
                         match ins.evaluate(stack, function, ctx, unit)? {
@@ -251,7 +251,7 @@ impl Ins {
                 Ok(EvalResultAction::Next)
             },
             Ins::If(body) => {
-                if stack.pop_any().value != 0 {
+                if stack.pop(ValueType::Bool).value != 0 {
                     for ins in body {
                         match ins.evaluate(stack, function, ctx, unit)? {
                             EvalResultAction::Ret => return Ok(EvalResultAction::Ret),
@@ -265,7 +265,7 @@ impl Ins {
                 Ok(EvalResultAction::Next)
             },
             Ins::IfElse(body_a, body_b) => {
-                if stack.pop_any().value != 0 {
+                if stack.pop(ValueType::Bool).value != 0 {
                     for ins in body_a {
                         match ins.evaluate(stack, function, ctx, unit)? {
                             EvalResultAction::Ret => return Ok(EvalResultAction::Ret),

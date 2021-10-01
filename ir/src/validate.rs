@@ -164,12 +164,11 @@ impl Ins {
             Ins::Mul(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
             Ins::Div(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
             Ins::Sub(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
-            Ins::Eq(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
-            Ins::Ne(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
-            Ins::Lt(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
-            Ins::Le(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
-            Ins::Gt(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
-            Ins::Ge(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
+            Ins::Eq(vt) | Ins::Ne(vt) | Ins::Lt(vt) | Ins::Le(vt) | Ins::Gt(vt) | Ins::Ge(vt) => {
+                stack.pop(*vt).and(stack.pop(*vt))?;
+                stack.push(ValueType::Bool);
+                Ok(())
+            },
             Ins::Loop(block, condition, inc) => {
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::Loop, |blocks| {
@@ -184,12 +183,12 @@ impl Ins {
                 for el in condition { el.validate(stack, blocks, function, unit)?; }
                 if stack.depth() != 1 { return Err(ValidationError::StackDepthNotOne); }
 
-                stack.pop_any()?;
+                stack.pop(ValueType::Bool)?;
                 
                 Ok(())
             },
             Ins::If(block) => {
-                stack.pop_any()?;
+                stack.pop(ValueType::Bool)?;
 
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::If, |blocks| {
@@ -201,7 +200,7 @@ impl Ins {
                 Ok(())
             },
             Ins::IfElse(block_a, block_b) => {
-                stack.pop_any()?;
+                stack.pop(ValueType::Bool)?;
                 
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::IfElse, |blocks| {

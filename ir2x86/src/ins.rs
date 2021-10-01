@@ -164,7 +164,7 @@ impl TranslationContext {
                     self.translate_instruction_to(inner_ins, ftc, ins);
                 }
 
-                let cond = ftc.stack().pop().u32();
+                let cond = ftc.stack().pop_vt(ir::ValueType::Bool);
                 ins.push(x86::Ins::TestRegReg(cond, cond));
 
                 let final_end = ftc.new_local_symbol();
@@ -193,7 +193,7 @@ impl TranslationContext {
                 ins.push(x86::Ins::LocalSymbol(final_end));
             },
             ir::Ins::If(then) => {
-                let cond = ftc.stack().pop().u32();
+                let cond = ftc.stack().pop_vt(ir::ValueType::Bool);
                 ins.push(x86::Ins::TestRegReg(cond, cond));
                 
                 let end = ftc.new_local_symbol();
@@ -208,7 +208,7 @@ impl TranslationContext {
                 ins.push(x86::Ins::LocalSymbol(end));
             },
             ir::Ins::IfElse(true_then, false_then) => {
-                let cond = ftc.stack().pop().u32();
+                let cond = ftc.stack().pop_vt(ir::ValueType::Bool);
                 ins.push(x86::Ins::TestRegReg(cond, cond));
                 
                 let end = ftc.new_local_symbol();

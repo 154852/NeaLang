@@ -67,19 +67,20 @@ pub enum ValueType {
     U32, I32,
     U64, I64,
     UPtr, IPtr,
+    Bool
 }
 
 impl ValueType {
     pub fn signed(&self) -> bool {
         match &self {
-            ValueType::U8 | ValueType::U16 | ValueType::U32 | ValueType::U64 | ValueType::UPtr => false,
+            ValueType::U8 | ValueType::U16 | ValueType::U32 | ValueType::U64 | ValueType::UPtr | ValueType::Bool => false,
             ValueType::I8 | ValueType::I16 | ValueType::I32 | ValueType::I64 | ValueType::IPtr => true,
         }
     }
 
     pub fn bytes_size(&self, ptr_bytes_size: u64) -> u64 {
         match self {
-            ValueType::U8 | ValueType::I8 => 1,
+            ValueType::U8 | ValueType::I8 | ValueType::Bool => 1,
             ValueType::U16 | ValueType::I16 => 2,
             ValueType::U32 | ValueType::I32 => 4,
             ValueType::U64 | ValueType::I64 => 8,

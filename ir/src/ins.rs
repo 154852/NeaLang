@@ -123,7 +123,7 @@ pub enum Ins {
     /// ```
     Sub(ValueType),
 
-    /// Pushes 1 if the last two items on the stack are equal, and 0 otherwise. The two items must both have the given value type, and the result will have the same value type.
+    /// Pushes 1 if the last two items on the stack are equal, and 0 otherwise. The two items must both have the given value type, and the result will be a bool.
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
@@ -135,7 +135,7 @@ pub enum Ins {
     /// ```
     Eq(ValueType),
 
-    /// Pushes 0 if the last two items on the stack are equal, and 1 otherwise. The two items must both have the given value type, and the result will have the same value type.
+    /// Pushes 0 if the last two items on the stack are equal, and 1 otherwise. The two items must both have the given value type, and the result will be a bool.
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
@@ -147,7 +147,7 @@ pub enum Ins {
     /// ```
     Ne(ValueType),
 
-    /// Pushes 1 if the second to last item on the stack is less than the last. The two items must both have the given value type, and the result will have the same value type.
+    /// Pushes 1 if the second to last item on the stack is less than the last. The two items must both have the given value type, and the result will be a bool.
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
@@ -159,7 +159,7 @@ pub enum Ins {
     /// ```
     Lt(ValueType),
 
-    /// Pushes 1 if the second to last item on the stack is less than or equal to the last. The two items must both have the given value type, and the result will have the same value type.
+    /// Pushes 1 if the second to last item on the stack is less than or equal to the last. The two items must both have the given value type, and the result will be a bool.
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
@@ -171,7 +171,7 @@ pub enum Ins {
     /// ```
     Le(ValueType),
 
-    /// Pushes 1 if the second to last item on the stack is greater than the last. The two items must both have the given value type, and the result will have the same value type.
+    /// Pushes 1 if the second to last item on the stack is greater than the last. The two items must both have the given value type, and the result will be a bool.
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
@@ -183,7 +183,7 @@ pub enum Ins {
     /// ```
     Gt(ValueType),
 
-    /// Pushes 1 if the second to last item on the stack is greater than or equal to the last. The two items must both have the given value type, and the result will have the same value type.
+    /// Pushes 1 if the second to last item on the stack is greater than or equal to the last. The two items must both have the given value type, and the result will be a bool.
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
@@ -197,7 +197,7 @@ pub enum Ins {
 
     /// Continues to loop over it's code while it's condition does not evaluate to zero, running inc after each iteration
     /// Initially evaluates the condition. If it is zero, it breaks. Otherwise it runs code, followed by inc, and then re-evaluates.
-    /// Code will start and end with an empty stack, condition will start with an empty stack and end with one value, inc will start and end with an empty stack.
+    /// Code will start and end with an empty stack, condition will start with an empty stack and end with one (bool) value, inc will start and end with an empty stack.
     /// If a continue is reached inside of the loop, inc is executed and the loop starts again.
     /// If a break is reached, the whole loop is stopped immediately.
     /// # Examples
@@ -226,7 +226,7 @@ pub enum Ins {
     Loop(Vec<Ins>, Vec<Ins>, Vec<Ins>), // Code, Condition, Inc
 
     /// Executes it's children if the popped item is nonzero.
-    /// The instruction must start with one item on the stack, and it's content must end with 0.
+    /// The instruction must start with one (bool) item on the stack, and it's content must end with 0.
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("if_1", ir::Signature::new(vec![ ], vec![ ]));
@@ -240,7 +240,7 @@ pub enum Ins {
     If(Vec<Ins>),
 
     /// Executes it's first set of children if the popped item is nonzero, otherwise executes it's second set.
-    /// The instruction must start with one item on the stack, and both branches must end with 0.
+    /// The instruction must start with one (bool) item on the stack, and both branches must end with 0.
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("if_1_else", ir::Signature::new(vec![ ], vec![ ]));
