@@ -80,7 +80,7 @@ impl<'a> FunctionTranslationContext<'a> {
         assert!(self.function.locals().len() > idx);
 
         for i in self.function.locals().iter().take(idx + 1) {
-            addr += i.value_type().bytes_size(self.mode.ptr_size() as u64);
+            addr += crate::registerify::size_for_vt(i.value_type(), self.mode) as u64;
         }
 
         addr

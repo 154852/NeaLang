@@ -1,4 +1,4 @@
-use crate::{FunctionTranslationContext, LocalSymbol, TranslationContext, registerify::{SYS_V_ABI, SYS_V_ABI_RET, reg_for_vt}};
+use crate::{FunctionTranslationContext, LocalSymbol, TranslationContext};
 
 impl TranslationContext {
     pub(crate) fn translate_instruction_to(&self, ir_ins: &ir::Ins, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
@@ -33,7 +33,7 @@ impl TranslationContext {
                 // Move param values to new places on stack
                 for (i, param) in ftc.unit().get_function(*idx).signature().params().iter().enumerate() {
                     ins.push(x86::Ins::MovRegReg(
-                        reg_for_vt(param, mode, SYS_V_ABI[i]),
+                        crate::registerify::reg_for_vt(param, mode, crate::registerify::SYS_V_ABI[i]),
                         ftc.stack_ref().at_vt(ftc.stack_ref().size() + i, param),
                     ));
                 }
@@ -44,7 +44,7 @@ impl TranslationContext {
                 for (i, ret) in ftc.unit().get_function(*idx).signature().returns().iter().enumerate() {
                     ins.push(x86::Ins::MovRegReg(
                         ftc.stack_ref().at_vt(ftc.stack_ref().size() + i, ret),
-                        reg_for_vt(ret, mode, SYS_V_ABI_RET[i]),
+                        crate::registerify::reg_for_vt(ret, mode, crate::registerify::SYS_V_ABI_RET[i]),
                     ));
                 }
 
@@ -63,7 +63,7 @@ impl TranslationContext {
                 for (i, ret) in ftc.func().signature().returns().iter().enumerate() {
                     // TODO: There may be issues with multiple return values here, as rdx could be overwritten before it is read
                     ins.push(x86::Ins::MovRegReg(
-                        reg_for_vt(ret, mode, SYS_V_ABI_RET[rets_len - 1 - i]),
+                        crate::registerify::reg_for_vt(ret, mode, crate::registerify::SYS_V_ABI_RET[rets_len - 1 - i]),
                         ftc.stack_ref().peek_at_vt(i, ret)
                     ));
                 }

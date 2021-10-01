@@ -46,6 +46,19 @@ pub(crate) fn reg_for_vt(vt: &ir::ValueType, mode: x86::Mode, class: x86::RegCla
 	}
 }
 
+pub(crate) fn size_for_vt(vt: &ir::ValueType, mode: x86::Mode) -> usize {
+	match vt {
+		ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool => 1,
+		ir::ValueType::U16 | ir::ValueType::I16 => 2,
+		ir::ValueType::U32 | ir::ValueType::I32 => 4,
+		ir::ValueType::U64 | ir::ValueType::I64 => 8,
+		ir::ValueType::UPtr | ir::ValueType::IPtr => match mode {
+			x86::Mode::X86 => 4,
+			x86::Mode::X8664 => 8,
+		},
+	}
+}
+
 pub(crate) struct StackToReg {
 	idx: usize,
 	is_params: bool,
