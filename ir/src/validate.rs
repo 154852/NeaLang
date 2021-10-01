@@ -15,9 +15,9 @@ impl TypeStack {
         self.types.push(value_type);
     }
 
-    fn ensure(&self, value_type: ValueType, index: usize) -> Result<(), ValidationError> {
+    fn ensure(&self, value_type: &ValueType, index: usize) -> Result<(), ValidationError> {
         if let Some(t) = self.types.get(self.types.len() - 1 - index) {
-            if *t != value_type {
+            if t != value_type {
                 Err(ValidationError::StackIncorrectType)
             } else {
                 Ok(())
@@ -35,9 +35,9 @@ impl TypeStack {
         }
     }
 
-    fn pop(&mut self, value_type: ValueType) -> Result<(), ValidationError> {
+    fn pop(&mut self, value_type: &ValueType) -> Result<(), ValidationError> {
         if let Some(t) = self.types.pop() {
-            if t != value_type {
+            if &t != value_type {
                 Err(ValidationError::StackIncorrectType)
             } else {
                 Ok(())
@@ -106,10 +106,10 @@ impl Ins {
         match &self {
             Ins::PushLocal(vt, idx) => {
                 if let Some(local) = function.locals().get(*idx) {
-                    if local.value_type() != *vt {
+                    if local.value_type() != vt {
                         Err(ValidationError::LocalIncorrectType)
                     } else {
-                        Ok(stack.push(*vt))
+                        Ok(stack.push(vt.clone()))
                     }
                 } else {
                     Err(ValidationError::LocalDoesNotExist)
@@ -117,10 +117,10 @@ impl Ins {
             },
             Ins::PopLocal(vt, idx) => {
                 if let Some(local) = function.locals().get(*idx) {
-                    if local.value_type() != *vt {
+                    if local.value_type() != vt {
                         Err(ValidationError::LocalIncorrectType)
                     } else {
-                        stack.pop(*vt)
+                        stack.pop(vt)
                     }
                 } else {
                     Err(ValidationError::LocalDoesNotExist)
@@ -135,12 +135,12 @@ impl Ins {
 
                     // Params come off the stack in reverse order
                     for i in 0..sig.params().len() {
-                        stack.pop(sig.params()[sig.params().len() - i - 1])?;
+                        stack.pop(&sig.params()[sig.params().len() - i - 1])?;
                     }
 
                     // Returns are pushed onto the stack in order
                     for i in 0..sig.returns().len() {
-                        stack.push(sig.returns()[i]);
+                        stack.push(sig.returns()[i].clone());
                     }
 
                     Ok(())
@@ -153,19 +153,19 @@ impl Ins {
                     Err(ValidationError::StackDepthNotZero)
                 } else {
                     for i in 0..function.signature().returns().len() {
-                        stack.pop(function.signature().returns()[function.signature().returns().len() - i - 1])?;
+                        stack.pop(&function.signature().returns()[function.signature().returns().len() - i - 1])?;
                     }
                     Ok(())
                 }
             },
-            Ins::Inc(vt, _) => stack.ensure(*vt, 0),
-            Ins::Dec(vt, _) => stack.ensure(*vt, 0),
-            Ins::Add(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
-            Ins::Mul(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
-            Ins::Div(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
-            Ins::Sub(vt) => stack.pop(*vt).and(stack.ensure(*vt, 0)),
+            Ins::Inc(vt, _) => stack.ensure(vt, 0),
+            Ins::Dec(vt, _) => stack.ensure(vt, 0),
+            Ins::Add(vt) => stack.pop(vt).and(stack.ensure(vt, 0)),
+            Ins::Mul(vt) => stack.pop(vt).and(stack.ensure(vt, 0)),
+            Ins::Div(vt) => stack.pop(vt).and(stack.ensure(vt, 0)),
+            Ins::Sub(vt) => stack.pop(vt).and(stack.ensure(vt, 0)),
             Ins::Eq(vt) | Ins::Ne(vt) | Ins::Lt(vt) | Ins::Le(vt) | Ins::Gt(vt) | Ins::Ge(vt) => {
-                stack.pop(*vt).and(stack.pop(*vt))?;
+                stack.pop(vt).and(stack.pop(vt))?;
                 stack.push(ValueType::Bool);
                 Ok(())
             },
@@ -183,12 +183,12 @@ impl Ins {
                 for el in condition { el.validate(stack, blocks, function, unit)?; }
                 if stack.depth() != 1 { return Err(ValidationError::StackDepthNotOne); }
 
-                stack.pop(ValueType::Bool)?;
+                stack.pop(&ValueType::Bool)?;
                 
                 Ok(())
             },
             Ins::If(block) => {
-                stack.pop(ValueType::Bool)?;
+                stack.pop(&ValueType::Bool)?;
 
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::If, |blocks| {
@@ -200,7 +200,7 @@ impl Ins {
                 Ok(())
             },
             Ins::IfElse(block_a, block_b) => {
-                stack.pop(ValueType::Bool)?;
+                stack.pop(&ValueType::Bool)?;
                 
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::IfElse, |blocks| {
@@ -233,7 +233,7 @@ impl Ins {
                     Err(ValidationError::NotContinuable)
                 }
             },
-            Ins::PushLiteral(vt, _) => Ok(stack.push(*vt)),
+            Ins::PushLiteral(vt, _) => Ok(stack.push(vt.clone())),
             Ins::Drop => stack.pop_any().map(|_| ()),
         }
     }

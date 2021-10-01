@@ -33,7 +33,7 @@ pub(crate) const SYS_V_ABI_RET: &[x86::RegClass] = &[
 	x86::RegClass::R10,
 ];
 
-pub(crate) fn reg_for_vt(vt: ir::ValueType, mode: x86::Mode, class: x86::RegClass) -> x86::Reg {
+pub(crate) fn reg_for_vt(vt: &ir::ValueType, mode: x86::Mode, class: x86::RegClass) -> x86::Reg {
 	match vt {
 		ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool => class.u8(),
 		ir::ValueType::U16 | ir::ValueType::I16 => class.u16(),
@@ -120,23 +120,23 @@ impl StackToReg {
 		self.idx
 	}
 
-	pub fn pop_vt(&mut self, vt: ir::ValueType) -> x86::Reg {
+	pub fn pop_vt(&mut self, vt: &ir::ValueType) -> x86::Reg {
 		reg_for_vt(vt, self.mode, self.pop())
 	}
 
-	pub fn push_vt(&mut self, vt: ir::ValueType) -> x86::Reg {
+	pub fn push_vt(&mut self, vt: &ir::ValueType) -> x86::Reg {
 		reg_for_vt(vt, self.mode, self.push())
 	}
 
-	pub fn peek_vt(&self, vt: ir::ValueType) -> x86::Reg {
+	pub fn peek_vt(&self, vt: &ir::ValueType) -> x86::Reg {
 		reg_for_vt(vt, self.mode, self.peek())
 	}
 
-	pub fn peek_at_vt(&self, off: usize, vt: ir::ValueType) -> x86::Reg {
+	pub fn peek_at_vt(&self, off: usize, vt: &ir::ValueType) -> x86::Reg {
 		reg_for_vt(vt, self.mode, self.peek_at(off))
 	}
 
-	pub fn at_vt(&self, off: usize, vt: ir::ValueType) -> x86::Reg {
+	pub fn at_vt(&self, off: usize, vt: &ir::ValueType) -> x86::Reg {
 		reg_for_vt(vt, self.mode, self.at(off))
 	}
 }

@@ -60,7 +60,7 @@ pub struct RawStringGlobal {
     size: usize
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueType {
     U8, I8,
     U16, I16,
@@ -101,8 +101,8 @@ impl Local {
         Local { value_type }
     }
 
-    pub fn value_type(&self) -> ValueType {
-        self.value_type
+    pub fn value_type(&self) -> &ValueType {
+        &self.value_type
     }
 }
 

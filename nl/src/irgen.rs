@@ -198,7 +198,7 @@ impl ast::Function {
 		// Put params into locals
 		for param in self.params.iter().rev() {
 			let vt = param.param_type.to_ir_valuetype(unit)?;
-			let local = ctx.push_local(&param.name, vt);
+			let local = ctx.push_local(&param.name, vt.clone());
 			target.push(ir::Ins::PopLocal(vt, local));
 		}
 
@@ -312,7 +312,7 @@ impl ast::Assignment {
 				if let Some(local_idx) = ctx.local_map.get(name.name.as_str()) {
 					let local_idx = *local_idx;
 					let local = ctx.func().get_local(local_idx).unwrap();
-					if local.value_type() != vt {
+					if local.value_type() != &vt {
 						return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
 					}
 
@@ -350,8 +350,8 @@ impl ast::VarDeclaration {
 
 		if let Some(var_type) = &self.var_type {
 			let var_type = var_type.to_ir_valuetype(ctx.unit)?;
-			if let Some(expr_type) = expr_type {
-				if var_type != expr_type {
+			if let Some(expr_type) = &expr_type {
+				if &var_type != expr_type {
 					return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
 				}
 			} else {
@@ -361,7 +361,7 @@ impl ast::VarDeclaration {
 			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CannotInferType));
 		}
 
-		let idx = ctx.push_local(&self.name, expr_type.unwrap());
+		let idx = ctx.push_local(&self.name, expr_type.as_ref().unwrap().clone());
 
 		if self.expr.is_some() {
 			target.push(ir::Ins::PopLocal(expr_type.unwrap(), idx));
@@ -411,7 +411,7 @@ impl ast::CallExpr {
 
 		target.push(ir::Ins::Call(func_id));
 
-		Ok(ctx.ir_unit.get_function(func_id).signature().returns()[0])
+		Ok(ctx.ir_unit.get_function(func_id).signature().returns()[0].clone())
 	}
 
 	fn append_ir_out_expr<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<usize, IrGenError> {
@@ -449,18 +449,18 @@ impl ast::BinaryExpr {
 		if left != right { return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::BinaryOpTypeMismatch)) }
 
 		target.push(match self.op {
-			ast::BinaryOp::Add => ir::Ins::Add(left),
-			ast::BinaryOp::Mul => ir::Ins::Mul(left),
-			ast::BinaryOp::Div => ir::Ins::Div(left),
-			ast::BinaryOp::Sub => ir::Ins::Sub(left),
+			ast::BinaryOp::Add => ir::Ins::Add(left.clone()),
+			ast::BinaryOp::Mul => ir::Ins::Mul(left.clone()),
+			ast::BinaryOp::Div => ir::Ins::Div(left.clone()),
+			ast::BinaryOp::Sub => ir::Ins::Sub(left.clone()),
 			
-			ast::BinaryOp::Eq => ir::Ins::Eq(left),
-			ast::BinaryOp::Ne => ir::Ins::Ne(left),
+			ast::BinaryOp::Eq => ir::Ins::Eq(left.clone()),
+			ast::BinaryOp::Ne => ir::Ins::Ne(left.clone()),
 			
-			ast::BinaryOp::Lt => ir::Ins::Lt(left),
-			ast::BinaryOp::Le => ir::Ins::Le(left),
-			ast::BinaryOp::Gt => ir::Ins::Gt(left),
-			ast::BinaryOp::Ge => ir::Ins::Ge(left),
+			ast::BinaryOp::Lt => ir::Ins::Lt(left.clone()),
+			ast::BinaryOp::Le => ir::Ins::Le(left.clone()),
+			ast::BinaryOp::Gt => ir::Ins::Gt(left.clone()),
+			ast::BinaryOp::Ge => ir::Ins::Ge(left.clone()),
 		});
 
 		Ok(left)
@@ -473,8 +473,8 @@ impl ast::NameExpr {
 			let idx = *idx;
 			
 			let vt = ctx.func().get_local(idx).unwrap().value_type();
-			target.push(ir::Ins::PushLocal(vt, idx));
-			Ok(vt)
+			target.push(ir::Ins::PushLocal(vt.clone(), idx));
+			Ok(vt.clone())
 		} else {
 			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::VariableDoesNotExist))
 		}

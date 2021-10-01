@@ -12,8 +12,8 @@ impl StackElement {
         }
     }
 
-    pub fn value_type(&self) -> ValueType {
-        self.value_type
+    pub fn value_type(&self) -> &ValueType {
+        &self.value_type
     }
 
     pub fn get(&self) -> u64 {
@@ -46,10 +46,10 @@ impl Stack {
         }
     }
 
-    fn pop(&mut self, vt: ValueType) -> StackElement {
+    fn pop(&mut self, vt: &ValueType) -> StackElement {
         assert!(self.elements.len() >= 1);
         let element = self.elements.pop().unwrap();
-        assert_eq!(vt, element.value_type);
+        assert_eq!(vt, &element.value_type);
         element
     }
 
@@ -70,18 +70,18 @@ struct FunctionContext {
 impl FunctionContext {
     fn new(locals: &Vec<Local>) -> FunctionContext {
         FunctionContext {
-            locals: locals.iter().map(|x| StackElement::new(0, x.value_type())).collect()
+            locals: locals.iter().map(|x| StackElement::new(0, x.value_type().clone())).collect()
         }
     }
 
-    fn set_local(&mut self, idx: LocalIndex, vt: ValueType, value: StackElement) {
+    fn set_local(&mut self, idx: LocalIndex, vt: &ValueType, value: StackElement) {
         assert!(idx < self.locals.len());
         assert_eq!(self.locals[idx].value_type(), vt);
         assert_eq!(value.value_type(), vt);
         self.locals[idx].set(value.value);
     }
 
-    fn get_local(&self, idx: LocalIndex, vt: ValueType) -> u64 {
+    fn get_local(&self, idx: LocalIndex, vt: &ValueType) -> u64 {
         assert!(idx < self.locals.len());
         assert_eq!(self.locals[idx].value_type(), vt);
         self.locals[idx].value
@@ -103,11 +103,11 @@ impl Ins {
     fn evaluate(&self, stack: &mut Stack, function: &Function, ctx: &mut FunctionContext, unit: &TranslationUnit) -> Result<EvalResultAction, EvalError> {
         match &self {
             Ins::PushLocal(vt, idx) => {
-                stack.push(StackElement::new(ctx.get_local(*idx, *vt), *vt));
+                stack.push(StackElement::new(ctx.get_local(*idx, vt), vt.clone()));
                 Ok(EvalResultAction::Next)
             },
             Ins::PopLocal(vt, idx) => {
-                ctx.set_local(*idx, *vt, stack.pop(*vt));
+                ctx.set_local(*idx, vt, stack.pop(vt));
                 Ok(EvalResultAction::Next)
             },
             Ins::PushGlobal(_, _, _) => todo!(),
@@ -115,90 +115,90 @@ impl Ins {
             Ins::Call(_) => todo!(),
             Ins::Ret => Ok(EvalResultAction::Ret),
             Ins::Inc(vt, x) => {
-                let val = stack.pop(*vt).value;
-                stack.push(StackElement::new(val + x, *vt));
+                let val = stack.pop(vt).value;
+                stack.push(StackElement::new(val + x, vt.clone()));
                 Ok(EvalResultAction::Next)
             },
             Ins::Dec(vt, x) => {
-                let val = stack.pop(*vt).value;
-                stack.push(StackElement::new(val - x, *vt));
+                let val = stack.pop(vt).value;
+                stack.push(StackElement::new(val - x, vt.clone()));
                 Ok(EvalResultAction::Next)
             },
             Ins::Add(vt) => {
-                let right = stack.pop(*vt);
-                let left = stack.pop(*vt);
+                let right = stack.pop(vt);
+                let left = stack.pop(vt);
 
-                stack.push(StackElement::new(left.value + right.value, *vt));
+                stack.push(StackElement::new(left.value + right.value, vt.clone()));
 
                 Ok(EvalResultAction::Next)
             },
             Ins::Mul(vt) => {
-                let right = stack.pop(*vt);
-                let left = stack.pop(*vt);
+                let right = stack.pop(vt);
+                let left = stack.pop(vt);
 
-                stack.push(StackElement::new(left.value * right.value, *vt));
+                stack.push(StackElement::new(left.value * right.value, vt.clone()));
 
                 Ok(EvalResultAction::Next)
             },
             Ins::Div(vt) => {
-                let right = stack.pop(*vt);
-                let left = stack.pop(*vt);
+                let right = stack.pop(vt);
+                let left = stack.pop(vt);
 
-                stack.push(StackElement::new(left.value + right.value, *vt));
+                stack.push(StackElement::new(left.value + right.value, vt.clone()));
 
                 Ok(EvalResultAction::Next)
             },
             Ins::Sub(vt) => {
-                let right = stack.pop(*vt);
-                let left = stack.pop(*vt);
+                let right = stack.pop(vt);
+                let left = stack.pop(vt);
 
-                stack.push(StackElement::new(left.value + right.value, *vt));
+                stack.push(StackElement::new(left.value + right.value, vt.clone()));
 
                 Ok(EvalResultAction::Next)
             },
             Ins::Eq(vt) => {
-                let right = stack.pop(*vt);
-                let left = stack.pop(*vt);
+                let right = stack.pop(vt);
+                let left = stack.pop(vt);
 
                 stack.push(StackElement::new(if left.value == right.value { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
             Ins::Ne(vt) => {
-                let right = stack.pop(*vt);
-                let left = stack.pop(*vt);
+                let right = stack.pop(vt);
+                let left = stack.pop(vt);
 
                 stack.push(StackElement::new(if left.value != right.value { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
             Ins::Lt(vt) => {
-                let right = stack.pop(*vt);
-                let left = stack.pop(*vt);
+                let right = stack.pop(vt);
+                let left = stack.pop(vt);
 
                 stack.push(StackElement::new(if left.value < right.value { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
             Ins::Le(vt) => {
-                let right = stack.pop(*vt);
-                let left = stack.pop(*vt);
+                let right = stack.pop(vt);
+                let left = stack.pop(vt);
 
                 stack.push(StackElement::new(if left.value <= right.value { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
             Ins::Gt(vt) => {
-                let right = stack.pop(*vt);
-                let left = stack.pop(*vt);
+                let right = stack.pop(vt);
+                let left = stack.pop(vt);
 
                 stack.push(StackElement::new(if left.value > right.value { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
             Ins::Ge(vt) => {
-                let right = stack.pop(*vt);
-                let left = stack.pop(*vt);
+                let right = stack.pop(vt);
+                let left = stack.pop(vt);
 
                 stack.push(StackElement::new(if left.value >= right.value { 1 } else { 0 }, ValueType::Bool));
 
@@ -215,7 +215,7 @@ impl Ins {
                         }
                     }
 
-                    if stack.pop(ValueType::Bool).value == 0 { break }
+                    if stack.pop(&ValueType::Bool).value == 0 { break }
 
                     'inner: for ins in body {
                         match ins.evaluate(stack, function, ctx, unit)? {
@@ -251,7 +251,7 @@ impl Ins {
                 Ok(EvalResultAction::Next)
             },
             Ins::If(body) => {
-                if stack.pop(ValueType::Bool).value != 0 {
+                if stack.pop(&ValueType::Bool).value != 0 {
                     for ins in body {
                         match ins.evaluate(stack, function, ctx, unit)? {
                             EvalResultAction::Ret => return Ok(EvalResultAction::Ret),
@@ -265,7 +265,7 @@ impl Ins {
                 Ok(EvalResultAction::Next)
             },
             Ins::IfElse(body_a, body_b) => {
-                if stack.pop(ValueType::Bool).value != 0 {
+                if stack.pop(&ValueType::Bool).value != 0 {
                     for ins in body_a {
                         match ins.evaluate(stack, function, ctx, unit)? {
                             EvalResultAction::Ret => return Ok(EvalResultAction::Ret),
@@ -290,7 +290,7 @@ impl Ins {
             Ins::Break(depth) => return Ok(EvalResultAction::Break(*depth)),
             Ins::Continue(depth) => return Ok(EvalResultAction::Continue(*depth)),
             Ins::PushLiteral(vt, lit) => {
-                stack.push(StackElement::new(*lit, *vt));
+                stack.push(StackElement::new(*lit, vt.clone()));
                 Ok(EvalResultAction::Next)
             },
             Ins::Drop => {
@@ -349,7 +349,7 @@ impl Function {
         let mut result = Vec::with_capacity(len);
         for i in 0..len {
             // Returns come off the stack in reverse order
-            result.push(stack.pop(self.signature().returns()[len - i - 1]));
+            result.push(stack.pop(&self.signature().returns()[len - i - 1]));
         }
 
         result.reverse();
