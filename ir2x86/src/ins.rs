@@ -5,20 +5,18 @@ impl TranslationContext {
         let mode = ftc.mode();
         
         match ir_ins {
-            ir::Ins::PushLocal(vt, idx) => {
+            ir::Ins::PushLocalValue(vt, idx) => {
                 ins.push(x86::Ins::MovRegMem(
                     ftc.stack().push_vt(vt),
                     ftc.local_mem(*idx)
                 ));
             },
-            ir::Ins::PopLocal(vt, idx) => {
+            ir::Ins::PopLocalValue(vt, idx) => {
                 ins.push(x86::Ins::MovMemReg(
                     ftc.local_mem(*idx),
                     ftc.stack().pop_vt(vt),
                 ));
             },
-            ir::Ins::PushGlobal(_, _, _) => todo!(),
-            ir::Ins::PopGlobal(_, _, _) => todo!(),
             ir::Ins::Call(idx) => {
                 // TODO: This push/pop is quite unfortuante, but sort of required without a bit of optimisation to move calls to be done earlier, while the stack is empty
 

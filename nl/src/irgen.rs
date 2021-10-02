@@ -15,7 +15,8 @@ pub enum IrGenErrorKind {
 	CallArgParamCountMismatch,
 	CallArgTypeMismatch,
 	CallNotOneReturnInExpr,
-	InvalidLHS
+	InvalidLHS,
+	CompositeTypeOnStack
 }
 
 impl IrGenErrorKind {
@@ -31,6 +32,7 @@ impl IrGenErrorKind {
 			IrGenErrorKind::CallArgTypeMismatch => "Incorrect argument type".to_string(),
 			IrGenErrorKind::CallNotOneReturnInExpr => "Can only call functions with one return value in an expression".to_string(),
 			IrGenErrorKind::InvalidLHS => "Invalid left hand side".to_string(),
+			IrGenErrorKind::CompositeTypeOnStack => "Cannot load composite type on to stack".to_string()
 		}
 	}
 }
@@ -138,8 +140,8 @@ impl<'a> IrGenFunctionContext<'a> {
 		self.ir_unit.get_function_mut(self.function_idx)
 	}
 
-	fn push_local(&mut self, name: &'a str, vt: ir::ValueType) -> ir::LocalIndex {
-		let idx = self.func_mut().push_local(ir::Local::new(vt));
+	fn push_local(&mut self, name: &'a str, st: ir::StorableType) -> ir::LocalIndex {
+		let idx = self.func_mut().push_local(ir::Local::new(st));
 		self.local_map.insert(name, idx);
 
 		idx
@@ -198,8 +200,8 @@ impl ast::Function {
 		// Put params into locals
 		for param in self.params.iter().rev() {
 			let vt = param.param_type.to_ir_valuetype(unit)?;
-			let local = ctx.push_local(&param.name, vt.clone());
-			target.push(ir::Ins::PopLocal(vt, local));
+			let local = ctx.push_local(&param.name, ir::StorableType::Value(vt.clone()));
+			target.push(ir::Ins::PopLocalValue(vt, local));
 		}
 
 		for code in self.code.as_ref().unwrap() {
@@ -312,11 +314,11 @@ impl ast::Assignment {
 				if let Some(local_idx) = ctx.local_map.get(name.name.as_str()) {
 					let local_idx = *local_idx;
 					let local = ctx.func().get_local(local_idx).unwrap();
-					if local.value_type() != &vt {
+					if !local.local_type().is_value(&vt) {
 						return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
 					}
 
-					target.push(ir::Ins::PopLocal(vt, local_idx));
+					target.push(ir::Ins::PopLocalValue(vt, local_idx));
 				} else {
 					todo!() // Global?
 				}
@@ -361,10 +363,10 @@ impl ast::VarDeclaration {
 			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CannotInferType));
 		}
 
-		let idx = ctx.push_local(&self.name, expr_type.as_ref().unwrap().clone());
+		let idx = ctx.push_local(&self.name, ir::StorableType::Value(expr_type.as_ref().unwrap().clone()));
 
 		if self.expr.is_some() {
-			target.push(ir::Ins::PopLocal(expr_type.unwrap(), idx));
+			target.push(ir::Ins::PopLocalValue(expr_type.unwrap(), idx));
 		}
 
 		Ok(())
@@ -472,9 +474,15 @@ impl ast::NameExpr {
 		if let Some(idx) = ctx.local_map.get(self.name.as_str()) {
 			let idx = *idx;
 			
-			let vt = ctx.func().get_local(idx).unwrap().value_type();
-			target.push(ir::Ins::PushLocal(vt.clone(), idx));
-			Ok(vt.clone())
+			let st = ctx.func().get_local(idx).unwrap().local_type();
+
+			match st {
+				ir::StorableType::Compound(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CompositeTypeOnStack)),
+				ir::StorableType::Value(vt) => {
+					target.push(ir::Ins::PushLocalValue(vt.clone(), idx));
+					Ok(vt.clone())
+				},
+			}
 		} else {
 			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::VariableDoesNotExist))
 		}

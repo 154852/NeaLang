@@ -6,10 +6,10 @@ fn main() {
     let mut func = ir::Function::new("add_10", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
     
     // Save param to local
-    let l1 = func.push_local(ir::Local::new(ir::ValueType::I32));
-    func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1));
+    let l1 = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32)));
+    func.push(ir::Ins::PopLocalValue(ir::ValueType::I32, l1));
 
-    func.push(ir::Ins::PushLocal(ir::ValueType::I32, l1));
+    func.push(ir::Ins::PushLocalValue(ir::ValueType::I32, l1));
     func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
     func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
     func.push(ir::Ins::Add(ir::ValueType::I32));

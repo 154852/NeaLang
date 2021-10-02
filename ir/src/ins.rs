@@ -2,7 +2,7 @@ use crate::{unit::*};
 
 #[derive(Debug)]
 pub enum Ins {
-    /// Pushes the local at the given index to the stack. The local must match in value type to the ValueType given
+    /// Pushes the local at the given index to the stack. The local must match be a value, and must match in value type to the ValueType given
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
@@ -14,9 +14,9 @@ pub enum Ins {
     /// func.push(ir::Ins::PushLocal(ir::ValueType::I32, l1)); // Push the local back onto the stack
     /// func.push(ir::Ins::Ret);
     /// ```
-    PushLocal(ValueType, LocalIndex),
+    PushLocalValue(ValueType, LocalIndex),
     
-    /// Pops the last value on the stack to the local at the given index. The local and popped item must match in value type to the ValueType given
+    /// Pops the last value on the stack to the local at the given index. The local must be a value, and the local and popped item must match in value type to the ValueType given
     /// # Examples
     /// ```
     /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
@@ -28,10 +28,7 @@ pub enum Ins {
     /// func.push(ir::Ins::PushLocal(ir::ValueType::I32, l1)); // Push the local back onto the stack
     /// func.push(ir::Ins::Ret);
     /// ```
-    PopLocal(ValueType, LocalIndex),
-    
-    PushGlobal(ValueType, GlobalIndex, u64),
-    PopGlobal(ValueType, GlobalIndex, u64),
+    PopLocalValue(ValueType, LocalIndex),
     
     /// Calls the function at the given index.
     /// The parameters to the function will be popped from the stack in reverse order, meaning that the first param should be pushed first.

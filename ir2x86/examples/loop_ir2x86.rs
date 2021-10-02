@@ -12,31 +12,31 @@ fn main() {
 	// return value
     let mut func = ir::Function::new("factorial_5", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
 
-	let value = func.push_local(ir::Local::new(ir::ValueType::I32));
-	func.push(ir::Ins::PopLocal(ir::ValueType::I32, value));
+	let value = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32)));
+	func.push(ir::Ins::PopLocalValue(ir::ValueType::I32, value));
 
-	let counter = func.push_local(ir::Local::new(ir::ValueType::I32));
+	let counter = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32)));
 	func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
-	func.push(ir::Ins::PopLocal(ir::ValueType::I32, counter));
+	func.push(ir::Ins::PopLocalValue(ir::ValueType::I32, counter));
     
     func.push(ir::Ins::Loop(
 		vec![ // Body
-			ir::Ins::PushLocal(ir::ValueType::I32, value),
-			ir::Ins::PushLocal(ir::ValueType::I32, counter),
+			ir::Ins::PushLocalValue(ir::ValueType::I32, value),
+			ir::Ins::PushLocalValue(ir::ValueType::I32, counter),
 			ir::Ins::Mul(ir::ValueType::I32),
-			ir::Ins::PopLocal(ir::ValueType::I32, value)
+			ir::Ins::PopLocalValue(ir::ValueType::I32, value)
 		],
 		vec![ // Condition
-			ir::Ins::PushLocal(ir::ValueType::I32, counter)
+			ir::Ins::PushLocalValue(ir::ValueType::I32, counter)
 		],
 		vec![ // Increment
-			ir::Ins::PushLocal(ir::ValueType::I32, counter),
+			ir::Ins::PushLocalValue(ir::ValueType::I32, counter),
 			ir::Ins::Dec(ir::ValueType::I32, 1),
-			ir::Ins::PopLocal(ir::ValueType::I32, counter)
+			ir::Ins::PopLocalValue(ir::ValueType::I32, counter)
 		]
 	));
 
-	func.push(ir::Ins::PushLocal(ir::ValueType::I32, value));
+	func.push(ir::Ins::PushLocalValue(ir::ValueType::I32, value));
 	func.push(ir::Ins::Ret);
 
     let func_id = unit.add_function(func);

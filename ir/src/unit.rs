@@ -1,16 +1,14 @@
-use crate::Ins;
+use crate::{Ins, StorableType};
 
 #[derive(Debug)]
 pub struct TranslationUnit {
     functions: Vec<Function>,
-    globals: Vec<Global>
 }
 
 impl TranslationUnit {
     pub fn new() -> TranslationUnit {
         TranslationUnit {
             functions: Vec::new(),
-            globals: Vec::new()
         }
     }
 
@@ -30,50 +28,23 @@ impl TranslationUnit {
     pub fn get_function_mut(&mut self, idx: FunctionIndex) -> &mut Function {
         &mut self.functions[idx]
     }
-
-    pub fn add_global(&mut self, global: Global) {
-        self.globals.push(global);
-    }
-
-    pub fn globals(&self) -> &Vec<Global> {
-        &self.globals
-    }
 }
 
-pub type GlobalIndex = usize;
-
-#[derive(Debug)]
-pub struct Global {
-    name: Option<String>,
-    data: GlobalData
-}
-
-#[derive(Debug)]
-pub enum GlobalData {
-    RawString(RawStringGlobal),
-    Zero(usize),
-}
-
-#[derive(Debug)]
-pub struct RawStringGlobal {
-    data: Vec<u8>,
-    size: usize
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ValueType {
     U8, I8,
     U16, I16,
     U32, I32,
     U64, I64,
     UPtr, IPtr,
-    Bool
+    Bool,
+    Ref(Box<StorableType>),
 }
 
 impl ValueType {
     pub fn signed(&self) -> bool {
         match &self {
-            ValueType::U8 | ValueType::U16 | ValueType::U32 | ValueType::U64 | ValueType::UPtr | ValueType::Bool => false,
+            ValueType::U8 | ValueType::U16 | ValueType::U32 | ValueType::U64 | ValueType::UPtr | ValueType::Bool | ValueType::Ref(_) => false,
             ValueType::I8 | ValueType::I16 | ValueType::I32 | ValueType::I64 | ValueType::IPtr => true,
         }
     }
@@ -83,16 +54,16 @@ pub type LocalIndex = usize;
 
 #[derive(Debug)]
 pub struct Local {
-    value_type: ValueType
+    local_type: StorableType
 }
 
 impl Local {
-    pub fn new(value_type: ValueType) -> Local {
-        Local { value_type }
+    pub fn new(local_type: StorableType) -> Local {
+        Local { local_type }
     }
 
-    pub fn value_type(&self) -> &ValueType {
-        &self.value_type
+    pub fn local_type(&self) -> &StorableType {
+        &self.local_type
     }
 }
 

@@ -18,7 +18,7 @@ func main() {
 
 	b = b + 1;
 
-	exit(10);
+	exit(12);
 }
 
 func do_something(a: i32): i32 {

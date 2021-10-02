@@ -104,9 +104,9 @@ pub enum ValidationError {
 impl Ins {
     fn validate(&self, stack: &mut TypeStack, blocks: &mut BlockStack, function: &Function, unit: &TranslationUnit) -> Result<(), ValidationError> {
         match &self {
-            Ins::PushLocal(vt, idx) => {
+            Ins::PushLocalValue(vt, idx) => {
                 if let Some(local) = function.locals().get(*idx) {
-                    if local.value_type() != vt {
+                    if !local.local_type().is_value(vt) {
                         Err(ValidationError::LocalIncorrectType)
                     } else {
                         Ok(stack.push(vt.clone()))
@@ -115,9 +115,9 @@ impl Ins {
                     Err(ValidationError::LocalDoesNotExist)
                 }
             },
-            Ins::PopLocal(vt, idx) => {
+            Ins::PopLocalValue(vt, idx) => {
                 if let Some(local) = function.locals().get(*idx) {
-                    if local.value_type() != vt {
+                    if !local.local_type().is_value(vt) {
                         Err(ValidationError::LocalIncorrectType)
                     } else {
                         stack.pop(vt)
@@ -126,8 +126,6 @@ impl Ins {
                     Err(ValidationError::LocalDoesNotExist)
                 }
             },
-            Ins::PushGlobal(_, _, _) => todo!(),
-            Ins::PopGlobal(_, _, _) => todo!(),
             Ins::Call(idx) => {
                 if *idx >= unit.functions().len() { Err(ValidationError::FunctionDoesNotExist) }
                 else {

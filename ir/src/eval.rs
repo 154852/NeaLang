@@ -1,4 +1,5 @@
-use crate::{BlockMoveDepth, Function, Ins, Local, LocalIndex, TranslationUnit, ValueType};
+use crate::{BlockMoveDepth, Function, Ins, Local, LocalIndex, StorableType, TranslationUnit, ValueType};
+use std::collections::HashMap;
 
 pub struct StackElement {
     value: u64,
@@ -35,6 +36,37 @@ impl std::fmt::Debug for StackElement {
     }
 }
 
+enum LocalElementValue {
+    Num(u64),
+    Data(HashMap<String, LocalElementValue>)
+}
+
+struct LocalElement {
+    local_type: StorableType,
+    value: LocalElementValue
+}
+
+impl LocalElement {
+    pub fn new(local_type: StorableType, value: LocalElementValue) -> LocalElement {
+        LocalElement {
+            local_type,
+            value
+        }
+    }
+
+    pub fn local_type(&self) -> &StorableType {
+        &self.local_type
+    }
+
+    pub fn get(&self) -> &LocalElementValue {
+        &self.value
+    }
+
+    pub fn get_mut(&mut self) -> &mut LocalElementValue {
+        &mut self.value
+    }
+}
+
 struct Stack {
     elements: Vec<StackElement>
 }
@@ -64,27 +96,52 @@ impl Stack {
 }
 
 struct FunctionContext {
-    locals: Vec<StackElement>
+    locals: Vec<LocalElement>
 }
 
 impl FunctionContext {
     fn new(locals: &Vec<Local>) -> FunctionContext {
         FunctionContext {
-            locals: locals.iter().map(|x| StackElement::new(0, x.value_type().clone())).collect()
+            locals: locals.iter().map(|x| LocalElement::new(
+                x.local_type().clone(),
+                match x.local_type() {
+                    StorableType::Compound(_) => todo!(),
+                    StorableType::Value(_) => LocalElementValue::Num(0)
+                }
+            )).collect()
         }
     }
 
-    fn set_local(&mut self, idx: LocalIndex, vt: &ValueType, value: StackElement) {
+    fn get_local(&self, idx: LocalIndex, st: &StorableType) -> &LocalElement {
         assert!(idx < self.locals.len());
-        assert_eq!(self.locals[idx].value_type(), vt);
-        assert_eq!(value.value_type(), vt);
-        self.locals[idx].set(value.value);
+        assert_eq!(self.locals[idx].local_type(), st);
+        &self.locals[idx]
     }
 
-    fn get_local(&self, idx: LocalIndex, vt: &ValueType) -> u64 {
+    fn get_local_value(&self, idx: LocalIndex, vt: &ValueType) -> u64 {
         assert!(idx < self.locals.len());
-        assert_eq!(self.locals[idx].value_type(), vt);
-        self.locals[idx].value
+        assert!(matches!(self.locals[idx].local_type(), StorableType::Value(v) if v == vt));
+        
+        match &self.locals[idx].get() {
+            LocalElementValue::Num(x) => *x,
+            LocalElementValue::Data(_) => unreachable!(),
+        }
+    }
+
+    fn get_local_value_mut(&mut self, idx: LocalIndex, vt: &ValueType) -> &mut u64 {
+        assert!(idx < self.locals.len());
+        assert!(matches!(self.locals[idx].local_type(), StorableType::Value(v) if v == vt));
+        
+        match self.locals[idx].get_mut() {
+            LocalElementValue::Num(x) => x,
+            LocalElementValue::Data(_) => unreachable!(),
+        }
+    }
+
+    fn get_local_mut(&mut self, idx: LocalIndex, st: &StorableType) -> &mut LocalElement {
+        assert!(idx < self.locals.len());
+        assert_eq!(self.locals[idx].local_type(), st);
+        &mut self.locals[idx]
     }
 }
 
@@ -102,16 +159,14 @@ enum EvalResultAction {
 impl Ins {
     fn evaluate(&self, stack: &mut Stack, function: &Function, ctx: &mut FunctionContext, unit: &TranslationUnit) -> Result<EvalResultAction, EvalError> {
         match &self {
-            Ins::PushLocal(vt, idx) => {
-                stack.push(StackElement::new(ctx.get_local(*idx, vt), vt.clone()));
+            Ins::PushLocalValue(vt, idx) => {
+                stack.push(StackElement::new(ctx.get_local_value(*idx, vt), vt.clone()));
                 Ok(EvalResultAction::Next)
             },
-            Ins::PopLocal(vt, idx) => {
-                ctx.set_local(*idx, vt, stack.pop(vt));
+            Ins::PopLocalValue(vt, idx) => {
+                *ctx.get_local_value_mut(*idx, vt) = stack.pop(vt).get();
                 Ok(EvalResultAction::Next)
             },
-            Ins::PushGlobal(_, _, _) => todo!(),
-            Ins::PopGlobal(_, _, _) => todo!(),
             Ins::Call(_) => todo!(),
             Ins::Ret => Ok(EvalResultAction::Ret),
             Ins::Inc(vt, x) => {
