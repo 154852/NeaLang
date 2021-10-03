@@ -60,6 +60,7 @@ impl std::fmt::Debug for StackElement {
 
 enum LocalElementValue {
     Num(u64),
+    LocalRef(LocalIndex),
     Data(HashMap<String, LocalElementValue>)
 }
 
@@ -146,7 +147,7 @@ impl FunctionContext {
         
         match &self.locals[idx].get() {
             LocalElementValue::Num(x) => *x,
-            LocalElementValue::Data(_) => unreachable!(),
+            _ => unreachable!(),
         }
     }
 
@@ -156,7 +157,7 @@ impl FunctionContext {
         
         match self.locals[idx].get_mut() {
             LocalElementValue::Num(x) => x,
-            LocalElementValue::Data(_) => unreachable!(),
+            _ => unreachable!(),
         }
     }
 
@@ -191,6 +192,29 @@ impl Ins {
             },
             Ins::PopLocalValue(vt, idx) => {
                 *ctx.get_local_value_mut(*idx, vt) = stack.pop(vt).get_num();
+                Ok(EvalResultAction::Next)
+            },
+            Ins::PopRef(vt) => {
+                let val = stack.pop(vt);
+                let dest = stack.pop(&ValueType::Ref(Box::new(StorableType::Value(vt.clone()))));
+
+                match dest.value {
+                    StackValue::Num(_) => panic!("Cannot PopRef to non-ref"),
+                    StackValue::LocalRef(idx) => {
+                        match vt {
+                            ValueType::Ref(st) => {
+                                ctx.get_local_mut(idx, st).value = LocalElementValue::LocalRef(match val.value {
+                                    StackValue::LocalRef(i) => i,
+                                    _ => unreachable!()
+                                });
+                            },
+                            _ => {
+                                *ctx.get_local_value_mut(idx, vt) = val.get_num();
+                            }
+                        }
+                    },
+                }
+
                 Ok(EvalResultAction::Next)
             },
             Ins::Call(_) => todo!(),

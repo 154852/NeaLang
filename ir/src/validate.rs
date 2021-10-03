@@ -1,4 +1,4 @@
-use crate::{Function, Ins, TranslationUnit, ValueType, Signature};
+use crate::{Function, Ins, Signature, StorableType, TranslationUnit, ValueType};
 
 struct TypeStack {
     types: Vec<ValueType>
@@ -136,6 +136,11 @@ impl Ins {
                 } else {
                     Err(ValidationError::LocalDoesNotExist)
                 }
+            },
+            Ins::PopRef(vt) => {
+                stack.pop(vt)?;
+                stack.pop(&ValueType::Ref(Box::new(StorableType::Value(vt.clone()))))?;
+                Ok(())
             },
             Ins::Call(idx) => {
                 if *idx >= unit.functions().len() { Err(ValidationError::FunctionDoesNotExist) }

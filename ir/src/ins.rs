@@ -17,15 +17,18 @@ pub enum Ins {
     PushLocalValue(ValueType, LocalIndex),
 
     /// Pushes a reference the local at the given index to the stack. The local must have the given storable type.
+    /// Note: Returning a local ref can cause severe problems in some architectures
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
+    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ], vec![ ]));
     /// 
     /// // Save param to local
     /// let l1 = func.push_local(ir::Local::new(ir::ValueType::I32)); // Allocate local of type i32
     /// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1)); // Save the given param to the local
     /// 
-    /// func.push(ir::Ins::PushLocal(ir::ValueType::I32, l1)); // Push the local back onto the stack
+    /// func.push(ir::Ins::PushLocalRef(ir::StorableType::Value(ir::ValueType::I32), l1));
+    /// func.push(ir::Ins::Drop);
+    ///
     /// func.push(ir::Ins::Ret);
     /// ```
     PushLocalRef(StorableType, LocalIndex),
@@ -43,6 +46,20 @@ pub enum Ins {
     /// func.push(ir::Ins::Ret);
     /// ```
     PopLocalValue(ValueType, LocalIndex),
+
+    /// Pops the value followd by the ref from the stack, and writes the value to the ref. The ref must be a value of the given ValueType, which must be the valuetype of the popped value.
+    /// # Examples
+    /// ```
+    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
+    /// 
+    /// // Save param to local
+    /// let l1 = func.push_local(ir::Local::new(ir::ValueType::I32)); // Allocate local of type i32
+    /// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1)); // Save the given param to the local
+    /// 
+    /// func.push(ir::Ins::PushLocal(ir::ValueType::I32, l1)); // Push the local back onto the stack
+    /// func.push(ir::Ins::Ret);
+    /// ```
+    PopRef(ValueType),
     
     /// Calls the function at the given index.
     /// The parameters to the function will be popped from the stack in reverse order, meaning that the first param should be pushed first.

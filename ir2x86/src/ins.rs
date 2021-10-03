@@ -23,6 +23,14 @@ impl TranslationContext {
                     ftc.stack().pop_vt(vt),
                 ));
             },
+            ir::Ins::PopRef(vt) => {
+                let val = ftc.stack().pop_vt(vt);
+                let addr = ftc.stack().pop_vt(&ir::ValueType::Ref(Box::new(ir::StorableType::Value(vt.clone()))));
+                ins.push(x86::Ins::MovMemReg(
+                    x86::Mem::new().base(addr.class()),
+                    val,
+                ));
+            },
             ir::Ins::Call(idx) => {
                 // TODO: This push/pop is quite unfortuante, but sort of required without a bit of optimisation to move calls to be done earlier, while the stack is empty
 
