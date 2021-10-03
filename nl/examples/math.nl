@@ -1,5 +1,9 @@
 func exit(code: i32) extern
 
+struct String {
+	length: u32
+}
+
 func main() {
 	var a: i32 = 1 + 2;
 	var b = do_something(10);

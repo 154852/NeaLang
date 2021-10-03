@@ -128,6 +128,21 @@ pub struct Assignment {
 #[derive(Debug)]
 pub enum TopLevelNode {
 	Function(Function),
+	StructDeclaration(StructDeclaration)
+}
+
+#[derive(Debug)]
+pub struct StructDeclaration {
+	pub span: Span,
+	pub name: String,
+	pub fields: Vec<StructFieldDeclaration>,
+}
+
+#[derive(Debug)]
+pub struct StructFieldDeclaration {
+	pub span: Span,
+	pub name: String,
+	pub field_type: TypeExpr,
 }
 
 #[derive(Debug)]

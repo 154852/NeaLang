@@ -162,6 +162,7 @@ impl ast::TopLevelNode {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::TopLevelNode> {
         match stream.token().map(|x| x.kind()) {
             Some(TokenKind::FuncKeyword) => syntax::MatchResult::Ok(ast::TopLevelNode::Function(syntax::parse!(stream, ast::Function::parse).unwrap())),
+            Some(TokenKind::StructKeyword) => syntax::MatchResult::Ok(ast::TopLevelNode::StructDeclaration(syntax::parse!(stream, ast::StructDeclaration::parse).unwrap())),
             
             _ => syntax::MatchResult::Fail
         }
@@ -340,6 +341,53 @@ impl ast::TypeExpr {
         syntax::MatchResult::Ok(ast::TypeExpr {
             span: syntax::Span::new(start, stream.tell_start()),
             path
+        })
+    }
+}
+
+impl ast::StructFieldDeclaration {
+    fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::StructFieldDeclaration> {
+        let start = stream.tell_start();
+        let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident)).to_owned();
+        stream.step();
+
+        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Colon), stream.error("Expected ':'"));
+
+        let field_type = syntax::ex!(syntax::parse!(stream, ast::TypeExpr::parse), stream.error("Expected type"));
+
+        syntax::MatchResult::Ok(ast::StructFieldDeclaration {
+            span: syntax::Span::new(start, stream.tell_start()),
+            name,
+			field_type
+        })
+    }
+}
+
+impl ast::StructDeclaration {
+    fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::StructDeclaration> {
+        let start = stream.tell_start();
+        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::StructKeyword));
+
+        let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident), stream.error("Expected a name")).to_owned();
+        stream.step();
+
+        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::OpenCurly), stream.error("Expected '{'"));
+
+        let mut fields = Vec::new();
+        loop {
+            fields.push(match syntax::parse!(stream, ast::StructFieldDeclaration::parse) {
+                Some(x) => x,
+                None => break
+            });
+
+            if !syntax::tk_iss!(stream, TokenKind::Comma) { break }
+        }
+
+        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseCurly), stream.error("Expected '}'"));
+
+        syntax::MatchResult::Ok(ast::StructDeclaration {
+            span: syntax::Span::new(start, stream.tell_start()),
+            name, fields
         })
     }
 }

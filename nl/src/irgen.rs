@@ -5,6 +5,7 @@ use crate::ast;
 use ir;
 use syntax::Span;
 
+#[derive(Debug)]
 pub enum IrGenErrorKind {
 	UnknownType,
 	VariableDoesNotExist,
@@ -17,24 +18,6 @@ pub enum IrGenErrorKind {
 	CallNotOneReturnInExpr,
 	InvalidLHS,
 	CompositeTypeOnStack
-}
-
-impl IrGenErrorKind {
-	pub fn message(&self) -> String {
-		match self {
-			IrGenErrorKind::UnknownType => "Unknown type".to_string(),
-			IrGenErrorKind::VariableDoesNotExist => "Variable does not exist".to_string(),
-			IrGenErrorKind::InvalidInteger => "Invalid integer".to_string(),
-			IrGenErrorKind::BinaryOpTypeMismatch => "Binary operation type mismatch".to_string(),
-			IrGenErrorKind::AssignmentTypeMismatch => "Assignment type mismatch".to_string(),
-			IrGenErrorKind::CannotInferType => "Cannot infer type".to_string(),
-			IrGenErrorKind::CallArgParamCountMismatch => "Incorrect number of arguments to function".to_string(),
-			IrGenErrorKind::CallArgTypeMismatch => "Incorrect argument type".to_string(),
-			IrGenErrorKind::CallNotOneReturnInExpr => "Can only call functions with one return value in an expression".to_string(),
-			IrGenErrorKind::InvalidLHS => "Invalid left hand side".to_string(),
-			IrGenErrorKind::CompositeTypeOnStack => "Cannot load composite type on to stack".to_string()
-		}
-	}
 }
 
 pub struct IrGenError {
@@ -58,19 +41,26 @@ impl IrGenError {
 	}
 
 	pub fn message(&self) -> String {
-		self.kind.message()
+		format!("{:?}", self.kind)
 	}
 }
 
 impl ast::TypeExpr {
-	fn to_ir_valuetype(&self, _unit: &ast::TranslationUnit) -> Result<ir::ValueType, IrGenError> {
+	fn to_ir_storable_type(&self, _unit: &ast::TranslationUnit) -> Result<ir::StorableType, IrGenError> {
 		// There must be a first item, or else this shouldn't have parsed
 		match self.path.get(0).unwrap().as_str() {
-			"i32" => Ok(ir::ValueType::I32),
-			"u32" => Ok(ir::ValueType::U32),
-			"i64" => Ok(ir::ValueType::I64),
-			"u64" => Ok(ir::ValueType::U64),
+			"i32" => Ok(ir::StorableType::Value(ir::ValueType::I32)),
+			"u32" => Ok(ir::StorableType::Value(ir::ValueType::U32)),
+			"i64" => Ok(ir::StorableType::Value(ir::ValueType::I64)),
+			"u64" => Ok(ir::StorableType::Value(ir::ValueType::U64)),
 			_ => Err(IrGenError::new(self.span.clone(), IrGenErrorKind::UnknownType))
+		}
+	}
+
+	fn to_ir_value_type(&self, unit: &ast::TranslationUnit) -> Result<ir::ValueType, IrGenError> {
+		match self.to_ir_storable_type(unit)? {
+			ir::StorableType::Compound(ct) => Ok(ir::ValueType::Ref(Box::new(ir::StorableType::Compound(ct)))),
+			ir::StorableType::Value(v) => Ok(v),
 		}
 	}
 }
@@ -90,6 +80,7 @@ impl ast::TranslationUnit {
 					if func.name == name { return Some((id, func)); }
 					id += 1;
 				},
+				_ => {}
 			}
 		}
 
@@ -104,6 +95,9 @@ impl ast::TranslationUnit {
     			ast::TopLevelNode::Function(func) => {
 					unit.add_function(func.to_ir_base(self)?);
 				},
+				ast::TopLevelNode::StructDeclaration(decl) => {
+					unit.add_type(decl.to_ir(self)?);
+				}
 			}
 		}
 
@@ -116,6 +110,7 @@ impl ast::TranslationUnit {
 					}
 					id += 1;
 				},
+				_ => {}
 			}
 		}
 
@@ -168,16 +163,30 @@ impl IrGenCodeTarget {
 	}
 }
 
+impl ast::StructDeclaration {
+	fn to_ir(&self, unit: &ast::TranslationUnit) -> Result<ir::CompoundTypeRef, IrGenError> {
+		let mut ir_struct = ir::StructContent::new();
+		for field in &self.fields {
+			ir_struct.push_prop(ir::StructProperty::new(
+				&field.name,
+				field.field_type.to_ir_storable_type(unit)?
+			));
+		}
+
+		Ok(ir::CompoundType::new(&self.name, ir::TypeContent::Struct(ir_struct)))
+	}
+}
+
 impl ast::Function {
 	fn to_ir_base(&self, unit: &ast::TranslationUnit) -> Result<ir::Function, IrGenError> {
 		let mut params = Vec::with_capacity(self.params.len());
 		for param in &self.params {
-			params.push(param.param_type.to_ir_valuetype(unit)?);
+			params.push(param.param_type.to_ir_value_type(unit)?);
 		}
 
 		let mut returns = Vec::with_capacity(self.return_types.len());
 		for return_type in &self.return_types {
-			returns.push(return_type.to_ir_valuetype(unit)?);
+			returns.push(return_type.to_ir_value_type(unit)?);
 		}
 
 		Ok(if self.code.is_some() {
@@ -199,7 +208,7 @@ impl ast::Function {
 
 		// Put params into locals
 		for param in self.params.iter().rev() {
-			let vt = param.param_type.to_ir_valuetype(unit)?;
+			let vt = param.param_type.to_ir_value_type(unit)?;
 			let local = ctx.push_local(&param.name, ir::StorableType::Value(vt.clone()));
 			target.push(ir::Ins::PopLocalValue(vt, local));
 		}
@@ -344,14 +353,27 @@ impl ast::ReturnStmt {
 
 impl ast::VarDeclaration {
 	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
+		let expected_type = if let Some(var_type) = &self.var_type {
+			let var_type = var_type.to_ir_storable_type(ctx.unit)?;
+
+			match var_type {
+				ir::StorableType::Compound(_) => {
+					ctx.push_local(&self.name, var_type);
+					return Ok(());
+				},
+				ir::StorableType::Value(v) => Some(v),
+			}
+		} else {
+			None
+		};
+
 		let mut expr_type = if let Some(expr) = &self.expr {
 			Some(expr.append_ir(ctx, target)?)
 		} else {
 			None
 		};
 
-		if let Some(var_type) = &self.var_type {
-			let var_type = var_type.to_ir_valuetype(ctx.unit)?;
+		if let Some(var_type) = expected_type {
 			if let Some(expr_type) = &expr_type {
 				if &var_type != expr_type {
 					return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
