@@ -18,6 +18,16 @@ impl TranslationUnit {
         self.compound_types.push(compound_type);
     }
 
+    pub fn find_type(&self, name: &str) -> Option<CompoundTypeRef> {
+        for ct in self.compound_types.iter() {
+            if ct.name() == name {
+                return Some(ct.clone());
+            }
+        }
+
+        None
+    }
+
     pub fn add_function(&mut self, function: Function) -> FunctionIndex {
         self.functions.push(function);
         self.functions.len() - 1

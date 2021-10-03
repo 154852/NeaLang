@@ -68,6 +68,10 @@ impl CompoundType {
     pub fn content(&self) -> &TypeContent {
         &self.content
     }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl PartialEq for CompoundType {

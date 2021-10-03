@@ -25,6 +25,10 @@ func main() {
 	exit(12);
 }
 
+func test_structs() {
+	var string: String;
+}
+
 func do_something(a: i32): i32 {
 	return a + 1;
 }
