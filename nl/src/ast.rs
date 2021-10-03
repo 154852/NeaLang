@@ -35,7 +35,15 @@ pub enum Expr {
 	Name(NameExpr),
 	Closed(ClosedExpr),
 	NumberLit(NumberLitExpr),
-	Call(CallExpr)
+	Call(CallExpr),
+	MemberAccess(MemberAccessExpr)
+}
+
+#[derive(Debug)]
+pub struct MemberAccessExpr {
+	pub span: Span,
+	pub object: Box<Expr>,
+	pub prop: String
 }
 
 #[derive(Debug)]

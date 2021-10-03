@@ -226,6 +226,18 @@ impl ast::Expr {
                         args
                     });
                 },
+                Some(TokenKind::Dot) => {
+                    stream.step();
+
+                    let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident), stream.error("Expected a name")).to_owned();
+                    stream.step();
+
+                    expr = ast::Expr::MemberAccess(ast::MemberAccessExpr {
+                        span: syntax::Span::new(start, stream.tell_start()),
+                        object: Box::new(expr),
+                        prop: name
+                    });
+                },
                 _ => break
             }
         }

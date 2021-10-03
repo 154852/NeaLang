@@ -17,6 +17,10 @@ impl StructProperty {
     pub fn prop_type(&self) -> &StorableType {
         &self.prop_type
     }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 #[derive(Debug)]

@@ -1,7 +1,7 @@
 func exit(code: i32) extern
 
 struct String {
-	length: u32
+	length: i32
 }
 
 func main() {
@@ -27,6 +27,9 @@ func main() {
 
 func test_structs() {
 	var string: String;
+
+	string.length = 4;
+	var x = string.length;
 }
 
 func do_something(a: i32): i32 {

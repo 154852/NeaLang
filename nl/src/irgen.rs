@@ -17,7 +17,9 @@ pub enum IrGenErrorKind {
 	CallArgTypeMismatch,
 	CallNotOneReturnInExpr,
 	InvalidLHS,
-	CompositeTypeOnStack
+	InvalidRHS,
+	CompositeTypeOnStack,
+	PropDoesNotExist
 }
 
 pub struct IrGenError {
@@ -251,7 +253,7 @@ impl ast::Code {
 				let drop_count = match expr {
 					ast::Expr::Call(call_expr) => call_expr.append_ir_out_expr(ctx, target)?,
 					_ => {
-						expr.append_ir(ctx, target)?;
+						expr.append_ir_value(ctx, target)?;
 						1
 					}
 				};
@@ -287,7 +289,7 @@ impl ast::ForStmt {
 
 		let mut condition_body = IrGenCodeTarget::new();
 		if let Some(condition) = &self.condition {
-			condition.append_ir(ctx, &mut condition_body)?;
+			condition.append_ir_value(ctx, &mut condition_body)?;
 		}
 
 		target.push(ir::Ins::Loop(
@@ -302,7 +304,7 @@ impl ast::ForStmt {
 
 impl ast::IfStmt {
 	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
-		self.condition.append_ir(ctx, target)?;
+		self.condition.append_ir_value(ctx, target)?;
 
 		let mut true_then = IrGenCodeTarget::new();
 		for code in &self.code {
@@ -331,10 +333,9 @@ impl ast::IfStmt {
 
 impl ast::Assignment {
 	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
-		let vt = self.right.append_ir(ctx, target)?;
-
 		match &self.left {
 			ast::Expr::Name(name) => {
+				let vt = self.right.append_ir_value(ctx, target)?;
 				if let Some(local_idx) = ctx.local_map.get(name.name.as_str()) {
 					let local_idx = *local_idx;
 					let local = ctx.func().get_local(local_idx).unwrap();
@@ -347,7 +348,16 @@ impl ast::Assignment {
 					todo!() // Global?
 				}
 			},
-			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS))
+			_ => {
+				let t = self.left.append_ir_ref(ctx, target)?;
+				let vt = self.right.append_ir_value(ctx, target)?;
+
+				if t != ir::ValueType::Ref(Box::new(ir::StorableType::Value(vt.clone()))) {
+					return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
+				}
+
+				target.push(ir::Ins::PopRef(vt));
+			}
 		}
 
 		Ok(())
@@ -357,7 +367,7 @@ impl ast::Assignment {
 impl ast::ReturnStmt {
 	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
 		if let Some(expr) = &self.expr {
-			expr.append_ir(ctx, target)?;
+			expr.append_ir_value(ctx, target)?;
 		}
 
 		target.push(ir::Ins::Ret);
@@ -383,7 +393,7 @@ impl ast::VarDeclaration {
 		};
 
 		let mut expr_type = if let Some(expr) = &self.expr {
-			Some(expr.append_ir(ctx, target)?)
+			Some(expr.append_ir_value(ctx, target)?)
 		} else {
 			None
 		};
@@ -411,13 +421,79 @@ impl ast::VarDeclaration {
 }
 
 impl ast::Expr {
-	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
+	fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
 		match self {
 			ast::Expr::BinaryExpr(binary_expr) => binary_expr.append_ir(ctx, target),
-			ast::Expr::Name(name_expr) => name_expr.append_ir(ctx, target),
-			ast::Expr::Closed(closed_expr) => closed_expr.append_ir(ctx, target),
+			ast::Expr::Name(name_expr) => name_expr.append_ir_value(ctx, target),
+			ast::Expr::Closed(closed_expr) => closed_expr.expr.append_ir_value(ctx, target),
 			ast::Expr::NumberLit(number_lit) => number_lit.append_ir(ctx, target),
 			ast::Expr::Call(call_expr) => call_expr.append_ir_in_expr(ctx, target),
+			ast::Expr::MemberAccess(member_access) => member_access.append_ir_value(ctx, target),
+		}
+	}
+
+	fn append_ir_ref<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
+		match self {
+			ast::Expr::BinaryExpr(binary_expr) => return Err(IrGenError::new(binary_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
+			ast::Expr::Name(name_expr) => name_expr.append_ir_ref(ctx, target),
+			ast::Expr::Closed(closed_expr) => closed_expr.expr.append_ir_value(ctx, target),
+			ast::Expr::NumberLit(number_lit) => return Err(IrGenError::new(number_lit.span.clone(), IrGenErrorKind::InvalidLHS)),
+			ast::Expr::Call(call_expr) => return Err(IrGenError::new(call_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
+			ast::Expr::MemberAccess(member_access) => member_access.append_ir_ref(ctx, target),
+		}
+	}
+}
+
+impl ast::MemberAccessExpr {
+	fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
+		let object = self.object.append_ir_ref(ctx, target)?;
+		
+		match object {
+    		ir::ValueType::Ref(r) => match r.as_ref() {
+				ir::StorableType::Compound(c) => {
+					match c.content() {
+						ir::TypeContent::Struct(s) => {
+							let idx = match s.props().iter().position(|x| x.name() == self.prop) {
+								Some(x) => x,
+								None => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist)),
+							};
+							let prop = s.prop(idx).unwrap();
+							let t = match prop.prop_type() {
+								ir::StorableType::Compound(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS)),
+								ir::StorableType::Value(vt) => vt.clone(),
+							};
+							target.push(ir::Ins::PushProperty(c.clone(), t.clone(), idx));
+							Ok(t)
+						},
+					}
+				},
+				ir::StorableType::Value(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
+			},
+			_ => unreachable!()
+		}
+	}
+
+	fn append_ir_ref<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
+		let object = self.object.append_ir_ref(ctx, target)?;
+
+		match object {
+    		ir::ValueType::Ref(r) => match r.as_ref() {
+				ir::StorableType::Compound(c) => {
+					match c.content() {
+						ir::TypeContent::Struct(s) => {
+							let idx = match s.props().iter().position(|x| x.name() == self.prop) {
+								Some(x) => x,
+								None => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist)),
+							};
+							let prop = s.prop(idx).unwrap();
+							target.push(ir::Ins::PushPropertyRef(c.clone(), prop.prop_type().clone(), idx));
+							Ok(ir::ValueType::Ref(Box::new(prop.prop_type().clone())))
+						},
+					}
+				},
+				ir::StorableType::Value(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
+			},
+			_ => unreachable!()
 		}
 	}
 }
@@ -443,7 +519,7 @@ impl ast::CallExpr {
 		}
 
 		for (a, arg) in self.args.iter().enumerate() {
-			if arg.append_ir(ctx, target)? != ctx.ir_unit.get_function(func_id).signature().params()[a] {
+			if arg.append_ir_value(ctx, target)? != ctx.ir_unit.get_function(func_id).signature().params()[a] {
 				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgTypeMismatch));
 			}
 		}
@@ -469,7 +545,7 @@ impl ast::CallExpr {
 		}
 
 		for (a, arg) in self.args.iter().enumerate() {
-			if arg.append_ir(ctx, target)? != ctx.ir_unit.get_function(func_id).signature().params()[a] {
+			if arg.append_ir_value(ctx, target)? != ctx.ir_unit.get_function(func_id).signature().params()[a] {
 				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgTypeMismatch));
 			}
 		}
@@ -482,8 +558,8 @@ impl ast::CallExpr {
 
 impl ast::BinaryExpr {
 	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
-		let left = self.left.append_ir(ctx, target)?;
-		let right = self.right.append_ir(ctx, target)?;
+		let left = self.left.append_ir_value(ctx, target)?;
+		let right = self.right.append_ir_value(ctx, target)?;
 
 		if left != right { return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::BinaryOpTypeMismatch)) }
 
@@ -507,7 +583,7 @@ impl ast::BinaryExpr {
 }
 
 impl ast::NameExpr {
-	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
+	fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
 		if let Some(idx) = ctx.local_map.get(self.name.as_str()) {
 			let idx = *idx;
 			
@@ -524,11 +600,18 @@ impl ast::NameExpr {
 			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::VariableDoesNotExist))
 		}
 	}
-}
 
-impl ast::ClosedExpr {
-	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
-		self.expr.append_ir(ctx, target)
+	fn append_ir_ref<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<ir::ValueType, IrGenError> {
+		if let Some(idx) = ctx.local_map.get(self.name.as_str()) {
+			let idx = *idx;
+			
+			let st = ctx.func().get_local(idx).unwrap().local_type();
+
+			target.push(ir::Ins::PushLocalRef(st.clone(), idx));
+			Ok(ir::ValueType::Ref(Box::new(st.clone())))
+		} else {
+			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::VariableDoesNotExist))
+		}
 	}
 }
 
