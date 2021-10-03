@@ -1,15 +1,21 @@
-use crate::{Ins, StorableType};
+use crate::{CompoundTypeRef, Ins, StorableType};
 
 #[derive(Debug)]
 pub struct TranslationUnit {
     functions: Vec<Function>,
+    compound_types: Vec<CompoundTypeRef>
 }
 
 impl TranslationUnit {
     pub fn new() -> TranslationUnit {
         TranslationUnit {
             functions: Vec::new(),
+            compound_types: Vec::new()
         }
+    }
+
+    pub fn add_type(&mut self, compound_type: CompoundTypeRef) {
+        self.compound_types.push(compound_type);
     }
 
     pub fn add_function(&mut self, function: Function) -> FunctionIndex {

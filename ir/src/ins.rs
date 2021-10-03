@@ -1,4 +1,4 @@
-use crate::{StorableType, unit::*};
+use crate::{CompoundTypeRef, PropertyIndex, StorableType, unit::*};
 
 #[derive(Debug)]
 pub enum Ins {
@@ -50,16 +50,60 @@ pub enum Ins {
     /// Pops the value followd by the ref from the stack, and writes the value to the ref. The ref must be a value of the given ValueType, which must be the valuetype of the popped value.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
+    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ValueType::I32 ], vec![ ]));
     /// 
     /// // Save param to local
     /// let l1 = func.push_local(ir::Local::new(ir::ValueType::I32)); // Allocate local of type i32
     /// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1)); // Save the given param to the local
     /// 
-    /// func.push(ir::Ins::PushLocal(ir::ValueType::I32, l1)); // Push the local back onto the stack
+    /// func.push(ir::Ins::PushLocalRef(ir::ValueType::I32, l1)); // Push a reference to the local onto the stack
+    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 10));
+    /// func.push(ir::Ins::PopRef(ir::ValueType::I32));
     /// func.push(ir::Ins::Ret);
     /// ```
     PopRef(ValueType),
+
+    /// Pop the compound type ref of the given type from the stack, and push the value of the field at the given index in that struct. The field must have the given valuetype.
+    /// # Examples
+    /// ```
+    /// let mut example_struct = ir::StructContent::new();
+    /// example_struct.push_prop(ir::StructProperty::new("first_field", ir::StorableType::Value(ir::ValueType::I32)));
+    /// example_struct.push_prop(ir::StructProperty::new("second_field", ir::StorableType::Value(ir::ValueType::I32)));
+    /// 
+    /// let example_struct = ir::CompoundType::new("example_struct", ir::TypeContent::Struct(example_struct));
+	/// unit.add_type(example_struct.clone());
+    /// 
+    /// let mut func = ir::Function::new("structs", ir::Signature::new(vec![ ], vec![ ir::ValueType::I32 ]));
+    /// 
+	/// let local = func.push_local(ir::Local::new(ir::StorableType::Compound(example_struct.clone())));
+    /// 
+	/// func.push(ir::Ins::PushLocalRef(ir::StorableType::Compound(example_struct.clone()), local));
+    /// func.push(ir::Ins::PushProperty(example_struct.clone(), ir::ValueType::I32, 1)); // Second field
+	/// func.push(ir::Ins::Ret);
+    /// ```
+    PushProperty(CompoundTypeRef, ValueType, PropertyIndex),
+
+    /// Pop the compound type ref of the given type from the stack, and push a reference to the value of the field at the given index in that struct. The field must have the given storabletype.
+    /// # Examples
+    /// ```
+    /// let mut example_struct = ir::StructContent::new();
+    /// example_struct.push_prop(ir::StructProperty::new("first_field", ir::StorableType::Value(ir::ValueType::I32)));
+    /// example_struct.push_prop(ir::StructProperty::new("second_field", ir::StorableType::Value(ir::ValueType::I32)));
+    /// 
+    /// let example_struct = ir::CompoundType::new("example_struct", ir::TypeContent::Struct(example_struct));
+	/// unit.add_type(example_struct.clone());
+    /// 
+    /// let mut func = ir::Function::new("structs", ir::Signature::new(vec![ ], vec![ ]));
+    /// 
+	/// let local = func.push_local(ir::Local::new(ir::StorableType::Compound(example_struct.clone())));
+    /// 
+	/// func.push(ir::Ins::PushLocalRef(ir::StorableType::Compound(example_struct.clone()), local));
+    /// func.push(ir::Ins::PushPropertyRef(example_struct.clone(), ir::StorableType::Value(ir::ValueType::I32), 0)); // First field
+    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
+    /// func.push(ir::Ins::PopRef(ir::ValueType::I32));
+	/// func.push(ir::Ins::Ret);
+    /// ```
+    PushPropertyRef(CompoundTypeRef, StorableType, PropertyIndex),
     
     /// Calls the function at the given index.
     /// The parameters to the function will be popped from the stack in reverse order, meaning that the first param should be pushed first.
@@ -242,6 +286,8 @@ pub enum Ins {
     ///     ],
     ///     vec![ // Condition
     ///         ir::Ins::PushLocal(ir::ValueType::I32, l1),
+    ///         ir::Ins::PushLocal(ir::ValueType::I32, 0),
+    ///         ir::Ins::Ne(ir::ValueType::I32),
     ///     ],
     ///     vec![ // Increment (or in this case, decrement)
     ///         ir::Ins::PushLocal(ir::ValueType::I32, l1),
@@ -259,7 +305,7 @@ pub enum Ins {
     /// ```
     /// let mut func = ir::Function::new("if_1", ir::Signature::new(vec![ ], vec![ ]));
     /// 
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
+    /// func.push(ir::Ins::PushLiteral(ValueType::Bool, 1));
     /// func.push(ir::Ins::If(vec![
     ///     // Do something
     /// ]));
@@ -273,7 +319,7 @@ pub enum Ins {
     /// ```
     /// let mut func = ir::Function::new("if_1_else", ir::Signature::new(vec![ ], vec![ ]));
     /// 
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
+    /// func.push(ir::Ins::PushLiteral(ValueType::Bool, 1));
     /// func.push(ir::Ins::IfElse(vec![
     ///     // Do something
     /// ], vec![

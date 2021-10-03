@@ -61,7 +61,7 @@ impl std::fmt::Debug for StackElement {
 enum LocalElementValue {
     Num(u64),
     LocalRef(LocalIndex),
-    Data(HashMap<String, LocalElementValue>)
+    Data(Vec<LocalElementValue>)
 }
 
 struct LocalElement {
@@ -216,6 +216,12 @@ impl Ins {
                 }
 
                 Ok(EvalResultAction::Next)
+            },
+            Ins::PushProperty(ct, vt, idx) => {
+                todo!()
+            },
+            Ins::PushPropertyRef(ct, st, idx) => {
+                todo!()
             },
             Ins::Call(_) => todo!(),
             Ins::Ret => Ok(EvalResultAction::Ret),

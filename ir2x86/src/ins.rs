@@ -31,6 +31,22 @@ impl TranslationContext {
                     val,
                 ));
             },
+            ir::Ins::PushProperty(ct, vt, idx) => {
+                ins.push(x86::Ins::MovRegMem(
+                    ftc.stack().peek_vt(vt),
+                    x86::Mem::new().base(ftc.stack().peek()).disp(
+                        crate::registerify::offset_of_prop(ct, *idx, ftc.mode()) as i64,
+                    ),
+                ));
+            },
+            ir::Ins::PushPropertyRef(ct, st, idx) => {
+                ins.push(x86::Ins::LeaRegMem(
+                    ftc.stack().peek_vt(&ir::ValueType::Ref(Box::new(st.clone()))),
+                    x86::Mem::new().base(ftc.stack().peek()).disp(
+                        crate::registerify::offset_of_prop(ct, *idx, ftc.mode()) as i64,
+                    ),
+                ));
+            },
             ir::Ins::Call(idx) => {
                 // TODO: This push/pop is quite unfortuante, but sort of required without a bit of optimisation to move calls to be done earlier, while the stack is empty
 

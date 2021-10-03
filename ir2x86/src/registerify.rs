@@ -1,3 +1,4 @@
+use ir::PropertyIndex;
 use x86;
 
 pub(crate) const SYS_V_ABI: &[x86::RegClass] = &[
@@ -46,8 +47,32 @@ pub(crate) fn reg_for_vt(vt: &ir::ValueType, mode: x86::Mode, class: x86::RegCla
 	}
 }
 
-pub(crate) fn size_for_compound(_ct: &ir::CompoundType, _mode: x86::Mode) -> usize {
-	todo!()
+pub(crate) fn offset_of_prop(ct: &ir::CompoundTypeRef, idx: PropertyIndex, mode: x86::Mode) -> usize {
+	match ct.content() {
+		ir::TypeContent::Struct(s) => {
+			let mut offset = 0;
+
+			for i in 0..idx {
+				offset += size_for_st(s.prop(i).expect("Invalid property ID").prop_type(), mode);
+			}
+
+			offset
+		},
+	}
+}
+
+pub(crate) fn size_for_compound(ct: &ir::CompoundType, mode: x86::Mode) -> usize {
+	match ct.content() {
+		ir::TypeContent::Struct(s) => {
+			let mut size = 0;
+
+			for s in s.props() {
+				size += size_for_st(s.prop_type(), mode);
+			}
+
+			size
+		},
+	}
 }
 
 pub(crate) fn size_for_vt(vt: &ir::ValueType, mode: x86::Mode) -> usize {

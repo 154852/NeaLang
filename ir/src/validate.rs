@@ -1,4 +1,4 @@
-use crate::{Function, Ins, Signature, StorableType, TranslationUnit, ValueType};
+use crate::{Function, Ins, Signature, StorableType, TranslationUnit, TypeContent, ValueType};
 
 struct TypeStack {
     types: Vec<ValueType>
@@ -94,6 +94,7 @@ pub enum ValidationError {
     StackDepthNotOne,
     LocalDoesNotExist,
     LocalIncorrectType,
+    FieldIncorrectType,
     GlobalDoesNotExist,
     FunctionDoesNotExist,
     NotBreakable,
@@ -141,6 +142,34 @@ impl Ins {
                 stack.pop(vt)?;
                 stack.pop(&ValueType::Ref(Box::new(StorableType::Value(vt.clone()))))?;
                 Ok(())
+            },
+            Ins::PushProperty(ct, vt, idx) => {
+                stack.pop(&ValueType::Ref(Box::new(StorableType::Compound(ct.clone()))))?;
+                stack.push(vt.clone());
+                
+                match ct.as_ref().content() {
+                    TypeContent::Struct(s) => {
+                        if !matches!(s.prop(*idx), Some(p) if p.prop_type().is_value(vt)) {
+                            Err(ValidationError::FieldIncorrectType)
+                        } else {
+                            Ok(())
+                        }
+                    },
+                }
+            },
+            Ins::PushPropertyRef(ct, st, idx) => {
+                stack.pop(&ValueType::Ref(Box::new(StorableType::Compound(ct.clone()))))?;
+                stack.push(ValueType::Ref(Box::new(st.clone())));
+                
+                match ct.as_ref().content() {
+                    TypeContent::Struct(s) => {
+                        if !matches!(s.prop(*idx), Some(p) if p.prop_type() == st) {
+                            Err(ValidationError::FieldIncorrectType)
+                        } else {
+                            Ok(())
+                        }
+                    },
+                }
             },
             Ins::Call(idx) => {
                 if *idx >= unit.functions().len() { Err(ValidationError::FunctionDoesNotExist) }
