@@ -11,6 +11,12 @@ impl TranslationContext {
                     ftc.local_mem(*idx)
                 ));
             },
+            ir::Ins::PushLocalRef(st, idx) => {
+                ins.push(x86::Ins::LeaRegMem(
+                    ftc.stack().push_vt(&ir::ValueType::Ref(Box::new(st.clone()))),
+                    ftc.local_mem(*idx)
+                ));
+            },
             ir::Ins::PopLocalValue(vt, idx) => {
                 ins.push(x86::Ins::MovMemReg(
                     ftc.local_mem(*idx),

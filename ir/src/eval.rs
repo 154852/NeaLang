@@ -1,13 +1,25 @@
 use crate::{BlockMoveDepth, Function, Ins, Local, LocalIndex, StorableType, TranslationUnit, ValueType};
 use std::collections::HashMap;
 
+#[derive(Debug)]
+pub enum StackValue {
+    Num(u64),
+    LocalRef(LocalIndex)
+}
+
 pub struct StackElement {
-    value: u64,
+    value: StackValue,
     value_type: ValueType
 }
 
 impl StackElement {
-    pub fn new(value: u64, value_type: ValueType) -> StackElement {
+    pub fn new_num(value: u64, value_type: ValueType) -> StackElement {
+        StackElement {
+            value: StackValue::Num(value), value_type
+        }
+    }
+
+    pub fn new(value: StackValue, value_type: ValueType) -> StackElement {
         StackElement {
             value, value_type
         }
@@ -17,21 +29,31 @@ impl StackElement {
         &self.value_type
     }
 
-    pub fn get(&self) -> u64 {
-        self.value
+    pub fn get_num(&self) -> u64 {
+        match self.value {
+            StackValue::Num(n) => n,
+            _ => panic!("Expected num, found {:?}", self.value)
+        }
     }
 
-    pub fn set(&mut self, value: u64) {
+    pub fn get(&self) -> &StackValue {
+        &self.value
+    }
+
+    pub fn set(&mut self, value: StackValue) {
         self.value = value;
     }
 }
 
 impl std::fmt::Debug for StackElement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.value_type.signed() {
-            f.write_fmt(format_args!("{}", self.value as i64))
-        } else {
-            f.write_fmt(format_args!("{}", self.value as u64))
+        match self.value {
+            StackValue::Num(n) => if self.value_type.signed() {
+                f.write_fmt(format_args!("{}", n as i64))
+            } else {
+                f.write_fmt(format_args!("{}", n as u64))
+            },
+            StackValue::LocalRef(r) => f.write_fmt(format_args!("<local {}>", r))
         }
     }
 }
@@ -160,30 +182,34 @@ impl Ins {
     fn evaluate(&self, stack: &mut Stack, function: &Function, ctx: &mut FunctionContext, unit: &TranslationUnit) -> Result<EvalResultAction, EvalError> {
         match &self {
             Ins::PushLocalValue(vt, idx) => {
-                stack.push(StackElement::new(ctx.get_local_value(*idx, vt), vt.clone()));
+                stack.push(StackElement::new_num(ctx.get_local_value(*idx, vt), vt.clone()));
+                Ok(EvalResultAction::Next)
+            },
+            Ins::PushLocalRef(st, idx) => {
+                stack.push(StackElement::new(StackValue::LocalRef(*idx), ValueType::Ref(Box::new(st.clone()))));
                 Ok(EvalResultAction::Next)
             },
             Ins::PopLocalValue(vt, idx) => {
-                *ctx.get_local_value_mut(*idx, vt) = stack.pop(vt).get();
+                *ctx.get_local_value_mut(*idx, vt) = stack.pop(vt).get_num();
                 Ok(EvalResultAction::Next)
             },
             Ins::Call(_) => todo!(),
             Ins::Ret => Ok(EvalResultAction::Ret),
             Ins::Inc(vt, x) => {
-                let val = stack.pop(vt).value;
-                stack.push(StackElement::new(val + x, vt.clone()));
+                let val = stack.pop(vt).get_num();
+                stack.push(StackElement::new_num(val + x, vt.clone()));
                 Ok(EvalResultAction::Next)
             },
             Ins::Dec(vt, x) => {
-                let val = stack.pop(vt).value;
-                stack.push(StackElement::new(val - x, vt.clone()));
+                let val = stack.pop(vt).get_num();
+                stack.push(StackElement::new_num(val - x, vt.clone()));
                 Ok(EvalResultAction::Next)
             },
             Ins::Add(vt) => {
                 let right = stack.pop(vt);
                 let left = stack.pop(vt);
 
-                stack.push(StackElement::new(left.value + right.value, vt.clone()));
+                stack.push(StackElement::new_num(left.get_num() + right.get_num(), vt.clone()));
 
                 Ok(EvalResultAction::Next)
             },
@@ -191,7 +217,7 @@ impl Ins {
                 let right = stack.pop(vt);
                 let left = stack.pop(vt);
 
-                stack.push(StackElement::new(left.value * right.value, vt.clone()));
+                stack.push(StackElement::new_num(left.get_num() * right.get_num(), vt.clone()));
 
                 Ok(EvalResultAction::Next)
             },
@@ -199,7 +225,7 @@ impl Ins {
                 let right = stack.pop(vt);
                 let left = stack.pop(vt);
 
-                stack.push(StackElement::new(left.value + right.value, vt.clone()));
+                stack.push(StackElement::new_num(left.get_num() + right.get_num(), vt.clone()));
 
                 Ok(EvalResultAction::Next)
             },
@@ -207,7 +233,7 @@ impl Ins {
                 let right = stack.pop(vt);
                 let left = stack.pop(vt);
 
-                stack.push(StackElement::new(left.value + right.value, vt.clone()));
+                stack.push(StackElement::new_num(left.get_num() + right.get_num(), vt.clone()));
 
                 Ok(EvalResultAction::Next)
             },
@@ -215,7 +241,7 @@ impl Ins {
                 let right = stack.pop(vt);
                 let left = stack.pop(vt);
 
-                stack.push(StackElement::new(if left.value == right.value { 1 } else { 0 }, ValueType::Bool));
+                stack.push(StackElement::new_num(if left.get_num() == right.get_num() { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
@@ -223,7 +249,7 @@ impl Ins {
                 let right = stack.pop(vt);
                 let left = stack.pop(vt);
 
-                stack.push(StackElement::new(if left.value != right.value { 1 } else { 0 }, ValueType::Bool));
+                stack.push(StackElement::new_num(if left.get_num() != right.get_num() { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
@@ -231,7 +257,7 @@ impl Ins {
                 let right = stack.pop(vt);
                 let left = stack.pop(vt);
 
-                stack.push(StackElement::new(if left.value < right.value { 1 } else { 0 }, ValueType::Bool));
+                stack.push(StackElement::new_num(if left.get_num() < right.get_num() { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
@@ -239,7 +265,7 @@ impl Ins {
                 let right = stack.pop(vt);
                 let left = stack.pop(vt);
 
-                stack.push(StackElement::new(if left.value <= right.value { 1 } else { 0 }, ValueType::Bool));
+                stack.push(StackElement::new_num(if left.get_num() <= right.get_num() { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
@@ -247,7 +273,7 @@ impl Ins {
                 let right = stack.pop(vt);
                 let left = stack.pop(vt);
 
-                stack.push(StackElement::new(if left.value > right.value { 1 } else { 0 }, ValueType::Bool));
+                stack.push(StackElement::new_num(if left.get_num() > right.get_num() { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
@@ -255,7 +281,7 @@ impl Ins {
                 let right = stack.pop(vt);
                 let left = stack.pop(vt);
 
-                stack.push(StackElement::new(if left.value >= right.value { 1 } else { 0 }, ValueType::Bool));
+                stack.push(StackElement::new_num(if left.get_num() >= right.get_num() { 1 } else { 0 }, ValueType::Bool));
 
                 Ok(EvalResultAction::Next)
             },
@@ -270,7 +296,7 @@ impl Ins {
                         }
                     }
 
-                    if stack.pop(&ValueType::Bool).value == 0 { break }
+                    if stack.pop(&ValueType::Bool).get_num() == 0 { break }
 
                     'inner: for ins in body {
                         match ins.evaluate(stack, function, ctx, unit)? {
@@ -306,7 +332,7 @@ impl Ins {
                 Ok(EvalResultAction::Next)
             },
             Ins::If(body) => {
-                if stack.pop(&ValueType::Bool).value != 0 {
+                if stack.pop(&ValueType::Bool).get_num() != 0 {
                     for ins in body {
                         match ins.evaluate(stack, function, ctx, unit)? {
                             EvalResultAction::Ret => return Ok(EvalResultAction::Ret),
@@ -320,7 +346,7 @@ impl Ins {
                 Ok(EvalResultAction::Next)
             },
             Ins::IfElse(body_a, body_b) => {
-                if stack.pop(&ValueType::Bool).value != 0 {
+                if stack.pop(&ValueType::Bool).get_num() != 0 {
                     for ins in body_a {
                         match ins.evaluate(stack, function, ctx, unit)? {
                             EvalResultAction::Ret => return Ok(EvalResultAction::Ret),
@@ -345,7 +371,7 @@ impl Ins {
             Ins::Break(depth) => return Ok(EvalResultAction::Break(*depth)),
             Ins::Continue(depth) => return Ok(EvalResultAction::Continue(*depth)),
             Ins::PushLiteral(vt, lit) => {
-                stack.push(StackElement::new(*lit, vt.clone()));
+                stack.push(StackElement::new_num(*lit, vt.clone()));
                 Ok(EvalResultAction::Next)
             },
             Ins::Drop => {

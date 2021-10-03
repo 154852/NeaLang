@@ -46,7 +46,7 @@ pub(crate) fn reg_for_vt(vt: &ir::ValueType, mode: x86::Mode, class: x86::RegCla
 	}
 }
 
-pub(crate) fn size_for_compound(ct: &ir::CompoundType, mode: x86::Mode) -> usize {
+pub(crate) fn size_for_compound(_ct: &ir::CompoundType, _mode: x86::Mode) -> usize {
 	todo!()
 }
 

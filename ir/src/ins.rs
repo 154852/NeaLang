@@ -1,4 +1,4 @@
-use crate::{unit::*};
+use crate::{StorableType, unit::*};
 
 #[derive(Debug)]
 pub enum Ins {
@@ -15,6 +15,20 @@ pub enum Ins {
     /// func.push(ir::Ins::Ret);
     /// ```
     PushLocalValue(ValueType, LocalIndex),
+
+    /// Pushes a reference the local at the given index to the stack. The local must have the given storable type.
+    /// # Examples
+    /// ```
+    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
+    /// 
+    /// // Save param to local
+    /// let l1 = func.push_local(ir::Local::new(ir::ValueType::I32)); // Allocate local of type i32
+    /// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1)); // Save the given param to the local
+    /// 
+    /// func.push(ir::Ins::PushLocal(ir::ValueType::I32, l1)); // Push the local back onto the stack
+    /// func.push(ir::Ins::Ret);
+    /// ```
+    PushLocalRef(StorableType, LocalIndex),
     
     /// Pops the last value on the stack to the local at the given index. The local must be a value, and the local and popped item must match in value type to the ValueType given
     /// # Examples

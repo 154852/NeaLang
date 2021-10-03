@@ -115,6 +115,17 @@ impl Ins {
                     Err(ValidationError::LocalDoesNotExist)
                 }
             },
+            Ins::PushLocalRef(st, idx) => {
+                if let Some(local) = function.locals().get(*idx) {
+                    if local.local_type() != st {
+                        Err(ValidationError::LocalIncorrectType)
+                    } else {
+                        Ok(stack.push(ValueType::Ref(Box::new(st.clone()))))
+                    }
+                } else {
+                    Err(ValidationError::LocalDoesNotExist)
+                }
+            },
             Ins::PopLocalValue(vt, idx) => {
                 if let Some(local) = function.locals().get(*idx) {
                     if !local.local_type().is_value(vt) {

@@ -68,6 +68,9 @@ pub enum Ins {
     /// If Condition Then Jump A
     JumpConditionalLocalSymbol(Condition, LocalSymbolID),
 
+    /// A <- &B
+    LeaRegMem(Reg, Mem),
+
     /// A <- B
     MovRegReg(Reg, Reg),
     /// A <- B
@@ -161,6 +164,9 @@ impl Ins {
                 Encoder::new_long([0x0f, 0x80 + c.base()]).imm32(0).to(data);
                 unfilled_local_symbols.push(Relocation::new_local_branch(id, data.len() - 4, -4));
             },
+
+            // https://www.felixcloutier.com/x86/lea
+            Ins::LeaRegMem(r, ref m) => Encoder::new(0x8d).rm(r, m).to(data),
 
             // https://www.felixcloutier.com/x86/mov
             Ins::MovRegReg(a, b) => Encoder::new(if a.size() == Size::Byte { 0x88 } else { 0x89 }).rr(b, a).to(data),

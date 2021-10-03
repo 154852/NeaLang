@@ -25,7 +25,7 @@ fn main() {
 
     let func = unit.get_function(func_id);
     
-    match func.evaluate(&unit, vec![ ir::StackElement::new(7, ValueType::I32) ]) {
+    match func.evaluate(&unit, vec![ ir::StackElement::new_num(7, ValueType::I32) ]) {
         Ok(res) => println!("Res: {:#?}", res),
         Err(e) => panic!("Evaluation error: {:#?}", e)
     }
