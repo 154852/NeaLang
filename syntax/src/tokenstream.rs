@@ -103,6 +103,7 @@ impl<'a, T: std::fmt::Debug + TokenKind> TokenStream<'a, T> {
     }
 }
 
+/// Create keyword parsers. Keywords must be alphanumeric.
 #[macro_export]
 macro_rules! keywords {
     ( $string:expr , $offset:expr , $( $word:expr => $name:expr ),* ) => {
@@ -114,6 +115,7 @@ macro_rules! keywords {
     };
 }
 
+/// Create a generic identifier parser, parsing /[a-zA-Z_]][a-zA-Z0-9_]*/
 #[macro_export]
 macro_rules! ident {
     ( $string:expr , $offset:expr , $( $i:ident )::* ) => {
@@ -127,6 +129,7 @@ macro_rules! ident {
     };
 }
 
+/// Create a generic whitespace parser, parsing /\s+/
 #[macro_export]
 macro_rules! whitespace {
     ( $string:expr , $offset:expr , $( $i:ident )::* ) => {
@@ -140,6 +143,7 @@ macro_rules! whitespace {
     };
 }
 
+/// Create a generic number parser, parsing /[0-9]+/
 #[macro_export]
 macro_rules! number {
     ( $string:expr , $offset:expr , $( $i:ident )::* ) => {
@@ -153,6 +157,7 @@ macro_rules! number {
     };
 }
 
+/// Match a single character, either alphabetic or not
 #[macro_export]
 macro_rules! exact {
     ( $string:expr , $offset:expr , $( $chr:expr => $( $i:ident )::* ),* ) => {
@@ -164,6 +169,7 @@ macro_rules! exact {
     };
 }
 
+/// Match a continuous string, either alphabetic or not
 #[macro_export]
 macro_rules! exact_long {
     ( $string:expr , $offset:expr , $( $str:expr => $( $i:ident )::* ),* ) => {
@@ -175,6 +181,7 @@ macro_rules! exact_long {
     };
 }
 
+/// Create a generic fallback character parser, it cannot fail.
 #[macro_export]
 macro_rules! char {
     ( $string:expr , $offset:expr , $( $i:ident )::* ) => {

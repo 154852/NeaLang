@@ -1,3 +1,4 @@
+/// Evaluates to true if the current token exists and it's kind matches the given pattern
 #[macro_export]
 macro_rules! tk_is {
     ( $stream:expr , $p:pat ) => {
@@ -5,6 +6,7 @@ macro_rules! tk_is {
     };
 }
 
+/// Does the same as tk_is, but also steps if true.
 #[macro_export]
 macro_rules! tk_iss {
     ( $stream:expr , $p:pat ) => {
@@ -16,6 +18,7 @@ macro_rules! tk_iss {
     };
 }
 
+/// Takes a single value out of the tokenstream, of the given type - falling back to None
 #[macro_export]
 macro_rules! tk_v {
     ( $stream:expr , $( $i:ident )::* ) => {
@@ -29,6 +32,7 @@ macro_rules! tk_v {
     };
 }
 
+/// Call a parser and propogate the error
 #[macro_export]
 macro_rules! parse {
     ( $stream:expr , $e:expr ) => {
@@ -47,6 +51,7 @@ macro_rules! parse {
     };
 }
 
+/// Either fail or return an error if the given value is not Some
 #[macro_export]
 macro_rules! ex {
     ( $e:expr ) => {
@@ -64,6 +69,7 @@ macro_rules! ex {
     };
 }
 
+/// Checks out of line that $e is true, and either failing or returning an error if it is not
 #[macro_export]
 macro_rules! req {
     ( $e:expr ) => {
@@ -78,6 +84,7 @@ macro_rules! req {
     };
 }
 
+/// Does the same as req, but steps on sucess
 #[macro_export]
 macro_rules! reqs {
     ( $s:expr , $e:expr ) => {

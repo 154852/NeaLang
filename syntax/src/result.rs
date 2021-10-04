@@ -27,7 +27,10 @@ impl SyntaxError {
 }
 
 pub enum MatchResult<T> {
+    /// Parsing successful, this is the value
     Ok(T),
+    /// Pattern matches, but encountered an error
     Err(SyntaxError),
+    /// Pattern does not match
     Fail
 }
