@@ -6,10 +6,12 @@ fn main() {
 
     let mut func = ir::Function::new("slices", ir::Signature::new(vec![
         ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::I32)))))
-    ], vec![ ir::ValueType::UPtr ]));
+    ], vec![ ]));
     
-    
-	func.push(ir::Ins::PushSliceLen(ir::StorableType::Value(ir::ValueType::I32)));
+    func.push(ir::Ins::PushLiteral(ir::ValueType::UPtr, 3));
+	func.push(ir::Ins::PushSliceElementRef(ir::StorableType::Value(ir::ValueType::I32)));
+    func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 10));
+    func.push(ir::Ins::PopRef(ir::ValueType::I32));
 	func.push(ir::Ins::Ret);
 
     let func_id = unit.add_function(func);

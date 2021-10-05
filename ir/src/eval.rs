@@ -212,6 +212,8 @@ impl Ins {
             Ins::PushProperty(_, _, _) => todo!(),
             Ins::PushPropertyRef(_, _, _) => todo!(),
             Ins::PushSliceLen(_) => todo!(),
+            Ins::PushSliceElement(_) => todo!(),
+            Ins::PushSliceElementRef(_) => todo!(),
             Ins::Call(_) => todo!(),
             Ins::Ret => Ok(EvalResultAction::Ret),
             Ins::Inc(vt, x) => {

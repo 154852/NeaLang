@@ -107,6 +107,12 @@ pub enum Ins {
 
     /// Pop a reference to a slice from the stack, and push it's length as a usize. The slice must be of the given storable type.
     PushSliceLen(StorableType),
+
+    /// Pop a uptr index from the stack, pop a reference to a slice from the stack, and push the element in the slice at that index. The slice must be of the given type, and the pushed value will have that type. The slice type must be a value.
+    PushSliceElement(StorableType),
+
+    /// Pop a uptr index from the stack, pop a reference to a slice from the stack, and push a reference to the element in the slice at that index. The slice must be of the given type, and the pushed value will have that type.
+    PushSliceElementRef(StorableType),
     
     /// Calls the function at the given index.
     /// The parameters to the function will be popped from the stack in reverse order, meaning that the first param should be pushed first.

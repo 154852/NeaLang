@@ -92,6 +92,7 @@ pub enum ValidationError {
     StackIncorrectType,
     StackDepthNotZero,
     StackDepthNotOne,
+    StackNotValue,
     LocalDoesNotExist,
     LocalIncorrectType,
     FieldIncorrectType,
@@ -172,8 +173,25 @@ impl Ins {
                 }
             },
             Ins::PushSliceLen(st) => {
-                stack.pop(&ValueType::Ref(Box::new(StorableType::Slice(Box::new(st.clone())))))?;
                 stack.push(ValueType::UPtr);
+                stack.pop(&ValueType::Ref(Box::new(StorableType::Slice(Box::new(st.clone())))))?;
+
+                Ok(())
+            },
+            Ins::PushSliceElement(st) => {
+                stack.pop(&ValueType::UPtr)?;
+                stack.pop(&ValueType::Ref(Box::new(StorableType::Slice(Box::new(st.clone())))))?;
+                stack.push(match st {
+                    StorableType::Value(v) => v.clone(),
+                    _ => return Err(ValidationError::StackNotValue),
+                });
+
+                Ok(())
+            },
+            Ins::PushSliceElementRef(st) => {
+                stack.pop(&ValueType::UPtr)?;
+                stack.pop(&ValueType::Ref(Box::new(StorableType::Slice(Box::new(st.clone())))))?;
+                stack.push(ValueType::Ref(Box::new(st.clone())));
 
                 Ok(())
             },

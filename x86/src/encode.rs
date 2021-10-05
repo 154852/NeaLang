@@ -28,8 +28,35 @@ impl Mem {
         self
     }
 
+    pub fn index(mut self, index: RegClass) -> Self {
+        self.index = Some(index);
+        self
+    }
+
+    pub fn scale(mut self, scale: u8) -> Self {
+        self.scale = scale;
+        self
+    }
+
     pub fn modrm_to_reg(&self, reg: Reg, data: &mut Vec<u8>) {
         self.modrm_with(reg.class().id(), data)
+    }
+
+    // TODO: EBP, ESP change things
+    fn sib_byte(&self) -> u8 {
+        if let Some(base) = self.base {
+            if let Some(index) = self.index {
+                (self.scale << 6) | index.id() | base.id()
+            } else {
+                (self.scale << 6) | 0b100 | base.id()
+            }
+        } else {
+            if let Some(index) = self.index {
+                (self.scale << 6) | index.id() | 0b101
+            } else {
+                (self.scale << 6) | 0b100 | 0b101
+            }
+        }
     }
 
     // http://www.cs.loyola.edu/~binkley/371/Encoding_Real_x86_Instructions.html
@@ -73,7 +100,12 @@ impl Mem {
                 data.extend(&(self.disp as u32).to_le_bytes());
             }
         } else {
-            todo!();
+            if self.disp == 0 {
+                data.push((0b00 << 6) | (r << 3) | 0b100);
+                data.push(self.sib_byte());
+            } else {
+                todo!()
+            }
         }
     }
 

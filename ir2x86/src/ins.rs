@@ -1,4 +1,4 @@
-use crate::{FunctionTranslationContext, LocalSymbol, TranslationContext};
+use crate::{FunctionTranslationContext, LocalSymbol, TranslationContext, registerify::size_for_st};
 
 impl TranslationContext {
     pub(crate) fn translate_instruction_to(&self, ir_ins: &ir::Ins, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
@@ -54,6 +54,50 @@ impl TranslationContext {
                     x86::Mem::new().base(ftc.stack().peek()).disp(
                         mode.ptr_size() as i64
                     ),
+                ));
+            },
+            ir::Ins::PushSliceElement(st) => {
+                let index = ftc.stack().pop_vt(&ir::ValueType::UPtr);
+                let slice = ftc.stack().pop_vt(&ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(st.clone())))));
+
+                let data = ftc.stack().push().uptr(&mode);
+                
+                ins.push(x86::Ins::MovRegMem(
+                    slice,
+                    x86::Mem::new().base(slice.class()),
+                ));
+
+                ins.push(x86::Ins::MovRegMem(
+                    data,
+                    x86::Mem::new().base(slice.class()).index(index.class()).scale(match size_for_st(st, mode) {
+                        1 => 0,
+                        2 => 1,
+                        4 => 2,
+                        8 => 3,
+                        _ => todo!()
+                    }),
+                ));
+            },
+            ir::Ins::PushSliceElementRef(st) => {
+                let index = ftc.stack().pop_vt(&ir::ValueType::UPtr);
+                let slice = ftc.stack().pop_vt(&ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(st.clone())))));
+
+                let data = ftc.stack().push().uptr(&mode);
+                
+                ins.push(x86::Ins::MovRegMem(
+                    slice,
+                    x86::Mem::new().base(slice.class()),
+                ));
+
+                ins.push(x86::Ins::LeaRegMem(
+                    data,
+                    x86::Mem::new().base(slice.class()).index(index.class()).scale(match size_for_st(st, mode) {
+                        1 => 0,
+                        2 => 1,
+                        4 => 2,
+                        8 => 3,
+                        _ => todo!()
+                    }),
                 ));
             },
             ir::Ins::Call(idx) => {
