@@ -89,21 +89,22 @@ pub type CompoundTypeRef = std::rc::Rc<CompoundType>;
 #[derive(Debug, Clone, PartialEq)]
 pub enum StorableType {
     Compound(CompoundTypeRef),
-    Value(ValueType)
+    Value(ValueType),
+    Slice(Box<StorableType>)
 }
 
 impl StorableType {
     pub fn is_any_value(&self) -> bool {
         match self {
-            StorableType::Compound(_) => false,
             StorableType::Value(_) => true,
+            _ => false,
         }
     }
 
     pub fn is_value(&self, value: &ValueType) -> bool {
         match self {
-            StorableType::Compound(_) => false,
             StorableType::Value(vt) => vt == value,
+            _ => false,
         }
     }
 }

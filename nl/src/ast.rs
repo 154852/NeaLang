@@ -3,7 +3,8 @@ use syntax::Span;
 #[derive(Debug)]
 pub struct TypeExpr {
 	pub span: Span,
-	pub path: Vec<String>
+	pub path: Vec<String>,
+	pub slice_depth: usize
 }
 
 #[derive(Debug)]

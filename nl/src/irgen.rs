@@ -48,13 +48,14 @@ impl IrGenError {
 }
 
 impl ast::TypeExpr {
-	fn to_ir_storable_type(&self, ir_unit: &ir::TranslationUnit) -> Result<ir::StorableType, IrGenError> {
+	fn to_ir_base_storable_type(&self, ir_unit: &ir::TranslationUnit) -> Result<ir::StorableType, IrGenError> {
 		// There must be a first item, or else this shouldn't have parsed
 		match self.path.get(0).unwrap().as_str() {
 			"i32" => return Ok(ir::StorableType::Value(ir::ValueType::I32)),
 			"u32" => return Ok(ir::StorableType::Value(ir::ValueType::U32)),
 			"i64" => return Ok(ir::StorableType::Value(ir::ValueType::I64)),
 			"u64" => return Ok(ir::StorableType::Value(ir::ValueType::U64)),
+			"u8" => return Ok(ir::StorableType::Value(ir::ValueType::U8)),
 			_ => {}
 		}
 
@@ -65,9 +66,20 @@ impl ast::TypeExpr {
 		Err(IrGenError::new(self.span.clone(), IrGenErrorKind::UnknownType))
 	}
 
+	fn to_ir_storable_type(&self, ir_unit: &ir::TranslationUnit) -> Result<ir::StorableType, IrGenError> {
+		let mut st = self.to_ir_base_storable_type(ir_unit)?;
+
+		for _ in 0..self.slice_depth {
+			st = ir::StorableType::Slice(Box::new(st));
+		}
+
+		Ok(st)
+	}
+
 	fn to_ir_value_type(&self, ir_unit: &ir::TranslationUnit) -> Result<ir::ValueType, IrGenError> {
 		match self.to_ir_storable_type(ir_unit)? {
 			ir::StorableType::Compound(ct) => Ok(ir::ValueType::Ref(Box::new(ir::StorableType::Compound(ct)))),
+			ir::StorableType::Slice(st) => Ok(ir::ValueType::Ref(Box::new(ir::StorableType::Slice(st)))),
 			ir::StorableType::Value(v) => Ok(v),
 		}
 	}
@@ -181,7 +193,7 @@ impl IrGenCodeTarget {
 }
 
 impl ast::StructDeclaration {
-	fn to_ir(&self, ir_unit: &ir::TranslationUnit, unit: &ast::TranslationUnit) -> Result<ir::CompoundTypeRef, IrGenError> {
+	fn to_ir(&self, ir_unit: &ir::TranslationUnit, _unit: &ast::TranslationUnit) -> Result<ir::CompoundTypeRef, IrGenError> {
 		let mut ir_struct = ir::StructContent::new();
 		for field in &self.fields {
 			ir_struct.push_prop(ir::StructProperty::new(
@@ -195,7 +207,7 @@ impl ast::StructDeclaration {
 }
 
 impl ast::Function {
-	fn to_ir_base(&self, ir_unit: &ir::TranslationUnit, unit: &ast::TranslationUnit) -> Result<ir::Function, IrGenError> {
+	fn to_ir_base(&self, ir_unit: &ir::TranslationUnit, _unit: &ast::TranslationUnit) -> Result<ir::Function, IrGenError> {
 		let mut params = Vec::with_capacity(self.params.len());
 		for param in &self.params {
 			params.push(param.param_type.to_ir_value_type(ir_unit)?);
@@ -382,11 +394,11 @@ impl ast::VarDeclaration {
 			let var_type = var_type.to_ir_storable_type(ctx.ir_unit)?;
 
 			match var_type {
-				ir::StorableType::Compound(_) => {
+				ir::StorableType::Value(v) => Some(v),
+				_ => {
 					ctx.push_local(&self.name, var_type);
 					return Ok(());
-				},
-				ir::StorableType::Value(v) => Some(v),
+				}
 			}
 		} else {
 			None
@@ -459,8 +471,8 @@ impl ast::MemberAccessExpr {
 							};
 							let prop = s.prop(idx).unwrap();
 							let t = match prop.prop_type() {
-								ir::StorableType::Compound(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS)),
 								ir::StorableType::Value(vt) => vt.clone(),
+								_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS)),
 							};
 							target.push(ir::Ins::PushProperty(c.clone(), t.clone(), idx));
 							Ok(t)
@@ -468,6 +480,15 @@ impl ast::MemberAccessExpr {
 					}
 				},
 				ir::StorableType::Value(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
+				ir::StorableType::Slice(st) => {
+					if self.prop != "length" {
+						return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist));
+					}
+
+					target.push(ir::Ins::PushSliceLen(st.as_ref().clone()));
+
+					Ok(ir::ValueType::UPtr)
+				}
 			},
 			_ => unreachable!()
 		}
@@ -492,6 +513,7 @@ impl ast::MemberAccessExpr {
 					}
 				},
 				ir::StorableType::Value(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
+				ir::StorableType::Slice(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist))
 			},
 			_ => unreachable!()
 		}
@@ -590,11 +612,11 @@ impl ast::NameExpr {
 			let st = ctx.func().get_local(idx).unwrap().local_type();
 
 			match st {
-				ir::StorableType::Compound(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CompositeTypeOnStack)),
 				ir::StorableType::Value(vt) => {
 					target.push(ir::Ins::PushLocalValue(vt.clone(), idx));
 					Ok(vt.clone())
 				},
+				_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CompositeTypeOnStack)),
 			}
 		} else {
 			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::VariableDoesNotExist))

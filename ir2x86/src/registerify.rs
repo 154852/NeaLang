@@ -81,10 +81,7 @@ pub(crate) fn size_for_vt(vt: &ir::ValueType, mode: x86::Mode) -> usize {
 		ir::ValueType::U16 | ir::ValueType::I16 => 2,
 		ir::ValueType::U32 | ir::ValueType::I32 => 4,
 		ir::ValueType::U64 | ir::ValueType::I64 => 8,
-		ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::Ref(_) => match mode {
-			x86::Mode::X86 => 4,
-			x86::Mode::X8664 => 8,
-		},
+		ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::Ref(_) => mode.ptr_size(),
 	}
 }
 
@@ -92,6 +89,7 @@ pub(crate) fn size_for_st(st: &ir::StorableType, mode: x86::Mode) -> usize {
 	match st {
 		ir::StorableType::Compound(ct) => size_for_compound(ct, mode),
 		ir::StorableType::Value(vt) => size_for_vt(vt, mode),
+		ir::StorableType::Slice(_) => mode.ptr_size() * 2
 	}
 }
 

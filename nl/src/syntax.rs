@@ -350,9 +350,15 @@ impl ast::TypeExpr {
             if !syntax::tk_iss!(stream, TokenKind::Dot) { break }
         }
 
+        let mut slice_depth = 0;
+        while syntax::tk_iss!(stream, TokenKind::OpenBracket) {
+            syntax::req!(syntax::tk_iss!(stream, TokenKind::CloseBracket), stream.error("Expected ']'"));
+            slice_depth += 1;
+        }
+
         syntax::MatchResult::Ok(ast::TypeExpr {
             span: syntax::Span::new(start, stream.tell_start()),
-            path
+            path, slice_depth
         })
     }
 }

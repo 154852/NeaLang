@@ -22,7 +22,7 @@ func main() {
 
 	b = b + 1;
 
-	exit(12);
+	exit(a);
 }
 
 func test_structs() {
@@ -34,4 +34,10 @@ func test_structs() {
 
 func do_something(a: i32): i32 {
 	return a + 1;
+}
+
+func test_slices() {
+	var a: u8[];
+
+	var len = a.length;
 }

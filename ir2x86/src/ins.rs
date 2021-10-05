@@ -47,6 +47,15 @@ impl TranslationContext {
                     ),
                 ));
             },
+            // Slices are a packed struct, the ptr to the first element of the slice, followed by the length.
+            ir::Ins::PushSliceLen(_) => {
+                ins.push(x86::Ins::MovRegMem(
+                    ftc.stack().peek_vt(&ir::ValueType::UPtr),
+                    x86::Mem::new().base(ftc.stack().peek()).disp(
+                        mode.ptr_size() as i64
+                    ),
+                ));
+            },
             ir::Ins::Call(idx) => {
                 // TODO: This push/pop is quite unfortuante, but sort of required without a bit of optimisation to move calls to be done earlier, while the stack is empty
 

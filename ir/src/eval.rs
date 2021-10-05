@@ -1,5 +1,4 @@
 use crate::{BlockMoveDepth, Function, Ins, Local, LocalIndex, StorableType, TranslationUnit, ValueType};
-use std::collections::HashMap;
 
 #[derive(Debug)]
 pub enum StackValue {
@@ -61,7 +60,6 @@ impl std::fmt::Debug for StackElement {
 enum LocalElementValue {
     Num(u64),
     LocalRef(LocalIndex),
-    Data(Vec<LocalElementValue>)
 }
 
 struct LocalElement {
@@ -128,17 +126,11 @@ impl FunctionContext {
             locals: locals.iter().map(|x| LocalElement::new(
                 x.local_type().clone(),
                 match x.local_type() {
-                    StorableType::Compound(_) => todo!(),
-                    StorableType::Value(_) => LocalElementValue::Num(0)
+                    StorableType::Value(_) => LocalElementValue::Num(0),
+                    _ => todo!(),
                 }
             )).collect()
         }
-    }
-
-    fn get_local(&self, idx: LocalIndex, st: &StorableType) -> &LocalElement {
-        assert!(idx < self.locals.len());
-        assert_eq!(self.locals[idx].local_type(), st);
-        &self.locals[idx]
     }
 
     fn get_local_value(&self, idx: LocalIndex, vt: &ValueType) -> u64 {
@@ -217,12 +209,9 @@ impl Ins {
 
                 Ok(EvalResultAction::Next)
             },
-            Ins::PushProperty(ct, vt, idx) => {
-                todo!()
-            },
-            Ins::PushPropertyRef(ct, st, idx) => {
-                todo!()
-            },
+            Ins::PushProperty(_, _, _) => todo!(),
+            Ins::PushPropertyRef(_, _, _) => todo!(),
+            Ins::PushSliceLen(_) => todo!(),
             Ins::Call(_) => todo!(),
             Ins::Ret => Ok(EvalResultAction::Ret),
             Ins::Inc(vt, x) => {

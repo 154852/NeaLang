@@ -4,7 +4,7 @@ pub enum TokenKind {
     Ident(String),
     Char(char),
     Number(String),
-    OpenCurly, CloseCurly, OpenParen, CloseParen,
+    OpenCurly, CloseCurly, OpenParen, CloseParen, OpenBracket, CloseBracket,
     Colon, Semi, Dot, Comma, Add, Mul, Div, Sub, Eq,
     DblEq, NotEq, Lt, Gt, Le, Ge,
     Whitespace
@@ -34,6 +34,8 @@ impl syntax::TokenMatcher<TokenKind> for Matcher {
             '}' => TokenKind::CloseCurly,
             '(' => TokenKind::OpenParen,
             ')' => TokenKind::CloseParen,
+            '[' => TokenKind::OpenBracket,
+            ']' => TokenKind::CloseBracket,
             '.' => TokenKind::Dot,
             ',' => TokenKind::Comma,
             ':' => TokenKind::Colon,

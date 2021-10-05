@@ -104,6 +104,9 @@ pub enum Ins {
 	/// func.push(ir::Ins::Ret);
     /// ```
     PushPropertyRef(CompoundTypeRef, StorableType, PropertyIndex),
+
+    /// Pop a reference to a slice from the stack, and push it's length as a usize. The slice must be of the given storable type.
+    PushSliceLen(StorableType),
     
     /// Calls the function at the given index.
     /// The parameters to the function will be popped from the stack in reverse order, meaning that the first param should be pushed first.

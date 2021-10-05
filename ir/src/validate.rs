@@ -171,6 +171,12 @@ impl Ins {
                     },
                 }
             },
+            Ins::PushSliceLen(st) => {
+                stack.pop(&ValueType::Ref(Box::new(StorableType::Slice(Box::new(st.clone())))))?;
+                stack.push(ValueType::UPtr);
+
+                Ok(())
+            },
             Ins::Call(idx) => {
                 if *idx >= unit.functions().len() { Err(ValidationError::FunctionDoesNotExist) }
                 else {
