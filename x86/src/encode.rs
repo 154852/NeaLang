@@ -46,15 +46,15 @@ impl Mem {
     fn sib_byte(&self) -> u8 {
         if let Some(base) = self.base {
             if let Some(index) = self.index {
-                (self.scale << 6) | index.id() | base.id()
+                (self.scale << 6) | (index.id() << 3) | base.id()
             } else {
-                (self.scale << 6) | 0b100 | base.id()
+                (self.scale << 6) | (0b100 << 3) | base.id()
             }
         } else {
             if let Some(index) = self.index {
-                (self.scale << 6) | index.id() | 0b101
+                (self.scale << 6) | (index.id() << 3) | 0b101
             } else {
-                (self.scale << 6) | 0b100 | 0b101
+                (self.scale << 6) | (0b100 << 3) | 0b101
             }
         }
     }

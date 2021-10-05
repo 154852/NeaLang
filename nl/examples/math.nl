@@ -1,10 +1,21 @@
 func exit(code: i32) extern
+func putchar(chr: u32) extern
+func nl_alloc_slice_u8(size: uptr): u8[] extern
+func nl_alloc_slice_u32(size: uptr): u32[] extern
 
 struct String {
 	length: i32
 }
 
 func main() {
+	var string = nl_alloc_slice_u32(3);
+
+	string[0] = 65;
+	string[1] = 66;
+	string[2] = 10;
+
+	print(string);
+
 	var a: i32 = 1 + 2;
 	var b = do_something(10);
 
@@ -43,4 +54,10 @@ func test_slices() {
 	var x: u64 = 10;
 
 	var y = a[5];
+}
+
+func print(string: u32[]) {
+	for var i: uptr = 0; i < string.length; i = i + 1 {
+		putchar(string[i]);
+	}
 }

@@ -57,6 +57,7 @@ impl ast::TypeExpr {
 			"u32" => return Ok(ir::StorableType::Value(ir::ValueType::U32)),
 			"i64" => return Ok(ir::StorableType::Value(ir::ValueType::I64)),
 			"u64" => return Ok(ir::StorableType::Value(ir::ValueType::U64)),
+			"uptr" => return Ok(ir::StorableType::Value(ir::ValueType::UPtr)),
 			"u8" => return Ok(ir::StorableType::Value(ir::ValueType::U8)),
 			_ => {}
 		}
@@ -370,7 +371,13 @@ impl ast::Assignment {
 			},
 			_ => {
 				let t = self.left.append_ir_ref(ctx, target, None)?;
-				let vt = self.right.append_ir_value(ctx, target, None)?;
+				let vt = self.right.append_ir_value(ctx, target, match &t {
+					ir::ValueType::Ref(x) => match x.as_ref() {
+						ir::StorableType::Value(v) => Some(v.clone()),
+						_ => None
+					},
+					_ => panic!("Expected reference")
+				}.as_ref())?;
 
 				if t != ir::ValueType::Ref(Box::new(ir::StorableType::Value(vt.clone()))) {
 					return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
@@ -403,8 +410,12 @@ impl ast::VarDeclaration {
 
 			match var_type {
 				ir::StorableType::Value(v) => Some(v),
-				_ => {
-					ctx.push_local(&self.name, var_type);
+				ir::StorableType::Compound(ct) => {
+					ctx.push_local(&self.name, ir::StorableType::Value(ir::ValueType::Ref(Box::new(ir::StorableType::Compound(ct)))));
+					return Ok(());
+				},
+				ir::StorableType::Slice(st) => {
+					ctx.push_local(&self.name, ir::StorableType::Value(ir::ValueType::Ref(Box::new(ir::StorableType::Slice(st)))));
 					return Ok(());
 				}
 			}
@@ -468,10 +479,12 @@ impl ast::Expr {
 
 impl ast::IndexExpr {
 	fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
-		let el = match self.object.append_ir_ref(ctx, target, None)? {
+		let el = match self.object.append_ir_value(ctx, target, None)? {
 			ir::ValueType::Ref(st) => match st.as_ref() {
 				ir::StorableType::Slice(t) => t.clone(),
-				_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexObject))
+				_ => {
+					return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexObject))
+				}
 			},
 			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexObject))
 		};
@@ -489,7 +502,7 @@ impl ast::IndexExpr {
 	}
 
 	fn append_ir_ref<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
-		let el = match self.object.append_ir_ref(ctx, target, None)? {
+		let el = match self.object.append_ir_value(ctx, target, None)? {
 			ir::ValueType::Ref(st) => match st.as_ref() {
 				ir::StorableType::Slice(t) => t.clone(),
 				_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexObject))
@@ -509,7 +522,7 @@ impl ast::IndexExpr {
 
 impl ast::MemberAccessExpr {
 	fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
-		let object = self.object.append_ir_ref(ctx, target, None)?;
+		let object = self.object.append_ir_value(ctx, target, None)?;
 		
 		match object {
     		ir::ValueType::Ref(r) => match r.as_ref() {
@@ -546,7 +559,7 @@ impl ast::MemberAccessExpr {
 	}
 
 	fn append_ir_ref<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
-		let object = self.object.append_ir_ref(ctx, target, None)?;
+		let object = self.object.append_ir_value(ctx, target, None)?;
 
 		match object {
     		ir::ValueType::Ref(r) => match r.as_ref() {
