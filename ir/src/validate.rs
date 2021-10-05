@@ -173,8 +173,8 @@ impl Ins {
                 }
             },
             Ins::PushSliceLen(st) => {
-                stack.push(ValueType::UPtr);
                 stack.pop(&ValueType::Ref(Box::new(StorableType::Slice(Box::new(st.clone())))))?;
+                stack.push(ValueType::UPtr);
 
                 Ok(())
             },

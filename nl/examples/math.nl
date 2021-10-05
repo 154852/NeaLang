@@ -25,15 +25,15 @@ func main() {
 	exit(a);
 }
 
+func do_something(a: i32): i32 {
+	return a + 1;
+}
+
 func test_structs() {
 	var string: String;
 
 	string.length = 4;
 	var x = string.length;
-}
-
-func do_something(a: i32): i32 {
-	return a + 1;
 }
 
 func test_slices() {

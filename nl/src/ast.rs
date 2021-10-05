@@ -86,6 +86,15 @@ pub enum BinaryOp {
 	Eq, Ne, Lt, Le, Gt, Ge
 }
 
+impl BinaryOp {
+	pub fn is_num(&self) -> bool {
+		match self {
+			BinaryOp::Add | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Sub => true,
+			_ => false
+		}
+	}
+}
+
 #[derive(Debug)]
 pub struct ReturnStmt {
 	pub span: Span,

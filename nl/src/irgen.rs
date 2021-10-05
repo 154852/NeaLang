@@ -588,8 +588,8 @@ impl ast::CallExpr {
 
 impl ast::BinaryExpr {
 	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
-		let left = self.left.append_ir_value(ctx, target, prefered)?;
-		let right = self.right.append_ir_value(ctx, target, prefered)?;
+		let left = self.left.append_ir_value(ctx, target, if self.op.is_num() { prefered } else { None })?;
+		let right = self.right.append_ir_value(ctx, target, if self.op.is_num() { prefered } else { None })?;
 
 		if left != right { return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::BinaryOpTypeMismatch)) }
 
