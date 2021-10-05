@@ -64,6 +64,13 @@ impl ValueType {
             ValueType::I8 | ValueType::I16 | ValueType::I32 | ValueType::I64 | ValueType::IPtr => true,
         }
     }
+
+    pub fn is_num(&self) -> bool {
+        match &self {
+            ValueType::Ref(_) => false,
+            _ => true,
+        }
+    }
 }
 
 pub type LocalIndex = usize;

@@ -40,4 +40,5 @@ func test_slices() {
 	var a: u8[];
 
 	var len = a.length;
+	var x: u64 = 10;
 }
