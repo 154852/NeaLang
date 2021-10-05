@@ -226,6 +226,19 @@ impl ast::Expr {
                         args
                     });
                 },
+                Some(TokenKind::OpenBracket) => {
+                    stream.step();
+                    
+                    let arg = syntax::ex!(syntax::parse!(stream, ast::Expr::parse), stream.error("Expected expression"));
+    
+                    syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseBracket), stream.error("Expected ']'"));
+
+                    expr = ast::Expr::Index(ast::IndexExpr {
+                        span: syntax::Span::new(start, stream.tell_start()),
+                        object: Box::new(expr),
+                        arg: Box::new(arg)
+                    });
+                },
                 Some(TokenKind::Dot) => {
                     stream.step();
 

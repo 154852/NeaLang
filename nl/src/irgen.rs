@@ -19,7 +19,9 @@ pub enum IrGenErrorKind {
 	InvalidLHS,
 	InvalidRHS,
 	CompositeTypeOnStack,
-	PropDoesNotExist
+	PropDoesNotExist,
+	IllegalIndexObject,
+	IllegalIndexValue
 }
 
 pub struct IrGenError {
@@ -447,6 +449,7 @@ impl ast::Expr {
 			ast::Expr::NumberLit(number_lit) => number_lit.append_ir(ctx, target, prefered),
 			ast::Expr::Call(call_expr) => call_expr.append_ir_in_expr(ctx, target, prefered),
 			ast::Expr::MemberAccess(member_access) => member_access.append_ir_value(ctx, target, prefered),
+			ast::Expr::Index(index_expr) => index_expr.append_ir_value(ctx, target, prefered)
 		}
 	}
 
@@ -458,7 +461,49 @@ impl ast::Expr {
 			ast::Expr::NumberLit(number_lit) => return Err(IrGenError::new(number_lit.span.clone(), IrGenErrorKind::InvalidLHS)),
 			ast::Expr::Call(call_expr) => return Err(IrGenError::new(call_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
 			ast::Expr::MemberAccess(member_access) => member_access.append_ir_ref(ctx, target, prefered),
+			ast::Expr::Index(index_expr) => index_expr.append_ir_ref(ctx, target, prefered)
 		}
+	}
+}
+
+impl ast::IndexExpr {
+	fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+		let el = match self.object.append_ir_ref(ctx, target, None)? {
+			ir::ValueType::Ref(st) => match st.as_ref() {
+				ir::StorableType::Slice(t) => t.clone(),
+				_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexObject))
+			},
+			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexObject))
+		};
+
+		if self.arg.append_ir_value(ctx, target, Some(&ir::ValueType::UPtr))? != ir::ValueType::UPtr {
+			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexValue));
+		}
+
+		target.push(ir::Ins::PushSliceElement(el.as_ref().clone()));
+
+		Ok(match el.as_ref() {
+			ir::StorableType::Value(val) => val.clone(),
+			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS))
+		})
+	}
+
+	fn append_ir_ref<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+		let el = match self.object.append_ir_ref(ctx, target, None)? {
+			ir::ValueType::Ref(st) => match st.as_ref() {
+				ir::StorableType::Slice(t) => t.clone(),
+				_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexObject))
+			},
+			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexObject))
+		};
+
+		if self.arg.append_ir_value(ctx, target, Some(&ir::ValueType::UPtr))? != ir::ValueType::UPtr {
+			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexValue));
+		}
+
+		target.push(ir::Ins::PushSliceElementRef(el.as_ref().clone()));
+
+		Ok(ir::ValueType::Ref(el))
 	}
 }
 

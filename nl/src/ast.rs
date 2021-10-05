@@ -37,7 +37,8 @@ pub enum Expr {
 	Closed(ClosedExpr),
 	NumberLit(NumberLitExpr),
 	Call(CallExpr),
-	MemberAccess(MemberAccessExpr)
+	MemberAccess(MemberAccessExpr),
+	Index(IndexExpr)
 }
 
 #[derive(Debug)]
@@ -52,6 +53,13 @@ pub struct CallExpr {
 	pub span: Span,
 	pub object: Box<Expr>,
 	pub args: Vec<Expr>
+}
+
+#[derive(Debug)]
+pub struct IndexExpr {
+	pub span: Span,
+	pub object: Box<Expr>,
+	pub arg: Box<Expr>
 }
 
 #[derive(Debug)]
