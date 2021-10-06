@@ -251,6 +251,16 @@ impl ast::Expr {
                         prop: name
                     });
                 },
+                Some(TokenKind::AsKeyword) => {
+                    stream.step();
+
+                    let new_type = syntax::ex!(syntax::parse!(stream, ast::TypeExpr::parse), stream.error("Expected a type"));
+
+                    expr = ast::Expr::As(ast::AsExpr {
+                        span: syntax::Span::new(start, stream.tell_start()),
+                        expr: Box::new(expr), new_type
+                    });
+                },
                 _ => break
             }
         }

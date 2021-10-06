@@ -57,7 +57,7 @@ func test_slices() {
 }
 
 func print(string: u32[]) {
-	for var i: uptr = 0; i < string.length; i = i + 1 {
+	for var i = 0 as uptr; i < string.length; i = i + 1 {
 		putchar(string[i]);
 	}
 }

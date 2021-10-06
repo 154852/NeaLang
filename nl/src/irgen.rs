@@ -21,7 +21,8 @@ pub enum IrGenErrorKind {
 	CompositeTypeOnStack,
 	PropDoesNotExist,
 	IllegalIndexObject,
-	IllegalIndexValue
+	IllegalIndexValue,
+	NonValueCast
 }
 
 pub struct IrGenError {
@@ -460,7 +461,8 @@ impl ast::Expr {
 			ast::Expr::NumberLit(number_lit) => number_lit.append_ir(ctx, target, prefered),
 			ast::Expr::Call(call_expr) => call_expr.append_ir_in_expr(ctx, target, prefered),
 			ast::Expr::MemberAccess(member_access) => member_access.append_ir_value(ctx, target, prefered),
-			ast::Expr::Index(index_expr) => index_expr.append_ir_value(ctx, target, prefered)
+			ast::Expr::Index(index_expr) => index_expr.append_ir_value(ctx, target, prefered),
+			ast::Expr::As(as_expr) => as_expr.append_ir(ctx, target, prefered),
 		}
 	}
 
@@ -472,8 +474,27 @@ impl ast::Expr {
 			ast::Expr::NumberLit(number_lit) => return Err(IrGenError::new(number_lit.span.clone(), IrGenErrorKind::InvalidLHS)),
 			ast::Expr::Call(call_expr) => return Err(IrGenError::new(call_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
 			ast::Expr::MemberAccess(member_access) => member_access.append_ir_ref(ctx, target, prefered),
-			ast::Expr::Index(index_expr) => index_expr.append_ir_ref(ctx, target, prefered)
+			ast::Expr::Index(index_expr) => index_expr.append_ir_ref(ctx, target, prefered),
+			ast::Expr::As(as_expr) => return Err(IrGenError::new(as_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
 		}
+	}
+}
+
+impl ast::AsExpr {
+	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+		let curr_type = self.expr.append_ir_value(ctx, target, None)?;
+		let desired_type = match self.new_type.to_ir_storable_type(ctx.ir_unit)? {
+			ir::StorableType::Value(v) => v,
+			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::NonValueCast)),
+		};
+
+		if !curr_type.is_num() || !desired_type.is_num() {
+			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::NonValueCast));
+		}
+
+		target.push(ir::Ins::Convert(curr_type, desired_type.clone()));
+
+		Ok(desired_type)
 	}
 }
 
