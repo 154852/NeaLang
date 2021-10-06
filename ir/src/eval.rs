@@ -106,6 +106,20 @@ impl Stack {
         element
     }
 
+    fn peek(&self, vt: &ValueType) -> &StackElement {
+        assert!(self.elements.len() >= 1);
+        let element = self.elements.last().unwrap();
+        assert_eq!(vt, &element.value_type);
+        element
+    }
+
+    fn peek_mut(&mut self, vt: &ValueType) -> &mut StackElement {
+        assert!(self.elements.len() >= 1);
+        let element = self.elements.last_mut().unwrap();
+        assert_eq!(vt, &element.value_type);
+        element
+    }
+
     fn pop_any(&mut self) -> StackElement {
         assert!(self.elements.len() >= 1);
         self.elements.pop().unwrap()
@@ -214,6 +228,10 @@ impl Ins {
             Ins::PushSliceLen(_) => todo!(),
             Ins::PushSliceElement(_) => todo!(),
             Ins::PushSliceElementRef(_) => todo!(),
+            Ins::Convert(from, to) => {
+                stack.peek_mut(from).value_type = to.clone();
+                Ok(EvalResultAction::Next)
+            },
             Ins::Call(_) => todo!(),
             Ins::Ret => Ok(EvalResultAction::Ret),
             Ins::Inc(vt, x) => {

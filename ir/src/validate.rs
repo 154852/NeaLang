@@ -195,6 +195,15 @@ impl Ins {
 
                 Ok(())
             },
+            Ins::Convert(from, to) => {
+                if !from.is_num() || !to.is_num() {
+                    return Err(ValidationError::StackNotValue)
+                }
+                
+                stack.pop(from)?;
+                stack.push(to.clone());
+                Ok(())
+            },
             Ins::Call(idx) => {
                 if *idx >= unit.functions().len() { Err(ValidationError::FunctionDoesNotExist) }
                 else {

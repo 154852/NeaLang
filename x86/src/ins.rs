@@ -82,6 +82,16 @@ pub enum Ins {
     /// A <- B
     MovMemImm(Size, Mem, u64),
 
+    // A <- Sign extended B
+    MovsxRegReg(Reg, Reg),
+    // A <- Sign extended B
+    MovsxRegMem(Size, Reg, Mem),
+
+    // A <- Zero extended B
+    MovzxRegReg(Reg, Reg),
+    // A <- Zero extended B
+    MovzxRegMem(Size, Reg, Mem),
+
     /// Pop A
     PopReg(Reg),
     /// Pop A
@@ -174,6 +184,32 @@ impl Ins {
             Ins::MovMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x88 } else { 0x89 }).rm(r, m).to(data),
             Ins::MovRegImm(r, i) => Encoder::new(if r.size() == Size::Byte { 0xb0 } else { 0xb8 }).offset(r).immnq(i, r.size()).to(data),
             Ins::MovMemImm(s, ref m, i) => Encoder::new(if s == Size::Byte { 0xc6 } else { 0xc7 }).mn(s, m, 0).immn(i as u32, s).to(data),
+
+            // https://www.felixcloutier.com/x86/movsx:movsxd
+            Ins::MovsxRegReg(a, b) => match b.size() {
+                Size::Byte => Encoder::new_long([0x0f, 0xbe]).rr(a, b).to(data),
+                Size::Word => Encoder::new_long([0x0f, 0xbf]).rr(a, b).to(data),
+                Size::Double => Encoder::new(0x63).rr(a, b).to(data),
+                _ => panic!("Cannot sign extend from 64 bits")
+            },
+            Ins::MovsxRegMem(s, r, ref m) => match s {
+                Size::Byte => Encoder::new_long([0x0f, 0xbe]).rm(r, m).to(data),
+                Size::Word => Encoder::new_long([0x0f, 0xbf]).rm(r, m).to(data),
+                Size::Double => Encoder::new(0x63).rm(r, m).to(data),
+                _ => panic!("Cannot sign extend from 64 bits")
+            },
+
+            // https://www.felixcloutier.com/x86/movzx
+            Ins::MovzxRegReg(a, b) => match b.size() {
+                Size::Byte => Encoder::new_long([0x0f, 0xb6]).rr(a, b).to(data),
+                Size::Word => Encoder::new_long([0x0f, 0xb7]).rr(a, b).to(data),
+                _ => panic!("Cannot zero extend from 8 or 16 bits")
+            },
+            Ins::MovzxRegMem(s, r, ref m) => match s {
+                Size::Byte => Encoder::new_long([0x0f, 0xb6]).rm(r, m).to(data),
+                Size::Word => Encoder::new_long([0x0f, 0xb7]).rm(r, m).to(data),
+                _ => panic!("Cannot zero extend from 8 or 16 bits")
+            },
 
             // https://www.felixcloutier.com/x86/pop
             Ins::PopReg(r) => Encoder::new(0x58).offset(r.class().u32()).to(data),

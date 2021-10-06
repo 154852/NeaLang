@@ -30,6 +30,8 @@ fn main() {
         x86::Ins::CmpRegReg(x86::Reg::Rax, x86::Reg::Rdx),
         x86::Ins::CmpMemReg(x86::Mem::new().base(x86::RegClass::R8).disp(0x10), x86::Reg::R15B),
         x86::Ins::ConditionalSet(x86::Condition::Zero, x86::RegClass::R8),
+
+        x86::Ins::MovsxRegReg(x86::Reg::Rax, x86::Reg::R9D),
     ];
 
 	let mut ctx = x86::EncodeContext::new();

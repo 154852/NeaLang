@@ -1,4 +1,4 @@
-use crate::{FunctionTranslationContext, LocalSymbol, TranslationContext, registerify::size_for_st};
+use crate::{FunctionTranslationContext, LocalSymbol, TranslationContext};
 
 impl TranslationContext {
     pub(crate) fn translate_instruction_to(&self, ir_ins: &ir::Ins, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
@@ -69,7 +69,7 @@ impl TranslationContext {
 
                 ins.push(x86::Ins::MovRegMem(
                     data,
-                    x86::Mem::new().base(slice.class()).index(index.class()).scale(match size_for_st(st, mode) {
+                    x86::Mem::new().base(slice.class()).index(index.class()).scale(match crate::registerify::size_for_st(st, mode) {
                         1 => 0,
                         2 => 1,
                         4 => 2,
@@ -91,7 +91,7 @@ impl TranslationContext {
 
                 ins.push(x86::Ins::LeaRegMem(
                     data,
-                    x86::Mem::new().base(slice.class()).index(index.class()).scale(match size_for_st(st, mode) {
+                    x86::Mem::new().base(slice.class()).index(index.class()).scale(match crate::registerify::size_for_st(st, mode) {
                         1 => 0,
                         2 => 1,
                         4 => 2,
@@ -99,6 +99,19 @@ impl TranslationContext {
                         _ => todo!()
                     }),
                 ));
+            },
+            ir::Ins::Convert(from, to) => {
+                let size_a = crate::registerify::size_for_vt(from, mode);
+                let size_b = crate::registerify::size_for_vt(to, mode);
+
+                // Only need to do anything if promoting to a higher size
+                if size_b > size_a {
+                    if to.signed() {
+                        ins.push(x86::Ins::MovsxRegReg(ftc.stack().peek_vt(to), ftc.stack().peek_vt(from)));
+                    } else if size_a != 4 { // No need to zero extend from 32 bits, as this has already happened (I think?)
+                        ins.push(x86::Ins::MovzxRegReg(ftc.stack().peek_vt(to), ftc.stack().peek_vt(from)));
+                    }
+                }
             },
             ir::Ins::Call(idx) => {
                 // TODO: This push/pop is quite unfortuante, but sort of required without a bit of optimisation to move calls to be done earlier, while the stack is empty

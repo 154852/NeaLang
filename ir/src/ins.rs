@@ -113,6 +113,18 @@ pub enum Ins {
 
     /// Pop a uptr index from the stack, pop a reference to a slice from the stack, and push a reference to the element in the slice at that index. The slice must be of the given type, and the pushed value will have that type.
     PushSliceElementRef(StorableType),
+
+    /// Convert from one valuetype to another. All conversions must be numeric or boolean.
+    /// Longer -> Smaller  truncates the higher bits 
+    /// Same size  does not change bit structure, even between signs
+    /// Smaller -> Longer
+    ///     Signed -> Signed  should be sign extended
+    ///     Unsigned -> Unsigned  should be zero extended
+    ///     Signed -> Unsigned  should be sign extended, then converted
+    ///     Unsigned -> Signed  should be zero extended, then converted
+    /// Boolean -> Num  will be zero if false, and non-zero otherwise
+    /// Num -> Boolean  will be false if zero, and true otherwise
+    Convert(ValueType, ValueType),
     
     /// Calls the function at the given index.
     /// The parameters to the function will be popped from the stack in reverse order, meaning that the first param should be pushed first.
