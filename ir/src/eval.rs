@@ -228,6 +228,7 @@ impl Ins {
             Ins::PushSliceLen(_) => todo!(),
             Ins::PushSliceElement(_) => todo!(),
             Ins::PushSliceElementRef(_) => todo!(),
+            Ins::PushGlobalRef(_, _) => todo!(),
             Ins::Convert(from, to) => {
                 stack.peek_mut(from).value_type = to.clone();
                 Ok(EvalResultAction::Next)

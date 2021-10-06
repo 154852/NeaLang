@@ -100,6 +100,12 @@ impl TranslationContext {
                     }),
                 ));
             },
+            ir::Ins::PushGlobalRef(st, idx) => {
+                ins.push(x86::Ins::LeaRegGlobalSymbol(
+                    ftc.stack().push_vt(&ir::ValueType::Ref(Box::new(st.clone()))),
+                    ftc.symbol_id_for_global(*idx)
+                ));
+            },
             ir::Ins::Convert(from, to) => {
                 let size_a = crate::registerify::size_for_vt(from, mode);
                 let size_b = crate::registerify::size_for_vt(to, mode);
@@ -132,7 +138,7 @@ impl TranslationContext {
                     ));
                 }
 
-                ins.push(x86::Ins::CallGlobalSymbol(*idx));
+                ins.push(x86::Ins::CallGlobalSymbol(ftc.symbol_id_for_function(*idx)));
 
                 // Move return values to new places on stack
                 for (i, ret) in ftc.unit().get_function(*idx).signature().returns().iter().enumerate() {

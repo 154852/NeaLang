@@ -70,6 +70,8 @@ pub enum Ins {
 
     /// A <- &B
     LeaRegMem(Reg, Mem),
+    /// A <- &B
+    LeaRegGlobalSymbol(Reg, GlobalSymbolID),
 
     /// A <- B
     MovRegReg(Reg, Reg),
@@ -143,7 +145,7 @@ impl Ins {
             // https://www.felixcloutier.com/x86/call
             Ins::CallGlobalSymbol(id) => {
                 Encoder::new(0xe8).imm32(0).to(data);
-                unfilled_local_symbols.push(Relocation::new_global_call(id, data.len() - 4, -4));
+                unfilled_local_symbols.push(Relocation::new_global(id, data.len() - 4, -4));
             },
 
             // https://www.felixcloutier.com/x86/cmovcc
@@ -177,6 +179,10 @@ impl Ins {
 
             // https://www.felixcloutier.com/x86/lea
             Ins::LeaRegMem(r, ref m) => Encoder::new(0x8d).rm(r, m).to(data),
+            Ins::LeaRegGlobalSymbol(r, idx) => {
+                Encoder::new(0x8d).rm(r, &Mem::new().base(RegClass::Eip).disp(0)).to(data);
+                unfilled_local_symbols.push(Relocation::new_global(idx, data.len() - 4, -4));
+            },
 
             // https://www.felixcloutier.com/x86/mov
             Ins::MovRegReg(a, b) => Encoder::new(if a.size() == Size::Byte { 0x88 } else { 0x89 }).rr(b, a).to(data),

@@ -33,6 +33,9 @@ pub enum Symbol {
     /// name, vaddr, size
     Function(String, u64, u64),
 
+    /// name, vaddr, size
+    Object(String, u64, u64),
+
     /// name
     Relocatable(String)
 }
@@ -41,6 +44,7 @@ impl Symbol {
     pub fn get_elf_symbol(&self, strtab: &mut StrTab) -> elf::Symbol {
         match self {
             Symbol::Function(name, vaddr, size) => elf::Symbol::new_function(strtab.push(name), *vaddr, *size, 1), // TODO: Don't hardcode this
+            Symbol::Object(name, vaddr, size) => elf::Symbol::new_object(strtab.push(name), *vaddr, *size, 1), // TODO: Don't hardcode this
             Symbol::Relocatable(name) => elf::Symbol::new_relocatable(strtab.push(name))
         }
     }

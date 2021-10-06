@@ -26,11 +26,21 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 			continue;
 		}
 
-		let mut ins = ctx.translate_function(&func, &unit);
+		let mut ins = ctx.translate_function(&func, unit);
 		x86::opt::pass_zero(&mut ins);
 		
 		let (addr, length) = x86_encoding.append_function(i, &ins);
 		elf.push_symbol(elfbuilder::Symbol::Function(func.name().to_string(), text_base + addr as u64, length as u64));
+	}
+
+	let data_base = ofile::align_up(text_base + x86_encoding.len() as u64, 1 << 12);
+
+	let mut data = Vec::new();
+	for (i, global) in unit.globals().iter().enumerate() {
+		let pushed = ctx.translate_global(global, unit);
+		elf.push_symbol(elfbuilder::Symbol::Object(global.name().to_string(), data_base + data.len() as u64, pushed.len() as u64));
+		x86_encoding.append_global(unit.functions().len() + i, (data_base - text_base) as usize + data.len());
+		data.extend(pushed);
 	}
 
 	let (text, relocs) = x86_encoding.finish();
@@ -39,7 +49,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 		elf.push_text_relocation(elf::Rela::new(
 			reloc.offset() as u64,
 			match reloc.kind() {
-				x86::RelocationType::GlobalFunctionSymbol(id) => *id as u64 + 1,
+				x86::RelocationType::GlobalSymbol(id) => *id as u64 + 1,
 				_ => unreachable!()
 			},
 			elf::RelocationType::X8664Plt32,
@@ -48,7 +58,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 	}
 
 	elf.set_text(text_base, text);
-	// elf.set_data(0x402000, data);
+	elf.set_data(data_base, data);
 	// elf.set_rodata(0x403000, rodata);
 
 	let header = elf::Header::new_with_entry(

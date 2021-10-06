@@ -43,6 +43,14 @@ impl EncodeContext {
 		(addr, self.raw.len() - addr)
 	}
 
+	pub fn append_global(&mut self, global_id: GlobalSymbolID, offset: usize) {
+		self.global_symbols.insert(global_id, offset);
+	}
+
+	pub fn len(&self) -> usize {
+		self.raw.len()
+	}
+
 	pub fn finish(mut self) -> (Vec<u8>, Vec<Relocation>) {
 		let mut incomplete = Vec::new();
 		for reloc in self.relocations {

@@ -5,7 +5,8 @@ pub struct Mem {
     base: Option<RegClass>,
     index: Option<RegClass>,
     scale: u8,
-    disp: i64
+    disp: i64,
+    force_disp: bool
 }
 
 impl Mem {
@@ -14,7 +15,8 @@ impl Mem {
             base: None,
             index: None,
             scale: 1,
-            disp: 0
+            disp: 0,
+            force_disp: false
         }
     }
 
@@ -24,6 +26,7 @@ impl Mem {
     }
 
     pub fn disp(mut self, disp: i64) -> Self {
+        self.force_disp = true;
         self.disp = disp;
         self
     }
@@ -63,7 +66,10 @@ impl Mem {
     pub fn modrm_with(&self, r: u8, data: &mut Vec<u8>) {
         if self.scale == 1 && self.index.is_none() {
             if let Some(base) = self.base {
-                if self.disp == 0 {
+                if base == RegClass::Eip {
+                    data.push((0b00 << 6) | (r << 3) | 0b101);
+                    data.extend(&(self.disp as u32).to_le_bytes());
+                } else if self.disp == 0 && !self.force_disp {
                     if base == RegClass::Ebp {
                         data.push((0b01 << 6) | (r << 3) | base.id());
                         data.push(0);
@@ -96,11 +102,10 @@ impl Mem {
                     }
                 }
             } else {
-                data.push((0b00 << 6) | (r << 3) | 0b101);
-                data.extend(&(self.disp as u32).to_le_bytes());
+                todo!();
             }
         } else {
-            if self.disp == 0 {
+            if self.disp == 0 && !self.force_disp {
                 data.push((0b00 << 6) | (r << 3) | 0b100);
                 data.push(self.sib_byte());
             } else {

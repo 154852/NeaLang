@@ -1,3 +1,5 @@
+use x86::GlobalSymbolID;
+
 use crate::{registerify::StackToReg};
 
 pub(crate) enum LocalSymbol {
@@ -89,6 +91,14 @@ impl<'a> FunctionTranslationContext<'a> {
     pub(crate) fn local_mem(&self, idx: ir::LocalIndex) -> x86::Mem {
         x86::Mem::new().base(x86::RegClass::Ebp).disp(-(self.local_addr(idx) as i64))
     }
+
+    pub(crate) fn symbol_id_for_function(&self, idx: ir::FunctionIndex) -> GlobalSymbolID {
+        idx
+    }
+
+    pub(crate) fn symbol_id_for_global(&self, idx: ir::GlobalIndex) -> GlobalSymbolID {
+        self.unit.functions().len() + idx
+    }
 }
 
 pub struct TranslationContext {
@@ -134,5 +144,9 @@ impl TranslationContext {
         x86_ins.push(x86::Ins::Ret);
 
         x86_ins
+    }
+
+    pub fn translate_global(&self, global: &ir::Global, _unit: &ir::TranslationUnit) -> Vec<u8> {
+        vec![0; crate::registerify::size_for_st(global.global_type(), self.mode)]
     }
 }

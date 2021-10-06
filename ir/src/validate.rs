@@ -95,6 +95,7 @@ pub enum ValidationError {
     StackNotValue,
     LocalDoesNotExist,
     LocalIncorrectType,
+    GlobalIncorrectType,
     FieldIncorrectType,
     GlobalDoesNotExist,
     FunctionDoesNotExist,
@@ -191,6 +192,19 @@ impl Ins {
             Ins::PushSliceElementRef(st) => {
                 stack.pop(&ValueType::UPtr)?;
                 stack.pop(&ValueType::Ref(Box::new(StorableType::Slice(Box::new(st.clone())))))?;
+                stack.push(ValueType::Ref(Box::new(st.clone())));
+
+                Ok(())
+            },
+            Ins::PushGlobalRef(st, idx) => {
+                if *idx >= unit.globals().len() {
+                    return Err(ValidationError::GlobalDoesNotExist);
+                }
+
+                if unit.get_global(*idx).global_type() != st {
+                    return Err(ValidationError::GlobalIncorrectType);
+                }
+
                 stack.push(ValueType::Ref(Box::new(st.clone())));
 
                 Ok(())

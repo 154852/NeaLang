@@ -114,6 +114,9 @@ pub enum Ins {
     /// Pop a uptr index from the stack, pop a reference to a slice from the stack, and push a reference to the element in the slice at that index. The slice must be of the given type, and the pushed value will have that type.
     PushSliceElementRef(StorableType),
 
+    /// Push a reference to the global at the given index, which must have the given storable type
+    PushGlobalRef(StorableType, GlobalIndex),
+
     /// Convert from one valuetype to another. All conversions must be numeric or boolean.
     /// Longer -> Smaller  truncates the higher bits 
     /// Same size  does not change bit structure, even between signs

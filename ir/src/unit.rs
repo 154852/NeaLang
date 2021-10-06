@@ -3,14 +3,16 @@ use crate::{CompoundTypeRef, Ins, StorableType};
 #[derive(Debug)]
 pub struct TranslationUnit {
     functions: Vec<Function>,
-    compound_types: Vec<CompoundTypeRef>
+    compound_types: Vec<CompoundTypeRef>,
+    globals: Vec<Global>
 }
 
 impl TranslationUnit {
     pub fn new() -> TranslationUnit {
         TranslationUnit {
             functions: Vec::new(),
-            compound_types: Vec::new()
+            compound_types: Vec::new(),
+            globals: Vec::new()
         }
     }
 
@@ -26,6 +28,19 @@ impl TranslationUnit {
         }
 
         None
+    }
+
+    pub fn add_global(&mut self, global: Global) -> GlobalIndex {
+        self.globals.push(global);
+        self.globals.len() - 1
+    }
+
+    pub fn globals(&self) -> &Vec<Global> {
+        &self.globals
+    }
+
+    pub fn get_global(&self, idx: GlobalIndex) -> &Global {
+        &self.globals[idx]
     }
 
     pub fn add_function(&mut self, function: Function) -> FunctionIndex {
@@ -87,6 +102,31 @@ impl Local {
 
     pub fn local_type(&self) -> &StorableType {
         &self.local_type
+    }
+}
+
+pub type GlobalIndex = usize;
+
+#[derive(Debug)]
+pub struct Global {
+    name: String,
+    global_type: StorableType,
+    writable: bool
+}
+
+impl Global {
+    pub fn new<T: Into<String>>(name: T, global_type: StorableType, writable: bool) -> Global {
+        Global {
+            name: name.into(), global_type, writable
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn global_type(&self) -> &StorableType {
+        &self.global_type
     }
 }
 

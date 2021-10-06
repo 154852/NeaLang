@@ -609,6 +609,18 @@ impl Symbol {
         }
     }
 
+    pub fn new_object(name_index: u64, vaddr: u64, size: u64, section: u16) -> Symbol {
+        Symbol {
+            name_index,
+            value: vaddr,
+            size,
+            section,
+            symbol_type: SymbolType::Object,
+            symbol_bind: SymbolBind::Global,
+            visibility: SymbolVisibility::Default
+        }
+    }
+
     pub fn is_local(&self) -> bool {
         self.symbol_bind == SymbolBind::Local
     }

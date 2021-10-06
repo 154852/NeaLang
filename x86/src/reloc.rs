@@ -5,7 +5,7 @@ pub type GlobalSymbolID = usize;
 
 pub enum RelocationType {
     LocalFunctionSymbol(LocalSymbolID),
-	GlobalFunctionSymbol(GlobalSymbolID)
+	GlobalSymbol(GlobalSymbolID)
 }
 
 pub struct Relocation {
@@ -22,9 +22,9 @@ impl Relocation {
         }
     }
 
-	pub fn new_global_call(symbol: GlobalSymbolID, offset: usize, addend: i64) -> Relocation {
+	pub fn new_global(symbol: GlobalSymbolID, offset: usize, addend: i64) -> Relocation {
         Relocation {
-            kind: RelocationType::GlobalFunctionSymbol(symbol),
+            kind: RelocationType::GlobalSymbol(symbol),
             offset, addend
         }
     }
@@ -47,7 +47,7 @@ impl Relocation {
 
 	pub fn write_global(&self, data: &mut Vec<u8>, global_symbols: &HashMap<LocalSymbolID, usize>) -> bool {
 		match &self.kind {
-			RelocationType::GlobalFunctionSymbol(symbol) => {
+			RelocationType::GlobalSymbol(symbol) => {
 				let addr = match global_symbols.get(symbol) {
 					Some(x) => x,
 					None => return false
