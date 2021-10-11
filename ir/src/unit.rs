@@ -1,4 +1,4 @@
-use crate::{CompoundTypeRef, Ins, StorableType};
+use crate::{CompoundTypeRef, Ins, Storable, StorableType};
 
 #[derive(Debug)]
 pub struct TranslationUnit {
@@ -111,18 +111,31 @@ pub type GlobalIndex = usize;
 pub struct Global {
     name: String,
     global_type: StorableType,
-    writable: bool
+    writable: bool,
+    default: Option<Storable>
 }
 
 impl Global {
     pub fn new<T: Into<String>>(name: T, global_type: StorableType, writable: bool) -> Global {
         Global {
-            name: name.into(), global_type, writable
+            name: name.into(), global_type, writable,
+            default: None
+        }
+    }
+
+    pub fn new_default<T: Into<String>>(name: T, global_type: StorableType, writable: bool, default: Storable) -> Global {
+        Global {
+            name: name.into(), global_type, writable,
+            default: Some(default)
         }
     }
 
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn default(&self) -> Option<&Storable> {
+        self.default.as_ref()
     }
 
     pub fn global_type(&self) -> &StorableType {

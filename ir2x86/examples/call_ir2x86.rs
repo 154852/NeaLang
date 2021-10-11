@@ -23,7 +23,7 @@ fn main() {
     }
 
     let ctx = ir2x86::TranslationContext::new(x86::Mode::X8664);
-	let mut encode_ctx = x86::EncodeContext::new();
+	let mut encode_ctx = x86::EncodeContext::new(true);
 
 	let mut ins_a = ctx.translate_function(unit.get_function(func_a_id), &unit);
     x86::opt::pass_zero(&mut ins_a);

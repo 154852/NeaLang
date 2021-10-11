@@ -667,6 +667,7 @@ impl Symbol {
 pub enum RelocationType {
     X8664Pc32,
     X8664Plt32,
+    X86646464
 }
 
 impl RelocationType {
@@ -674,6 +675,7 @@ impl RelocationType {
         match self {
             RelocationType::X8664Pc32 => 2,
             RelocationType::X8664Plt32 => 4,
+            RelocationType::X86646464 => 1,
         }
     }
 }

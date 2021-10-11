@@ -34,7 +34,7 @@ fn main() {
         x86::Ins::MovsxRegReg(x86::Reg::Rax, x86::Reg::R9D),
     ];
 
-	let mut ctx = x86::EncodeContext::new();
+	let mut ctx = x86::EncodeContext::new(false);
 	ctx.append_function(0, &ins);
 	let (raw, _) = ctx.finish();
 

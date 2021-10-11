@@ -108,3 +108,53 @@ impl StorableType {
         }
     }
 }
+
+#[derive(Debug)]
+pub struct Struct {
+
+}
+
+#[derive(Debug)]
+pub enum Compound {
+    Struct(Struct)
+}
+
+#[derive(Debug)]
+pub enum Value {
+    U8(u8), I8(i8),
+    U16(u16), I16(i16),
+    U32(u32), I32(i32),
+    U64(u64), I64(i64),
+    UPtr(usize), IPtr(isize),
+    Bool(bool),
+    Ref(Box<Storable>),
+}
+
+#[derive(Debug)]
+pub struct OwnedSlice {
+    elements: Vec<Storable>
+}
+
+impl OwnedSlice {
+    pub fn new(elements: Vec<Storable>) -> OwnedSlice {
+        OwnedSlice {
+            elements
+        }
+    }
+
+    pub fn elements(&self) -> &Vec<Storable> {
+        &self.elements
+    }
+}
+
+#[derive(Debug)]
+pub enum Slice {
+    OwnedSlice(OwnedSlice)
+}
+
+#[derive(Debug)]
+pub enum Storable {
+    Compound(Compound),
+    Value(Value),
+    Slice(Slice)
+}

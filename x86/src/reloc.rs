@@ -5,7 +5,8 @@ pub type GlobalSymbolID = usize;
 
 pub enum RelocationType {
     LocalFunctionSymbol(LocalSymbolID),
-	GlobalSymbol(GlobalSymbolID)
+	RelativeGlobalSymbol(GlobalSymbolID),
+	AbsoluteGlobalSymbol(GlobalSymbolID)
 }
 
 pub struct Relocation {
@@ -22,9 +23,16 @@ impl Relocation {
         }
     }
 
-	pub fn new_global(symbol: GlobalSymbolID, offset: usize, addend: i64) -> Relocation {
+	pub fn new_global_relative(symbol: GlobalSymbolID, offset: usize, addend: i64) -> Relocation {
         Relocation {
-            kind: RelocationType::GlobalSymbol(symbol),
+            kind: RelocationType::RelativeGlobalSymbol(symbol),
+            offset, addend
+        }
+    }
+
+	pub fn new_global_absolute(symbol: GlobalSymbolID, offset: usize, addend: i64) -> Relocation {
+        Relocation {
+            kind: RelocationType::AbsoluteGlobalSymbol(symbol),
             offset, addend
         }
     }
@@ -45,15 +53,26 @@ impl Relocation {
 		}
     }
 
-	pub fn write_global(&self, data: &mut Vec<u8>, global_symbols: &HashMap<LocalSymbolID, usize>) -> bool {
+	pub fn write_global(&self, data: &mut Vec<u8>, global_symbols: &HashMap<GlobalSymbolID, usize>) -> bool {
 		match &self.kind {
-			RelocationType::GlobalSymbol(symbol) => {
+			RelocationType::RelativeGlobalSymbol(symbol) => {
 				let addr = match global_symbols.get(symbol) {
 					Some(x) => x,
 					None => return false
 				};
 				data[self.offset..self.offset+4].copy_from_slice(
 					&(((*addr as i64 - self.offset as i64) + self.addend) as u32).to_le_bytes()
+				);
+
+				true
+			},
+			RelocationType::AbsoluteGlobalSymbol(symbol) => {
+				let addr = match global_symbols.get(symbol) {
+					Some(x) => x,
+					None => return false
+				};
+				data[self.offset..self.offset+8].copy_from_slice(
+					&(*addr as i64 + self.addend).to_le_bytes() // TODO: This assumes 64 bits
 				);
 
 				true

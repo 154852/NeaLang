@@ -4,16 +4,22 @@ use crate::{Ins, GlobalSymbolID, Relocation};
 pub struct EncodeContext {
 	raw: Vec<u8>,
 	relocations: Vec<Relocation>,
-	global_symbols: HashMap<GlobalSymbolID, usize>
+	global_symbols: HashMap<GlobalSymbolID, usize>,
+	relocatable: bool
 }
 
 impl EncodeContext {
-	pub fn new() -> EncodeContext {
+	pub fn new(relocatable: bool) -> EncodeContext {
 		EncodeContext {
 			raw: Vec::new(),
 			relocations: Vec::new(),
-			global_symbols: HashMap::new()
+			global_symbols: HashMap::new(),
+			relocatable
 		}
+	}
+
+	pub fn global_symbols(&self) -> &HashMap<GlobalSymbolID, usize> {
+		&self.global_symbols
 	}
 
 	pub fn append_function(&mut self, global_id: GlobalSymbolID, code: &Vec<Ins>) -> (usize, usize) {
@@ -24,7 +30,9 @@ impl EncodeContext {
 		}
 
 		let addr = self.raw.len();
-		self.global_symbols.insert(global_id, addr);
+		if !self.relocatable {
+			self.global_symbols.insert(global_id, addr);
+		}
 
 		let mut local_symbols = HashMap::new();
 		let mut new_relocations = Vec::new();
@@ -44,7 +52,9 @@ impl EncodeContext {
 	}
 
 	pub fn append_global(&mut self, global_id: GlobalSymbolID, offset: usize) {
-		self.global_symbols.insert(global_id, offset);
+		if !self.relocatable {
+			self.global_symbols.insert(global_id, offset);
+		}
 	}
 
 	pub fn len(&self) -> usize {

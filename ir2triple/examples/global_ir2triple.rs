@@ -6,12 +6,21 @@ fn main() {
 
     let func_a_id = unit.add_function(ir::Function::new("main", ir::Signature::new(vec![ ], vec![ ])));
 
-	let global_a = unit.add_global(ir::Global::new("object", ir::StorableType::Value(ir::ValueType::U32), false));
+	let global_a = unit.add_global(ir::Global::new_default(
+		"object",
+		ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::I32))),
+		false,
+		ir::Storable::Slice(ir::Slice::OwnedSlice(ir::OwnedSlice::new(vec![
+			ir::Storable::Value(ir::Value::I32(10))
+		])))
+	));
 
 	let func_a = unit.get_function_mut(func_a_id);
-    func_a.push(ir::Ins::PushGlobalRef(ir::StorableType::Value(ir::ValueType::U32), global_a));
+    func_a.push(ir::Ins::PushGlobalRef(ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::I32))), global_a));
     func_a.push(ir::Ins::Drop);
     func_a.push(ir::Ins::Ret);
+
+	unit.validate().expect("Validation failed");
 
 	// Link with `gcc ir2triple/examples/binary.elf ir2triple/examples/entry.c -o ir2triple/examples/out`
 	ir2triple::linux_elf::encode(&unit, "ir2triple/examples/binary.elf", true).expect("Could not encode");

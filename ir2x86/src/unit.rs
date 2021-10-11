@@ -146,7 +146,56 @@ impl TranslationContext {
         x86_ins
     }
 
-    pub fn translate_global(&self, global: &ir::Global, _unit: &ir::TranslationUnit) -> Vec<u8> {
-        vec![0; crate::registerify::size_for_st(global.global_type(), self.mode)]
+    fn translate_storable(&self, storable: &ir::Storable, unit: &ir::TranslationUnit, relocs: &mut Vec<x86::Relocation>, symbol: GlobalSymbolID, offset: usize, section_offset: usize) -> Vec<u8> {
+        match storable {
+            ir::Storable::Value(v) => match v {
+                ir::Value::U8(i) => i.to_le_bytes().to_vec(),
+                ir::Value::I8(i) => i.to_le_bytes().to_vec(),
+                ir::Value::U16(i) => i.to_le_bytes().to_vec(),
+                ir::Value::I16(i) => i.to_le_bytes().to_vec(),
+                ir::Value::U32(i) => i.to_le_bytes().to_vec(),
+                ir::Value::I32(i) => i.to_le_bytes().to_vec(),
+                ir::Value::U64(i) => i.to_le_bytes().to_vec(),
+                ir::Value::I64(i) => i.to_le_bytes().to_vec(),
+                ir::Value::UPtr(i) => match self.mode {
+                    x86::Mode::X86 => (*i as u32).to_le_bytes().to_vec(),
+                    x86::Mode::X8664 => (*i as u64).to_le_bytes().to_vec(),
+                },
+                ir::Value::IPtr(i) => match self.mode {
+                    x86::Mode::X86 => (*i as i32).to_le_bytes().to_vec(),
+                    x86::Mode::X8664 => (*i as u64).to_le_bytes().to_vec(),
+                },
+                ir::Value::Bool(i) => (*i as u8).to_le_bytes().to_vec(),
+                ir::Value::Ref(_) => todo!(),
+            },
+            ir::Storable::Compound(_) => todo!(),
+            ir::Storable::Slice(s) => match s {
+                ir::Slice::OwnedSlice(owned) => {
+                    let mut data = Vec::new();
+
+                    data.extend(vec![0; self.mode.ptr_size()]);
+                    relocs.push(x86::Relocation::new_global_absolute(symbol, section_offset + offset, self.mode.ptr_size() as i64 * 2)); // After the slice
+
+                    data.extend(match self.mode {
+                        x86::Mode::X86 => (owned.elements().len() as u32).to_le_bytes().to_vec(),
+                        x86::Mode::X8664 => (owned.elements().len() as u64).to_le_bytes().to_vec(),
+                    });
+
+                    for element in owned.elements() {
+                        data.extend(self.translate_storable(element, unit, relocs, symbol, offset + data.len(), section_offset));
+                    }
+
+                    data
+                },
+            },
+        }
+    }
+
+    pub fn translate_global(&self, global: &ir::Global, unit: &ir::TranslationUnit, relocs: &mut Vec<x86::Relocation>, symbol: GlobalSymbolID, section_offset: usize) -> Vec<u8> {
+        if let Some(default) = global.default() {
+            self.translate_storable(default, unit, relocs, symbol, 0, section_offset)
+        } else {
+            vec![0; crate::registerify::size_for_st(global.global_type(), self.mode)]
+        }
     }
 }

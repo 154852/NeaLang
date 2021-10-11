@@ -44,7 +44,7 @@ impl Symbol {
     pub fn get_elf_symbol(&self, strtab: &mut StrTab) -> elf::Symbol {
         match self {
             Symbol::Function(name, vaddr, size) => elf::Symbol::new_function(strtab.push(name), *vaddr, *size, 1), // TODO: Don't hardcode this
-            Symbol::Object(name, vaddr, size) => elf::Symbol::new_object(strtab.push(name), *vaddr, *size, 1), // TODO: Don't hardcode this
+            Symbol::Object(name, vaddr, size) => elf::Symbol::new_object(strtab.push(name), *vaddr, *size, 2), // TODO: Don't hardcode this
             Symbol::Relocatable(name) => elf::Symbol::new_relocatable(strtab.push(name))
         }
     }
@@ -169,7 +169,7 @@ impl StaticELF {
                 } else {
                     None
                 };
-                let data_sh_idx = elf.push_section_header(SectionHeader::new_progbits(shstrtab.push(".data"), *vaddr, 0, data.len() as u64));
+                let data_sh_idx = elf.push_section_header(SectionHeader::new_progbits(shstrtab.push(".data.rel.local"), *vaddr, 0, data.len() as u64));
                 elf.section_header_mut(data_sh_idx).set_flags(true, true, false);
 
                 Some((data_ph_idx, data_sh_idx))
@@ -218,14 +218,15 @@ impl StaticELF {
             if relocs.len() == 0 {
                 None
             } else {
-                let rela_data_idx = shstrtab.push(".rela.data");
+                // let rela_data_idx = shstrtab.push(".rela.data");
+                let rela_data_idx = shstrtab.push(".rela.data.rel.local");
                 Some(elf.push_section_header(SectionHeader::new_relas::<I>(rela_data_idx, 0, relocs.len() as u64, symtab_idx as u32, data_idx.expect("Cannot do data relocation without data section").1 as u32)))
             }
         } else {
             None
         };
 
-        let rodata_rela = if let Some(relocs) = &self.data_relocations {
+        let rodata_rela = if let Some(relocs) = &self.rodata_relocations {
             if relocs.len() == 0 {
                 None
             } else {

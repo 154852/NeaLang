@@ -23,7 +23,7 @@ fn main() {
     let mut ins = ctx.translate_function(&func, &unit);
     x86::opt::pass_zero(&mut ins);
 
-    let mut ctx = x86::EncodeContext::new();
+    let mut ctx = x86::EncodeContext::new(true);
 	ctx.append_function(0, &ins);
 	let (raw, _) = ctx.finish();
 	println!("Assembled!");
