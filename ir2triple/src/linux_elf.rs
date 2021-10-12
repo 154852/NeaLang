@@ -39,7 +39,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 	let mut data = Vec::new();
 	for (i, global) in unit.globals().iter().enumerate() {
 		let pushed = ctx.translate_global(global, unit, &mut relocs, unit.functions().len() + i, data.len());
-		elf.push_symbol(elfbuilder::Symbol::Object(global.name().to_string(), data_base + data.len() as u64, pushed.len() as u64));
+		elf.push_symbol(elfbuilder::Symbol::Object(global.name().map_or_else(|| String::new(), |x| x.to_string()), data_base + data.len() as u64, pushed.len() as u64));
 		x86_encoding.append_global(unit.functions().len() + i, data_base as usize + data.len());
 		data.extend(pushed);
 	}

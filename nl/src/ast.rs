@@ -39,7 +39,8 @@ pub enum Expr {
 	Call(CallExpr),
 	MemberAccess(MemberAccessExpr),
 	Index(IndexExpr),
-	As(AsExpr)
+	As(AsExpr),
+	StringLit(StringLitExpr)
 }
 
 #[derive(Debug)]
@@ -86,6 +87,12 @@ pub struct NameExpr {
 pub struct NumberLitExpr {
 	pub span: Span,
 	pub number: String
+}
+
+#[derive(Debug)]
+pub struct StringLitExpr {
+	pub span: Span,
+	pub value: String
 }
 
 #[derive(Debug)]

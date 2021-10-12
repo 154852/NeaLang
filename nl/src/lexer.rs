@@ -4,6 +4,7 @@ pub enum TokenKind {
     Ident(String),
     Char(char),
     Number(String),
+    StringLit(String),
     OpenCurly, CloseCurly, OpenParen, CloseParen, OpenBracket, CloseBracket,
     Colon, Semi, Dot, Comma, Add, Mul, Div, Sub, Eq,
     DblEq, NotEq, Lt, Gt, Le, Ge,
@@ -64,6 +65,7 @@ impl syntax::TokenMatcher<TokenKind> for Matcher {
         syntax::ident!(string, offset, TokenKind::Ident);
         syntax::whitespace!(string, offset, TokenKind::Whitespace);
         syntax::number!(string, offset, TokenKind::Number);
+        syntax::cstring!(string, offset, TokenKind::StringLit);
         
         syntax::char!(string, offset, TokenKind::Char);
     }

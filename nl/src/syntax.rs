@@ -192,6 +192,14 @@ impl ast::Expr {
                     number
                 })
             },
+            Some(TokenKind::StringLit(s)) => {
+                let s = s.to_string();
+                stream.step();
+                ast::Expr::StringLit(ast::StringLitExpr {
+                    span: syntax::Span::new(start, stream.tell_start()),
+                    value: s
+                })
+            },
             Some(TokenKind::Ident(s)) => {
                 let name = s.to_string();
                 stream.step();

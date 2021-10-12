@@ -463,6 +463,7 @@ impl ast::Expr {
 			ast::Expr::MemberAccess(member_access) => member_access.append_ir_value(ctx, target, prefered),
 			ast::Expr::Index(index_expr) => index_expr.append_ir_value(ctx, target, prefered),
 			ast::Expr::As(as_expr) => as_expr.append_ir(ctx, target, prefered),
+			ast::Expr::StringLit(string_expr) => string_expr.append_ir_value(ctx, target, prefered),
 		}
 	}
 
@@ -476,7 +477,23 @@ impl ast::Expr {
 			ast::Expr::MemberAccess(member_access) => member_access.append_ir_ref(ctx, target, prefered),
 			ast::Expr::Index(index_expr) => index_expr.append_ir_ref(ctx, target, prefered),
 			ast::Expr::As(as_expr) => return Err(IrGenError::new(as_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
+			ast::Expr::StringLit(string_expr) => return Err(IrGenError::new(string_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
 		}
+	}
+}
+
+impl ast::StringLitExpr {
+	fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+		let id = ctx.ir_unit.add_global(ir::Global::new_default::<String>(
+			None, 
+			ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::U8))),
+			false,
+			ir::Storable::Slice(ir::Slice::OwnedSlice(ir::OwnedSlice::new(self.value.as_bytes().iter().map(|x| ir::Storable::Value(ir::Value::U8(*x))).collect())))
+		));
+
+		target.push(ir::Ins::PushGlobalRef(ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::U8))), id));
+
+		Ok(ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::U8))))))
 	}
 }
 

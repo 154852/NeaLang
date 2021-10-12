@@ -8,7 +8,9 @@ struct String {
 }
 
 func main() {
-	var string = nl_alloc_slice_u32(3);
+	print("Hello world\n");
+
+	var string = nl_alloc_slice_u8(3);
 
 	string[0] = 65;
 	string[1] = 66;
@@ -56,8 +58,8 @@ func test_slices() {
 	var y = a[5];
 }
 
-func print(string: u32[]) {
+func print(string: u8[]) {
 	for var i = 0 as uptr; i < string.length; i = i + 1 {
-		putchar(string[i]);
+		putchar(string[i] as u32);
 	}
 }

@@ -129,6 +129,39 @@ macro_rules! ident {
     };
 }
 
+/// Create a generic cstring parser, parsing /"[^"]+"/, handling escapes
+#[macro_export]
+macro_rules! cstring {
+    ( $string:expr , $offset:expr , $( $i:ident )::* ) => {
+        if $string.starts_with('"') {
+            let mut len = 1;
+            let mut escaped = false;
+            let mut value = String::new();
+            loop {
+                let char = *$string.as_bytes().get(len).expect("Early string termination") as char; // TODO: Pass a lexer error
+                if escaped {
+                    match char {
+                        '\\' => value.push('\\'),
+                        '"' => value.push('"'),
+                        'n' => value.push('\n'),
+                        't' => value.push('\t'),
+                        _ => panic!("Unknown escape")
+                    }
+                    escaped = false;
+                } else {
+                    match char {
+                        '\\' => escaped = true,
+                        '"' => break,
+                        _ => value.push(char)
+                    }
+                }
+                len += 1;
+            }
+            return Some((len + 1, Token::new($( $i )::* (value), ::syntax::Span::new($offset, $offset + len))));
+        }
+    };
+}
+
 /// Create a generic whitespace parser, parsing /\s+/
 #[macro_export]
 macro_rules! whitespace {
