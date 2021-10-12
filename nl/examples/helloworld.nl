@@ -3,6 +3,7 @@ func putchar(chr: u32) extern
 
 func main() {
 	print("Hello world\n");
+	print("Hello 2\n");
     exit(0);
 }
 

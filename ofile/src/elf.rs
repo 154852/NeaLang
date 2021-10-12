@@ -597,6 +597,18 @@ impl Symbol {
         }
     }
 
+    pub fn new_section(name_index: u64, section_index: u16) -> Symbol {
+        Symbol {
+            name_index,
+            value: 0,
+            size: 0,
+            symbol_type: SymbolType::Section,
+            symbol_bind: SymbolBind::Global,
+            visibility: SymbolVisibility::Default,
+            section: section_index
+        }
+    }
+
     pub fn new_function(name_index: u64, vaddr: u64, size: u64, section: u16) -> Symbol {
         Symbol {
             name_index,

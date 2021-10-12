@@ -146,7 +146,7 @@ impl TranslationContext {
         x86_ins
     }
 
-    fn translate_storable(&self, storable: &ir::Storable, unit: &ir::TranslationUnit, relocs: &mut Vec<x86::Relocation>, symbol: GlobalSymbolID, offset: usize, section_offset: usize) -> Vec<u8> {
+    fn translate_storable(&self, storable: &ir::Storable, unit: &ir::TranslationUnit, relocs: &mut Vec<x86::Relocation>, global: GlobalSymbolID, offset: usize, section_offset: usize, addend: i64) -> Vec<u8> {
         match storable {
             ir::Storable::Value(v) => match v {
                 ir::Value::U8(i) => i.to_le_bytes().to_vec(),
@@ -174,7 +174,7 @@ impl TranslationContext {
                     let mut data = Vec::new();
 
                     data.extend(vec![0; self.mode.ptr_size()]);
-                    relocs.push(x86::Relocation::new_global_absolute(symbol, section_offset + offset, self.mode.ptr_size() as i64 * 2)); // After the slice
+                    relocs.push(x86::Relocation::new_global_absolute(global, section_offset + offset, (self.mode.ptr_size() as i64 * 2) + addend)); // After the slice
 
                     data.extend(match self.mode {
                         x86::Mode::X86 => (owned.elements().len() as u32).to_le_bytes().to_vec(),
@@ -182,7 +182,7 @@ impl TranslationContext {
                     });
 
                     for element in owned.elements() {
-                        data.extend(self.translate_storable(element, unit, relocs, symbol, offset + data.len(), section_offset));
+                        data.extend(self.translate_storable(element, unit, relocs, global, offset + data.len(), section_offset, addend));
                     }
 
                     data
@@ -191,9 +191,9 @@ impl TranslationContext {
         }
     }
 
-    pub fn translate_global(&self, global: &ir::Global, unit: &ir::TranslationUnit, relocs: &mut Vec<x86::Relocation>, symbol: GlobalSymbolID, section_offset: usize) -> Vec<u8> {
+    pub fn translate_global(&self, global: &ir::Global, unit: &ir::TranslationUnit, relocs: &mut Vec<x86::Relocation>, symbol: GlobalSymbolID, section_offset: usize, addend: i64) -> Vec<u8> {
         if let Some(default) = global.default() {
-            self.translate_storable(default, unit, relocs, symbol, 0, section_offset)
+            self.translate_storable(default, unit, relocs, symbol, 0, section_offset, addend)
         } else {
             vec![0; crate::registerify::size_for_st(global.global_type(), self.mode)]
         }

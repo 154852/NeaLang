@@ -4,25 +4,17 @@ use crate::{Ins, GlobalSymbolID, Relocation};
 pub struct EncodeContext {
 	raw: Vec<u8>,
 	relocations: Vec<Relocation>,
-	global_symbols: HashMap<GlobalSymbolID, usize>,
-	relocatable: bool
 }
 
 impl EncodeContext {
-	pub fn new(relocatable: bool) -> EncodeContext {
+	pub fn new() -> EncodeContext {
 		EncodeContext {
 			raw: Vec::new(),
 			relocations: Vec::new(),
-			global_symbols: HashMap::new(),
-			relocatable
 		}
 	}
 
-	pub fn global_symbols(&self) -> &HashMap<GlobalSymbolID, usize> {
-		&self.global_symbols
-	}
-
-	pub fn append_function(&mut self, global_id: GlobalSymbolID, code: &Vec<Ins>) -> (usize, usize) {
+	pub fn append_function(&mut self, code: &Vec<Ins>) -> (usize, usize) {
 		let add = 8 - (self.raw.len() % 8);
 		if add != 8 {
 			// Pad with nops to be 8 byte aligned
@@ -30,9 +22,6 @@ impl EncodeContext {
 		}
 
 		let addr = self.raw.len();
-		if !self.relocatable {
-			self.global_symbols.insert(global_id, addr);
-		}
 
 		let mut local_symbols = HashMap::new();
 		let mut new_relocations = Vec::new();
@@ -51,24 +40,22 @@ impl EncodeContext {
 		(addr, self.raw.len() - addr)
 	}
 
-	pub fn append_global(&mut self, global_id: GlobalSymbolID, offset: usize) {
-		if !self.relocatable {
-			self.global_symbols.insert(global_id, offset);
-		}
-	}
-
 	pub fn len(&self) -> usize {
 		self.raw.len()
 	}
 
-	pub fn finish(mut self) -> (Vec<u8>, Vec<Relocation>) {
-		let mut incomplete = Vec::new();
-		for reloc in self.relocations {
-			if !reloc.write_global(&mut self.raw, &self.global_symbols) {
-				incomplete.push(reloc);
-			}
-		}
-
-		(self.raw, incomplete)
+	pub fn take(self) -> (Vec<u8>, Vec<Relocation>) {
+		(self.raw, self.relocations)
 	}
+
+	// pub fn finish(mut self) -> (Vec<u8>, Vec<Relocation>) {
+	// 	let mut incomplete = Vec::new();
+	// 	for reloc in self.relocations {
+	// 		if !reloc.write_global(&mut self.raw, &self.global_symbols) {
+	// 			incomplete.push(reloc);
+	// 		}
+	// 	}
+
+	// 	(self.raw, incomplete)
+	// }
 }

@@ -37,7 +37,10 @@ pub enum Symbol {
     Object(String, u64, u64),
 
     /// name
-    Relocatable(String)
+    Relocatable(String),
+
+    // section index
+    Section(u16)
 }
 
 impl Symbol {
@@ -45,7 +48,8 @@ impl Symbol {
         match self {
             Symbol::Function(name, vaddr, size) => elf::Symbol::new_function(strtab.push(name), *vaddr, *size, 1), // TODO: Don't hardcode this
             Symbol::Object(name, vaddr, size) => elf::Symbol::new_object(strtab.push(name), *vaddr, *size, 2), // TODO: Don't hardcode this
-            Symbol::Relocatable(name) => elf::Symbol::new_relocatable(strtab.push(name))
+            Symbol::Relocatable(name) => elf::Symbol::new_relocatable(strtab.push(name)),
+            Symbol::Section(idx) => elf::Symbol::new_section(0, *idx),
         }
     }
 }
@@ -103,6 +107,10 @@ impl StaticELF {
     pub fn push_symbol(&mut self, symbol: Symbol) -> usize {
         self.symbols.push(symbol);
         self.symbols.len() // not -1, as a null symbol will be pushed first
+    }
+
+    pub fn next_symbol(&self) -> usize {
+        self.symbols.len() + 1
     }
 
     pub fn set_text(&mut self, vaddr: u64, text: Vec<u8>) {
