@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::{Ins, GlobalSymbolID, Relocation};
+use crate::{Ins, Relocation, RelocationType};
 
 pub struct EncodeContext {
 	raw: Vec<u8>,
@@ -30,10 +30,14 @@ impl EncodeContext {
 		}
 
 		for reloc in new_relocations {
-			if reloc.is_local() {
-				reloc.write_local(&mut self.raw, &local_symbols);
-			} else {
-				self.relocations.push(reloc);
+			match &reloc.kind() {
+				RelocationType::LocalFunctionSymbol(symbol) => {
+					let addr = local_symbols.get(symbol).expect("Local symbol not definied");
+					self.raw[reloc.offset()..reloc.offset()+4].copy_from_slice(
+						&(((*addr as i64 - reloc.offset() as i64) + reloc.addend()) as u32).to_le_bytes()
+					);
+				},
+				_ => self.relocations.push(reloc)
 			}
 		}
 
@@ -47,15 +51,4 @@ impl EncodeContext {
 	pub fn take(self) -> (Vec<u8>, Vec<Relocation>) {
 		(self.raw, self.relocations)
 	}
-
-	// pub fn finish(mut self) -> (Vec<u8>, Vec<Relocation>) {
-	// 	let mut incomplete = Vec::new();
-	// 	for reloc in self.relocations {
-	// 		if !reloc.write_global(&mut self.raw, &self.global_symbols) {
-	// 			incomplete.push(reloc);
-	// 		}
-	// 	}
-
-	// 	(self.raw, incomplete)
-	// }
 }

@@ -109,6 +109,10 @@ impl StaticELF {
         self.symbols.len() // not -1, as a null symbol will be pushed first
     }
 
+    pub fn get_symbol(&self, idx: usize) -> Option<&Symbol> {
+        self.symbols.get(idx - 1)
+    }
+
     pub fn next_symbol(&self) -> usize {
         self.symbols.len() + 1
     }

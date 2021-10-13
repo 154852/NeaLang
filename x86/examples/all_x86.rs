@@ -34,9 +34,9 @@ fn main() {
         x86::Ins::MovsxRegReg(x86::Reg::Rax, x86::Reg::R9D),
     ];
 
-	let mut ctx = x86::EncodeContext::new(false);
-	ctx.append_function(0, &ins);
-	let (raw, _) = ctx.finish();
+	let mut ctx = x86::EncodeContext::new();
+	ctx.append_function(&ins);
+	let (raw, _) = ctx.take();
 
     // View with `objdump -D x86/examples/binary.bin -b binary -m i386 -Mintel,x86-64`
     std::fs::write("x86/examples/binary.bin", &raw).expect("Could not write output");

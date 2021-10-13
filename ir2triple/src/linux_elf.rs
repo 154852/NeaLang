@@ -88,7 +88,28 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 
 	// Data relocations
 	if !relocatable {
-		todo!()
+		for reloc in relocs {
+			match reloc.kind() {
+				x86::RelocationType::AbsoluteGlobalSymbol(id) => {
+					let (symbol, addend) = gid_allocator.symbol_for_global_id(*id).expect("Invalid relocation symbol");
+					let addr = (match elf.get_symbol(symbol).expect("Invalid relocation") {
+						elfbuilder::Symbol::Function(_, vaddr, _) => *vaddr,
+						elfbuilder::Symbol::Object(_, vaddr, _) => *vaddr,
+						elfbuilder::Symbol::Relocatable(name) => return Err(format!("Could not statically link due to external reference '{}'", name)),
+						elfbuilder::Symbol::Section(idx) => match idx {
+							1 => text_base,
+							2 => data_base,
+							_ => panic!("Invalid section")
+						},
+					} as i64 + reloc.addend() + addend) as u64;
+	
+					data[reloc.offset()..reloc.offset() + 8].copy_from_slice(
+						&addr.to_le_bytes()
+					);
+				},
+				_ => panic!("Cannot relocate non-global symbol in .text")
+			}
+		}
 	} else {
 		for reloc in relocs {
 			match reloc.kind() {
@@ -107,11 +128,32 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 		}
 	}
 
-	let (text, relocs) = x86_encoding.take();
+	let (mut text, relocs) = x86_encoding.take();
 
-	// Test relocations
+	// Text relocations
 	if !relocatable {
-		todo!()
+		for reloc in relocs {
+			match reloc.kind() {
+				x86::RelocationType::RelativeGlobalSymbol(id) => {
+					let (symbol, addend) = gid_allocator.symbol_for_global_id(*id).expect("Invalid relocation symbol");
+					let addr = (match elf.get_symbol(symbol).expect("Invalid relocation") {
+						elfbuilder::Symbol::Function(_, vaddr, _) => *vaddr,
+						elfbuilder::Symbol::Object(_, vaddr, _) => *vaddr,
+						elfbuilder::Symbol::Relocatable(name) => return Err(format!("Could not statically link due to external reference '{}'", name)),
+						elfbuilder::Symbol::Section(idx) => match idx {
+							1 => text_base,
+							2 => data_base,
+							_ => panic!("Invalid section")
+						},
+					} as i64 + reloc.addend() + addend) as u32;
+	
+					text[reloc.offset()..reloc.offset() + 4].copy_from_slice(
+						&(addr - reloc.offset() as u32 - text_base as u32).to_le_bytes()
+					);
+				},
+				_ => panic!("Cannot relocate non-global symbol in .text")
+			}
+		}
 	} else {
 		for reloc in relocs {
 			match reloc.kind() {

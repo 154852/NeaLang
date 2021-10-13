@@ -23,17 +23,17 @@ fn main() {
     }
 
     let ctx = ir2x86::TranslationContext::new(x86::Mode::X8664);
-	let mut encode_ctx = x86::EncodeContext::new(true);
+	let mut encode_ctx = x86::EncodeContext::new();
 
 	let mut ins_a = ctx.translate_function(unit.get_function(func_a_id), &unit);
     x86::opt::pass_zero(&mut ins_a);
-	encode_ctx.append_function(func_a_id, &ins_a);
+	encode_ctx.append_function(&ins_a);
 
 	let mut ins_b = ctx.translate_function(unit.get_function(func_b_id), &unit);
     x86::opt::pass_zero(&mut ins_b);
-	encode_ctx.append_function(func_b_id, &ins_b);
+	encode_ctx.append_function(&ins_b);
     
-	let (raw, _) = encode_ctx.finish();
+	let (raw, _) = encode_ctx.take();
 	println!("Assembled!");
 
     // View with `objdump -D ir2x86/examples/binary.bin -b binary -m i386 -Mintel,x86-64`

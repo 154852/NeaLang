@@ -30,9 +30,9 @@ fn main() {
     let mut ins = ctx.translate_function(&func, &unit);
     x86::opt::pass_zero(&mut ins);
     
-	let mut ctx = x86::EncodeContext::new(true);
-	ctx.append_function(0, &ins);
-	let (raw, _) = ctx.finish();
+	let mut ctx = x86::EncodeContext::new();
+	ctx.append_function(&ins);
+	let (raw, _) = ctx.take();
 	println!("Assembled!");
 
     // View with `objdump -D ir2x86/examples/binary.bin -b binary -m i386 -Mintel,x86-64`
