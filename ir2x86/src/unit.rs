@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use x86::GlobalSymbolID;
 
 use crate::{registerify::StackToReg};
@@ -97,8 +99,39 @@ impl<'a> FunctionTranslationContext<'a> {
     }
 
     pub(crate) fn symbol_id_for_global(&self, idx: ir::GlobalIndex) -> GlobalSymbolID {
+        // TODO: This is wrong
         self.unit.functions().len() + idx
     }
+}
+
+pub struct GlobalIDAllocator<'a> {
+	unit: &'a ir::TranslationUnit,
+	symbol_ids: HashMap<x86::GlobalSymbolID, (usize, i64)>
+}
+
+impl<'a> GlobalIDAllocator<'a> {
+    pub fn new(unit: &'a ir::TranslationUnit) -> GlobalIDAllocator<'a> {
+        GlobalIDAllocator {
+            unit,
+            symbol_ids: HashMap::new()
+        }
+    }
+
+	pub fn global_id_of_function(&self, func: usize) -> x86::GlobalSymbolID {
+		func
+	}
+
+	pub fn global_id_of_global(&self, global: usize) -> x86::GlobalSymbolID {
+		self.unit.functions().len() + global
+	}
+
+	pub fn push_global_symbol_mapping(&mut self, global: x86::GlobalSymbolID, symbol: usize, addend: i64) {
+		self.symbol_ids.insert(global, (symbol, addend));
+	}
+
+	pub fn symbol_for_global_id(&self, global: x86::GlobalSymbolID) -> Option<(usize, i64)> {
+		self.symbol_ids.get(&global).map(|x| *x)
+	}
 }
 
 pub struct TranslationContext {
@@ -146,7 +179,7 @@ impl TranslationContext {
         x86_ins
     }
 
-    fn translate_storable(&self, storable: &ir::Storable, unit: &ir::TranslationUnit, relocs: &mut Vec<x86::Relocation>, global: GlobalSymbolID, offset: usize, section_offset: usize, addend: i64) -> Vec<u8> {
+    fn translate_storable(&self, storable: &ir::Storable, unit: &ir::TranslationUnit, gid_allocator: &GlobalIDAllocator, relocs: &mut Vec<x86::Relocation>, global: GlobalSymbolID, offset: usize, section_offset: usize, addend: i64) -> Vec<u8> {
         match storable {
             ir::Storable::Value(v) => match v {
                 ir::Value::U8(i) => i.to_le_bytes().to_vec(),
@@ -166,9 +199,28 @@ impl TranslationContext {
                     x86::Mode::X8664 => (*i as u64).to_le_bytes().to_vec(),
                 },
                 ir::Value::Bool(i) => (*i as u8).to_le_bytes().to_vec(),
-                ir::Value::Ref(_) => todo!(),
+                ir::Value::Ref(idx) => {
+                    relocs.push(x86::Relocation::new_global_absolute(gid_allocator.global_id_of_global(*idx), section_offset + offset, 0)); // After the slice
+                    
+                    match self.mode {
+                        x86::Mode::X86 => (0 as u32).to_le_bytes().to_vec(),
+                        x86::Mode::X8664 => (0 as u64).to_le_bytes().to_vec(),
+                    }
+                },
             },
-            ir::Storable::Compound(_) => todo!(),
+            ir::Storable::Compound(c) => {
+                match c {
+                    ir::Compound::Struct(s) => {
+                        let mut data = Vec::new();
+
+                        for p in s.props() {
+                            data.extend(self.translate_storable(p.value(), unit, gid_allocator, relocs, global, offset + data.len(), section_offset, addend));
+                        }
+
+                        data
+                    }
+                }
+            },
             ir::Storable::Slice(s) => match s {
                 ir::Slice::OwnedSlice(owned) => {
                     let mut data = Vec::new();
@@ -181,8 +233,9 @@ impl TranslationContext {
                         x86::Mode::X8664 => (owned.elements().len() as u64).to_le_bytes().to_vec(),
                     });
 
+                    // TODO: This is incorrect, it shouldn't be bundled with the slice header
                     for element in owned.elements() {
-                        data.extend(self.translate_storable(element, unit, relocs, global, offset + data.len(), section_offset, addend));
+                        data.extend(self.translate_storable(element, unit, gid_allocator, relocs, global, offset + data.len(), section_offset, addend));
                     }
 
                     data
@@ -191,9 +244,9 @@ impl TranslationContext {
         }
     }
 
-    pub fn translate_global(&self, global: &ir::Global, unit: &ir::TranslationUnit, relocs: &mut Vec<x86::Relocation>, symbol: GlobalSymbolID, section_offset: usize, addend: i64) -> Vec<u8> {
+    pub fn translate_global(&self, global: &ir::Global, unit: &ir::TranslationUnit, gid_allocator: &GlobalIDAllocator, relocs: &mut Vec<x86::Relocation>, symbol: GlobalSymbolID, section_offset: usize, addend: i64) -> Vec<u8> {
         if let Some(default) = global.default() {
-            self.translate_storable(default, unit, relocs, symbol, 0, section_offset, addend)
+            self.translate_storable(default, unit, gid_allocator, relocs, symbol, 0, section_offset, addend)
         } else {
             vec![0; crate::registerify::size_for_st(global.global_type(), self.mode)]
         }

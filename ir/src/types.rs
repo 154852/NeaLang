@@ -1,4 +1,4 @@
-use crate::ValueType;
+use crate::{GlobalIndex, ValueType};
 
 #[derive(Debug)]
 pub struct StructProperty {
@@ -110,8 +110,37 @@ impl StorableType {
 }
 
 #[derive(Debug)]
-pub struct Struct {
+pub struct StructProp {
+    value: Storable
+}
 
+impl StructProp {
+    pub fn new(value: Storable) -> StructProp {
+        StructProp{
+            value
+        }
+    }
+
+    pub fn value(&self) -> &Storable {
+        &self.value
+    }
+}
+
+#[derive(Debug)]
+pub struct Struct {
+    props: Vec<StructProp>
+}
+
+impl Struct {
+    pub fn new(props: Vec<StructProp>) -> Struct {
+        Struct {
+            props
+        }
+    }
+
+    pub fn props(&self) -> &Vec<StructProp> {
+        &self.props
+    }
 }
 
 #[derive(Debug)]
@@ -127,7 +156,7 @@ pub enum Value {
     U64(u64), I64(i64),
     UPtr(usize), IPtr(isize),
     Bool(bool),
-    Ref(Box<Storable>),
+    Ref(GlobalIndex),
 }
 
 #[derive(Debug)]

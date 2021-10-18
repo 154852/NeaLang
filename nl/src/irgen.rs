@@ -22,7 +22,8 @@ pub enum IrGenErrorKind {
 	PropDoesNotExist,
 	IllegalIndexObject,
 	IllegalIndexValue,
-	NonValueCast
+	NonValueCast,
+	StdLinkError
 }
 
 pub struct IrGenError {
@@ -202,7 +203,8 @@ impl ast::StructDeclaration {
 		for field in &self.fields {
 			ir_struct.push_prop(ir::StructProperty::new(
 				&field.name,
-				field.field_type.to_ir_storable_type(ir_unit)?
+				ir::StorableType::Value(field.field_type.to_ir_value_type(ir_unit)?)
+				// field.field_type.to_ir_storable_type(ir_unit)?
 			));
 		}
 
@@ -484,16 +486,30 @@ impl ast::Expr {
 
 impl ast::StringLitExpr {
 	fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
-		let id = ctx.ir_unit.add_global(ir::Global::new_default::<String>(
-			None, 
+		let st = ir::StorableType::Compound(match ctx.ir_unit.find_type("String") {
+			Some(x) => x,
+			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::StdLinkError))
+		});
+
+		let raw = ctx.ir_unit.add_global(ir::Global::new_default::<String>(
+			None,
 			ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::U8))),
 			false,
 			ir::Storable::Slice(ir::Slice::OwnedSlice(ir::OwnedSlice::new(self.value.as_bytes().iter().map(|x| ir::Storable::Value(ir::Value::U8(*x))).collect())))
 		));
 
-		target.push(ir::Ins::PushGlobalRef(ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::U8))), id));
+		let id = ctx.ir_unit.add_global(ir::Global::new_default::<String>(
+			None, 
+			st.clone(),
+			false,
+			ir::Storable::Compound(ir::Compound::Struct(ir::Struct::new(vec![
+				ir::StructProp::new(ir::Storable::Value(ir::Value::Ref(raw)))
+			])))
+		));
 
-		Ok(ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::U8))))))
+		target.push(ir::Ins::PushGlobalRef(st.clone(), id));
+
+		Ok(ir::ValueType::Ref(Box::new(st)))
 	}
 }
 
@@ -561,7 +577,7 @@ impl ast::IndexExpr {
 impl ast::MemberAccessExpr {
 	fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
 		let object = self.object.append_ir_value(ctx, target, None)?;
-		
+
 		match object {
     		ir::ValueType::Ref(r) => match r.as_ref() {
 				ir::StorableType::Compound(c) => {

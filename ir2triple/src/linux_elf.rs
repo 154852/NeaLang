@@ -1,32 +1,9 @@
 use x86;
 use ir2x86;
-use std::{collections::HashMap, io::Write};
+use std::io::Write;
 use ofile::{elf, elfbuilder};
 
 const TEXT_BASE: u64 = 0x401000;
-
-struct GlobalIDAllocator<'a> {
-	unit: &'a ir::TranslationUnit,
-	symbol_ids: HashMap<x86::GlobalSymbolID, (usize, i64)>
-}
-
-impl<'a> GlobalIDAllocator<'a> {
-	fn global_id_of_function(&self, func: usize) -> x86::GlobalSymbolID {
-		func
-	}
-
-	fn global_id_of_global(&self, global: usize) -> x86::GlobalSymbolID {
-		self.unit.functions().len() + global
-	}
-
-	fn push_global_symbol_mapping(&mut self, global: x86::GlobalSymbolID, symbol: usize, addend: i64) {
-		self.symbol_ids.insert(global, (symbol, addend));
-	}
-
-	fn symbol_for_global_id(&self, global: x86::GlobalSymbolID) -> Option<(usize, i64)> {
-		self.symbol_ids.get(&global).map(|x| *x)
-	}
-}
 
 pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Result<(), String> {
 	let mut elf = if relocatable {
@@ -40,10 +17,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 
 	let text_base = if relocatable { 0 } else { TEXT_BASE };
 
-	let mut gid_allocator = GlobalIDAllocator {
-		unit,
-		symbol_ids: HashMap::new()
-	};
+	let mut gid_allocator = ir2x86::GlobalIDAllocator::new(unit);
 
 	for (i, func) in unit.functions().iter().enumerate() {
 		let gid = gid_allocator.global_id_of_function(i);
@@ -72,7 +46,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 		let gid = gid_allocator.global_id_of_global(i);
 
 		if let Some(name) = global.name() {
-			let pushed = ctx.translate_global(global, unit, &mut relocs, gid, data.len(), 0);
+			let pushed = ctx.translate_global(global, unit, &gid_allocator, &mut relocs, gid, data.len(), 0);
 			gid_allocator.push_global_symbol_mapping(gid, elf.push_symbol(elfbuilder::Symbol::Object(
 				name.to_string(),
 				data_base + data.len() as u64,
@@ -80,7 +54,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 			)), 0);
 			data.extend(pushed);
 		} else {
-			let pushed = ctx.translate_global(global, unit, &mut relocs, gid, data.len(), 0);
+			let pushed = ctx.translate_global(global, unit, &gid_allocator, &mut relocs, gid, data.len(), 0);
 			gid_allocator.push_global_symbol_mapping(gid, data_base_symbol, data.len() as i64);
 			data.extend(pushed);
 		}
