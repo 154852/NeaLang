@@ -16,11 +16,18 @@ pub struct FunctionAnnotation {
 #[derive(Debug)]
 pub struct Function {
 	pub span: Span,
+	pub path: Vec<String>,
 	pub name: String,
 	pub params: Vec<FunctionParam>,
 	pub code: Option<Vec<Code>>,
 	pub annotations: Vec<FunctionAnnotation>,
 	pub return_types: Vec<TypeExpr>
+}
+
+impl Function {
+	pub fn is_method(&self) -> bool {
+		self.path.len() > 0
+	}
 }
 
 #[derive(Debug)]

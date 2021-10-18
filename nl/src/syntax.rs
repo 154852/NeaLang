@@ -464,8 +464,16 @@ impl ast::Function {
         let start = stream.tell_start();
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::FuncKeyword));
 
-        let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident), stream.error("Expected a name")).to_owned();
+        let mut name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident), stream.error("Expected a name")).to_owned();
         stream.step();
+
+        let mut path = Vec::new();
+        while syntax::tk_iss!(stream, TokenKind::Dot) {
+            path.push(name);
+            
+            name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident), stream.error("Expected a name")).to_owned();
+            stream.step();
+        }
 
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::OpenParen), stream.error("Expected '('"));
 
@@ -521,7 +529,7 @@ impl ast::Function {
     
         syntax::MatchResult::Ok(ast::Function {
             span: syntax::Span::new(start, end),
-            name, params, code,
+            path, name, params, code,
 			return_types: returns,
 			annotations: Vec::new()
         })

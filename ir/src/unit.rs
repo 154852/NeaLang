@@ -172,7 +172,8 @@ pub struct Function {
     name: String,
     locals: Vec<Local>,
     signature: Signature,
-    code: Option<Vec<Ins>>
+    code: Option<Vec<Ins>>,
+    method_of: Option<CompoundTypeRef>
 }
 
 impl Function {
@@ -181,7 +182,18 @@ impl Function {
             name: name.into(),
             locals: Vec::new(),
             signature,
-            code: Some(Vec::new())
+            code: Some(Vec::new()),
+            method_of: None
+        }
+    }
+
+    pub fn new_method<T: Into<String>>(name: T, signature: Signature, ctr: CompoundTypeRef) -> Function {
+        Function {
+            name: name.into(),
+            locals: Vec::new(),
+            signature,
+            code: Some(Vec::new()),
+            method_of: Some(ctr)
         }
     }
 
@@ -190,7 +202,18 @@ impl Function {
             name: name.into(),
             locals: Vec::new(),
             signature,
-            code: None
+            code: None,
+            method_of: None
+        }
+    }
+
+    pub fn new_extern_method<T: Into<String>>(name: T, signature: Signature, ctr: CompoundTypeRef) -> Function {
+        Function {
+            name: name.into(),
+            locals: Vec::new(),
+            signature,
+            code: None,
+            method_of: Some(ctr)
         }
     }
 

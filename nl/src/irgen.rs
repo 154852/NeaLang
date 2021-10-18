@@ -9,6 +9,7 @@ use syntax::Span;
 pub enum IrGenErrorKind {
 	UnknownType,
 	VariableDoesNotExist,
+	FunctionDoesNotExist,
 	InvalidInteger,
 	BinaryOpTypeMismatch,
 	AssignmentTypeMismatch,
@@ -103,7 +104,22 @@ impl ast::TranslationUnit {
 		for node in &self.nodes {
 			match node {
     			ast::TopLevelNode::Function(func) => {
-					if func.name == name { return Some((id, func)); }
+					if func.path.len() == 0 && func.name == name { return Some((id, func)); }
+					id += 1;
+				},
+				_ => {}
+			}
+		}
+
+		None
+	}
+
+	fn method(&self, struct_name: &str, name: &str) -> Option<(usize, &ast::Function)> {
+		let mut id = 0;
+		for node in &self.nodes {
+			match node {
+    			ast::TopLevelNode::Function(func) => {
+					if func.is_method() && func.path[0] == struct_name && func.name == name { return Some((id, func)); }
 					id += 1;
 				},
 				_ => {}
@@ -205,7 +221,6 @@ impl ast::StructDeclaration {
 			ir_struct.push_prop(ir::StructProperty::new(
 				&field.name,
 				ir::StorableType::Value(field.field_type.to_ir_value_type(ir_unit)?)
-				// field.field_type.to_ir_storable_type(ir_unit)?
 			));
 		}
 
@@ -225,11 +240,25 @@ impl ast::Function {
 			returns.push(return_type.to_ir_value_type(ir_unit)?);
 		}
 
-		Ok(if self.code.is_some() {
-			ir::Function::new(&self.name, ir::Signature::new(params, returns))
+		if self.path.len() > 0 {
+			assert_eq!(self.path.len(), 1);
+			let ctr = match ir_unit.find_type(&self.path[0]) {
+				Some(x) => x,
+				None => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::UnknownType))
+			};
+
+			Ok(if self.code.is_some() {
+				ir::Function::new_method(&self.name, ir::Signature::new(params, returns), ctr)
+			} else {
+				ir::Function::new_extern_method(&self.name, ir::Signature::new(params, returns), ctr)
+			})
 		} else {
-			ir::Function::new_extern(&self.name, ir::Signature::new(params, returns))
-		})
+			Ok(if self.code.is_some() {
+				ir::Function::new(&self.name, ir::Signature::new(params, returns))
+			} else {
+				ir::Function::new_extern(&self.name, ir::Signature::new(params, returns))
+			})
+		}
 	}
 
 	fn append_ir(&self, unit: &ast::TranslationUnit, ir_unit: &mut ir::TranslationUnit, idx: ir::FunctionIndex) -> Result<(), IrGenError> {
@@ -655,24 +684,53 @@ impl ast::CallExpr {
 			ast::Expr::Name(name) => {
 				match ctx.unit.func(&name.name) {
 					Some(x) => x,
-					_ => todo!() // Possibly a local or global
+					_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist))
 				}
 			},
-			_ => todo!()
+			ast::Expr::MemberAccess(member_access) => {
+				// Also acts as first argument:
+				let v = member_access.object.append_ir_value(ctx, target, None)?;
+				match v {
+					ir::ValueType::Ref(r) => match r.as_ref() {
+						ir::StorableType::Compound(c) => {
+							match ctx.unit.method(c.name(), &member_access.prop) {
+								Some(x) => x,
+								_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist)),
+							}
+						},
+						_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
+					},
+					_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS))
+				}
+			},
+			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist))
 		};
-
-		if self.args.len() != func.params.len() {
-			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch));
-		}
 
 		if func.return_types.len() != 1 {
 			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallNotOneReturnInExpr));
 		}
-
-		for (a, arg) in self.args.iter().enumerate() {
-			let expected = ctx.ir_unit.get_function(func_id).signature().params()[a].clone();
-			if arg.append_ir_value(ctx, target, Some(&expected))? != expected {
-				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgTypeMismatch));
+		
+		if func.is_method() {
+			if self.args.len() + 1 != func.params.len() {
+				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch));
+			}
+			
+			for (a, arg) in self.args.iter().enumerate() {
+				let expected = ctx.ir_unit.get_function(func_id).signature().params()[a + 1].clone();
+				if arg.append_ir_value(ctx, target, Some(&expected))? != expected {
+					return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgTypeMismatch));
+				}
+			}
+		} else {
+			if self.args.len() != func.params.len() {
+				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch));
+			}
+			
+			for (a, arg) in self.args.iter().enumerate() {
+				let expected = ctx.ir_unit.get_function(func_id).signature().params()[a].clone();
+				if arg.append_ir_value(ctx, target, Some(&expected))? != expected {
+					return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgTypeMismatch));
+				}
 			}
 		}
 
