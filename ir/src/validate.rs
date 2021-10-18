@@ -209,6 +209,15 @@ impl Ins {
 
                 Ok(())
             },
+            Ins::New(st) => {
+                stack.push(ValueType::Ref(Box::new(st.clone())));
+                Ok(())
+            },
+            Ins::NewSlice(st) => {
+                stack.pop(&ValueType::UPtr)?;
+                stack.push(ValueType::Ref(Box::new(StorableType::Slice(Box::new(st.clone())))));
+                Ok(())
+            },
             Ins::Convert(from, to) => {
                 if !from.is_num() || !to.is_num() {
                     return Err(ValidationError::StackNotValue)

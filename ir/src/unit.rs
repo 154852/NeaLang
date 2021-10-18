@@ -59,6 +59,16 @@ impl TranslationUnit {
     pub fn get_function_mut(&mut self, idx: FunctionIndex) -> &mut Function {
         &mut self.functions[idx]
     }
+
+    pub fn find_function_index(&self, name: &str) -> Option<FunctionIndex> {
+        for (c, ct) in self.functions.iter().enumerate() {
+            if ct.name() == name {
+                return Some(c);
+            }
+        }
+
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

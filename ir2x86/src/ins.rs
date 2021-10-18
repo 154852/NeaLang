@@ -1,9 +1,44 @@
 use crate::{FunctionTranslationContext, LocalSymbol, TranslationContext};
 
 impl TranslationContext {
-    pub(crate) fn translate_instruction_to(&self, ir_ins: &ir::Ins, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
-        let mode = ftc.mode();
+    fn insert_call(&self, idx: ir::FunctionIndex, ir_ins: &ir::Ins, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
+        // TODO: This push/pop is quite unfortuante, but sort of required without a bit of optimisation to move calls to be done earlier, while the stack is empty
+
+        let params = ftc.unit().get_function(idx).signature().params().len();
+        ftc.stack().pop_many(params);
         
+        let old_stack_size = ftc.stack().size();
+        for i in 0..old_stack_size {
+            ins.push(x86::Ins::PushReg(ftc.stack().at(i).u32()));
+        }
+
+        // Move param values to new places on stack
+        for (i, param) in ftc.unit().get_function(idx).signature().params().iter().enumerate() {
+            ins.push(x86::Ins::MovRegReg(
+                crate::registerify::reg_for_vt(param, self.mode, crate::registerify::SYS_V_ABI[i]),
+                ftc.stack_ref().at_vt(ftc.stack_ref().size() + i, param),
+            ));
+        }
+
+        ins.push(x86::Ins::CallGlobalSymbol(ftc.symbol_id_for_function(idx)));
+
+        // Move return values to new places on stack
+        for (i, ret) in ftc.unit().get_function(idx).signature().returns().iter().enumerate() {
+            ins.push(x86::Ins::MovRegReg(
+                ftc.stack_ref().at_vt(ftc.stack_ref().size() + i, ret),
+                crate::registerify::reg_for_vt(ret, self.mode, crate::registerify::SYS_V_ABI_RET[i]),
+            ));
+        }
+
+        let returns = ftc.unit().get_function(idx).signature().returns().len();
+        ftc.stack().push_many(returns);
+
+        for i in 0..old_stack_size {
+            ins.push(x86::Ins::PopReg(ftc.stack_ref().at(old_stack_size - i - 1).u32()));
+        }
+    }
+
+    pub(crate) fn translate_instruction_to(&self, ir_ins: &ir::Ins, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
         match ir_ins {
             ir::Ins::PushLocalValue(vt, idx) => {
                 ins.push(x86::Ins::MovRegMem(
@@ -52,7 +87,7 @@ impl TranslationContext {
                 ins.push(x86::Ins::MovRegMem(
                     ftc.stack().peek_vt(&ir::ValueType::UPtr),
                     x86::Mem::new().base(ftc.stack().peek()).disp(
-                        mode.ptr_size() as i64
+                        self.mode.ptr_size() as i64
                     ),
                 ));
             },
@@ -60,7 +95,7 @@ impl TranslationContext {
                 let index = ftc.stack().pop_vt(&ir::ValueType::UPtr);
                 let slice = ftc.stack().pop_vt(&ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(st.clone())))));
 
-                let data = ftc.stack().push().uptr(&mode);
+                let data = ftc.stack().push().uptr(&self.mode);
                 
                 ins.push(x86::Ins::MovRegMem(
                     slice,
@@ -69,7 +104,7 @@ impl TranslationContext {
 
                 ins.push(x86::Ins::MovRegMem(
                     data,
-                    x86::Mem::new().base(slice.class()).index(index.class()).scale(match crate::registerify::size_for_st(st, mode) {
+                    x86::Mem::new().base(slice.class()).index(index.class()).scale(match crate::registerify::size_for_st(st, self.mode) {
                         1 => 0,
                         2 => 1,
                         4 => 2,
@@ -82,7 +117,7 @@ impl TranslationContext {
                 let index = ftc.stack().pop_vt(&ir::ValueType::UPtr);
                 let slice = ftc.stack().pop_vt(&ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(st.clone())))));
 
-                let data = ftc.stack().push().uptr(&mode);
+                let data = ftc.stack().push().uptr(&self.mode);
                 
                 ins.push(x86::Ins::MovRegMem(
                     slice,
@@ -91,7 +126,7 @@ impl TranslationContext {
 
                 ins.push(x86::Ins::LeaRegMem(
                     data,
-                    x86::Mem::new().base(slice.class()).index(index.class()).scale(match crate::registerify::size_for_st(st, mode) {
+                    x86::Mem::new().base(slice.class()).index(index.class()).scale(match crate::registerify::size_for_st(st, self.mode) {
                         1 => 0,
                         2 => 1,
                         4 => 2,
@@ -106,9 +141,27 @@ impl TranslationContext {
                     ftc.symbol_id_for_global(*idx)
                 ));
             },
+            ir::Ins::New(st) => {
+                // TODO: This technically is POSIX not x86
+                
+                ins.push(x86::Ins::MovRegImm(
+                    ftc.stack().push_vt(&ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(st.clone()))))),
+                    crate::registerify::size_for_st(st, self.mode) as u64
+                ));
+
+                self.insert_call(ftc.unit().find_function_index("nl_new_object").expect("No nl_new_object included"), ir_ins, ftc, ins);
+            },
+            ir::Ins::NewSlice(st) => {
+                ins.push(x86::Ins::MovRegImm(
+                    ftc.stack().push_vt(&ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(st.clone()))))),
+                    crate::registerify::size_for_st(st, self.mode) as u64
+                ));
+
+                self.insert_call(ftc.unit().find_function_index("nl_new_slice").expect("No nl_new_slice included"), ir_ins, ftc, ins);
+            },
             ir::Ins::Convert(from, to) => {
-                let size_a = crate::registerify::size_for_vt(from, mode);
-                let size_b = crate::registerify::size_for_vt(to, mode);
+                let size_a = crate::registerify::size_for_vt(from, self.mode);
+                let size_b = crate::registerify::size_for_vt(to, self.mode);
 
                 // Only need to do anything if promoting to a higher size
                 if size_b > size_a {
@@ -119,42 +172,7 @@ impl TranslationContext {
                     }
                 }
             },
-            ir::Ins::Call(idx) => {
-                // TODO: This push/pop is quite unfortuante, but sort of required without a bit of optimisation to move calls to be done earlier, while the stack is empty
-
-                let params = ftc.unit().get_function(*idx).signature().params().len();
-                ftc.stack().pop_many(params);
-                
-                let old_stack_size = ftc.stack().size();
-                for i in 0..old_stack_size {
-                    ins.push(x86::Ins::PushReg(ftc.stack().at(i).u32()));
-                }
-
-                // Move param values to new places on stack
-                for (i, param) in ftc.unit().get_function(*idx).signature().params().iter().enumerate() {
-                    ins.push(x86::Ins::MovRegReg(
-                        crate::registerify::reg_for_vt(param, mode, crate::registerify::SYS_V_ABI[i]),
-                        ftc.stack_ref().at_vt(ftc.stack_ref().size() + i, param),
-                    ));
-                }
-
-                ins.push(x86::Ins::CallGlobalSymbol(ftc.symbol_id_for_function(*idx)));
-
-                // Move return values to new places on stack
-                for (i, ret) in ftc.unit().get_function(*idx).signature().returns().iter().enumerate() {
-                    ins.push(x86::Ins::MovRegReg(
-                        ftc.stack_ref().at_vt(ftc.stack_ref().size() + i, ret),
-                        crate::registerify::reg_for_vt(ret, mode, crate::registerify::SYS_V_ABI_RET[i]),
-                    ));
-                }
-
-                let returns = ftc.unit().get_function(*idx).signature().returns().len();
-                ftc.stack().push_many(returns);
-
-                for i in 0..old_stack_size {
-                    ins.push(x86::Ins::PopReg(ftc.stack_ref().at(old_stack_size - i - 1).u32()));
-                }
-            },
+            ir::Ins::Call(idx) => self.insert_call(*idx, ir_ins, ftc, ins),
             ir::Ins::Ret => {
                 let rets_len = ftc.func().signature().returns().len();
 
@@ -163,7 +181,7 @@ impl TranslationContext {
                 for (i, ret) in ftc.func().signature().returns().iter().enumerate() {
                     // TODO: There may be issues with multiple return values here, as rdx could be overwritten before it is read
                     ins.push(x86::Ins::MovRegReg(
-                        crate::registerify::reg_for_vt(ret, mode, crate::registerify::SYS_V_ABI_RET[rets_len - 1 - i]),
+                        crate::registerify::reg_for_vt(ret, self.mode, crate::registerify::SYS_V_ABI_RET[rets_len - 1 - i]),
                         ftc.stack_ref().peek_at_vt(i, ret)
                     ));
                 }

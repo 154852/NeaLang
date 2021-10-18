@@ -109,6 +109,14 @@ impl StackToReg {
 		}
 	}
 
+	pub fn has(&self, reg: x86::RegClass) -> bool {
+		if self.is_params {
+			SYS_V_ABI.iter().position(|x| *x == reg).unwrap_or(SYS_V_ABI.len()) < self.idx
+		} else {
+			SYS_V_ABI_RET.iter().position(|x| *x == reg).unwrap_or(SYS_V_ABI.len()) < self.idx
+		}
+	}
+
 	pub fn push(&mut self) -> x86::RegClass {
 		self.idx += 1;
 		

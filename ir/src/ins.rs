@@ -117,6 +117,12 @@ pub enum Ins {
     /// Push a reference to the global at the given index, which must have the given storable type
     PushGlobalRef(StorableType, GlobalIndex),
 
+    /// Allocates a value of the given type, and pushes a reference to it
+    New(StorableType),
+
+    /// Pops a uptr, then allocates a slice of the given type of the given length, and pushes a reference to it
+    NewSlice(StorableType),
+
     /// Convert from one valuetype to another. All conversions must be numeric or boolean.
     /// Longer -> Smaller  truncates the higher bits 
     /// Same size  does not change bit structure, even between signs
