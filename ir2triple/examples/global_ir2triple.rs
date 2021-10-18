@@ -6,13 +6,20 @@ fn main() {
 
     let func_a_id = unit.add_function(ir::Function::new("main", ir::Signature::new(vec![ ], vec![ ])));
 
+	let raw_data = unit.add_global(ir::Global::new_default(
+		Some("object"),
+		ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::I32))),
+		false,
+		ir::Storable::SliceData(vec![
+			ir::Storable::Value(ir::Value::I32(10))
+		])
+	));
+
 	let global_a = unit.add_global(ir::Global::new_default(
 		Some("object"),
 		ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::I32))),
 		false,
-		ir::Storable::Slice(ir::Slice::OwnedSlice(ir::OwnedSlice::new(vec![
-			ir::Storable::Value(ir::Value::I32(10))
-		])))
+		ir::Storable::Slice(raw_data, 0, 1)
 	));
 
 	let func_a = unit.get_function_mut(func_a_id);

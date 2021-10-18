@@ -90,7 +90,8 @@ pub type CompoundTypeRef = std::rc::Rc<CompoundType>;
 pub enum StorableType {
     Compound(CompoundTypeRef),
     Value(ValueType),
-    Slice(Box<StorableType>)
+    Slice(Box<StorableType>),
+    SliceData(Box<StorableType>)
 }
 
 impl StorableType {
@@ -160,30 +161,10 @@ pub enum Value {
 }
 
 #[derive(Debug)]
-pub struct OwnedSlice {
-    elements: Vec<Storable>
-}
-
-impl OwnedSlice {
-    pub fn new(elements: Vec<Storable>) -> OwnedSlice {
-        OwnedSlice {
-            elements
-        }
-    }
-
-    pub fn elements(&self) -> &Vec<Storable> {
-        &self.elements
-    }
-}
-
-#[derive(Debug)]
-pub enum Slice {
-    OwnedSlice(OwnedSlice)
-}
-
-#[derive(Debug)]
 pub enum Storable {
     Compound(Compound),
     Value(Value),
-    Slice(Slice)
+    /// OwnedSlice, index, length
+    Slice(GlobalIndex, usize, usize),
+    SliceData(Vec<Storable>)
 }

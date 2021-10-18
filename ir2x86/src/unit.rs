@@ -200,7 +200,7 @@ impl TranslationContext {
                 },
                 ir::Value::Bool(i) => (*i as u8).to_le_bytes().to_vec(),
                 ir::Value::Ref(idx) => {
-                    relocs.push(x86::Relocation::new_global_absolute(gid_allocator.global_id_of_global(*idx), section_offset + offset, 0)); // After the slice
+                    relocs.push(x86::Relocation::new_global_absolute(gid_allocator.global_id_of_global(*idx), section_offset + offset, 0));
                     
                     match self.mode {
                         x86::Mode::X86 => (0 as u32).to_le_bytes().to_vec(),
@@ -221,26 +221,34 @@ impl TranslationContext {
                     }
                 }
             },
-            ir::Storable::Slice(s) => match s {
-                ir::Slice::OwnedSlice(owned) => {
-                    let mut data = Vec::new();
+            ir::Storable::Slice(data_global, start, length) => {
+                let mut data = Vec::new();
 
-                    data.extend(vec![0; self.mode.ptr_size()]);
-                    relocs.push(x86::Relocation::new_global_absolute(global, section_offset + offset, (self.mode.ptr_size() as i64 * 2) + addend)); // After the slice
+                assert_eq!(*start, 0); // TODO: Values need to be type checked anyway
 
-                    data.extend(match self.mode {
-                        x86::Mode::X86 => (owned.elements().len() as u32).to_le_bytes().to_vec(),
-                        x86::Mode::X8664 => (owned.elements().len() as u64).to_le_bytes().to_vec(),
-                    });
+                data.extend(vec![0; self.mode.ptr_size()]);
+                relocs.push(x86::Relocation::new_global_absolute(
+                    gid_allocator.global_id_of_global(*data_global),
+                    section_offset + offset,
+                    addend
+                )); 
 
-                    // TODO: This is incorrect, it shouldn't be bundled with the slice header
-                    for element in owned.elements() {
-                        data.extend(self.translate_storable(element, unit, gid_allocator, relocs, global, offset + data.len(), section_offset, addend));
-                    }
+                data.extend(match self.mode {
+                    x86::Mode::X86 => (*length as u32).to_le_bytes().to_vec(),
+                    x86::Mode::X8664 => (*length as u64).to_le_bytes().to_vec(),
+                });
 
-                    data
-                },
+                data
             },
+            ir::Storable::SliceData(values) => {
+                let mut data = Vec::new();
+
+                for value in values {
+                    data.extend(self.translate_storable(value, unit, gid_allocator, relocs, global, offset + data.len(), section_offset, addend));
+                }
+
+                data
+            }
         }
     }
 

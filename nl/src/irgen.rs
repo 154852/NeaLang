@@ -86,6 +86,7 @@ impl ast::TypeExpr {
 			ir::StorableType::Compound(ct) => Ok(ir::ValueType::Ref(Box::new(ir::StorableType::Compound(ct)))),
 			ir::StorableType::Slice(st) => Ok(ir::ValueType::Ref(Box::new(ir::StorableType::Slice(st)))),
 			ir::StorableType::Value(v) => Ok(v),
+			ir::StorableType::SliceData(_) => unreachable!()
 		}
 	}
 }
@@ -421,6 +422,7 @@ impl ast::VarDeclaration {
 					ctx.push_local(&self.name, ir::StorableType::Value(ir::ValueType::Ref(Box::new(ir::StorableType::Slice(st)))));
 					return Ok(());
 				}
+				ir::StorableType::SliceData(_) => unreachable!()
 			}
 		} else {
 			None
@@ -491,11 +493,18 @@ impl ast::StringLitExpr {
 			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::StdLinkError))
 		});
 
-		let raw = ctx.ir_unit.add_global(ir::Global::new_default::<String>(
+		let raw_data = ctx.ir_unit.add_global(ir::Global::new_default::<String>(
+			None,
+			ir::StorableType::SliceData(Box::new(ir::StorableType::Value(ir::ValueType::U8))),
+			false,
+			ir::Storable::SliceData(self.value.as_bytes().iter().map(|x| ir::Storable::Value(ir::Value::U8(*x))).collect())
+		));
+
+		let raw_slice = ctx.ir_unit.add_global(ir::Global::new_default::<String>(
 			None,
 			ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::U8))),
 			false,
-			ir::Storable::Slice(ir::Slice::OwnedSlice(ir::OwnedSlice::new(self.value.as_bytes().iter().map(|x| ir::Storable::Value(ir::Value::U8(*x))).collect())))
+			ir::Storable::Slice(raw_data, 0, self.value.as_bytes().len())
 		));
 
 		let id = ctx.ir_unit.add_global(ir::Global::new_default::<String>(
@@ -503,7 +512,7 @@ impl ast::StringLitExpr {
 			st.clone(),
 			false,
 			ir::Storable::Compound(ir::Compound::Struct(ir::Struct::new(vec![
-				ir::StructProp::new(ir::Storable::Value(ir::Value::Ref(raw)))
+				ir::StructProp::new(ir::Storable::Value(ir::Value::Ref(raw_slice)))
 			])))
 		));
 
@@ -606,7 +615,8 @@ impl ast::MemberAccessExpr {
 					target.push(ir::Ins::PushSliceLen(st.as_ref().clone()));
 
 					Ok(ir::ValueType::UPtr)
-				}
+				},
+				ir::StorableType::SliceData(_) => unreachable!(),
 			},
 			_ => unreachable!()
 		}
@@ -631,7 +641,8 @@ impl ast::MemberAccessExpr {
 					}
 				},
 				ir::StorableType::Value(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
-				ir::StorableType::Slice(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist))
+				ir::StorableType::Slice(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist)),
+				ir::StorableType::SliceData(_) => unreachable!(),
 			},
 			_ => unreachable!()
 		}

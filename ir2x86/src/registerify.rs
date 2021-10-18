@@ -89,7 +89,8 @@ pub(crate) fn size_for_st(st: &ir::StorableType, mode: x86::Mode) -> usize {
 	match st {
 		ir::StorableType::Compound(ct) => size_for_compound(ct, mode),
 		ir::StorableType::Value(vt) => size_for_vt(vt, mode),
-		ir::StorableType::Slice(_) => mode.ptr_size() * 2
+		ir::StorableType::Slice(_) => mode.ptr_size() * 2,
+		ir::StorableType::SliceData(_) => panic!("Cannot compute raw size of SliceData type"),
 	}
 }
 
