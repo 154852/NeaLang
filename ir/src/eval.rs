@@ -106,13 +106,6 @@ impl Stack {
         element
     }
 
-    fn peek(&self, vt: &ValueType) -> &StackElement {
-        assert!(self.elements.len() >= 1);
-        let element = self.elements.last().unwrap();
-        assert_eq!(vt, &element.value_type);
-        element
-    }
-
     fn peek_mut(&mut self, vt: &ValueType) -> &mut StackElement {
         assert!(self.elements.len() >= 1);
         let element = self.elements.last_mut().unwrap();
@@ -459,8 +452,7 @@ impl Function {
     /// assert!(unit.validate().is_ok());
     /// 
     /// let func = unit.get_function(func_id);
-    /// let returns = func.evaluate(&unit, vec![ ir::StackElement::new(7, ValueType::I32), ir::StackElement::new(8, ValueType::I32) ]).unwrap();
-    /// assert_eq!(returns[0].get(), 15);
+    /// let returns = func.evaluate(&unit, vec![ ir::StackElement::new(ir::StackValue::Num(7), ValueType::I32), ir::StackElement::new(ir::StackValue::Num(8), ValueType::I32) ]).unwrap();
     /// ```
     pub fn evaluate(&self, unit: &TranslationUnit, params: Vec<StackElement>) -> Result<Vec<StackElement>, EvalError> {
         // Params go on the stack in order

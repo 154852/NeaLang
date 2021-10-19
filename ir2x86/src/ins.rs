@@ -1,7 +1,7 @@
 use crate::{FunctionTranslationContext, LocalSymbol, TranslationContext};
 
 impl TranslationContext {
-    fn insert_call(&self, idx: ir::FunctionIndex, ir_ins: &ir::Ins, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
+    fn insert_call(&self, idx: ir::FunctionIndex, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
         // TODO: This push/pop is quite unfortuante, but sort of required without a bit of optimisation to move calls to be done earlier, while the stack is empty
 
         let params = ftc.unit().get_function(idx).signature().params().len();
@@ -149,7 +149,7 @@ impl TranslationContext {
                     crate::registerify::size_for_st(st, self.mode) as u64
                 ));
 
-                self.insert_call(ftc.unit().find_function_index("nl_new_object").expect("No nl_new_object included"), ir_ins, ftc, ins);
+                self.insert_call(ftc.unit().find_function_index("nl_new_object").expect("No nl_new_object included"), ftc, ins);
             },
             ir::Ins::NewSlice(st) => {
                 ins.push(x86::Ins::MovRegImm(
@@ -157,7 +157,7 @@ impl TranslationContext {
                     crate::registerify::size_for_st(st, self.mode) as u64
                 ));
 
-                self.insert_call(ftc.unit().find_function_index("nl_new_slice").expect("No nl_new_slice included"), ir_ins, ftc, ins);
+                self.insert_call(ftc.unit().find_function_index("nl_new_slice").expect("No nl_new_slice included"), ftc, ins);
             },
             ir::Ins::Convert(from, to) => {
                 let size_a = crate::registerify::size_for_vt(from, self.mode);
@@ -172,7 +172,7 @@ impl TranslationContext {
                     }
                 }
             },
-            ir::Ins::Call(idx) => self.insert_call(*idx, ir_ins, ftc, ins),
+            ir::Ins::Call(idx) => self.insert_call(*idx, ftc, ins),
             ir::Ins::Ret => {
                 let rets_len = ftc.func().signature().returns().len();
 

@@ -5,13 +5,14 @@ pub enum Ins {
     /// Pushes the local at the given index to the stack. The local must match be a value, and must match in value type to the ValueType given
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ir::ValueType::I32 ], vec![ ir::ValueType::I32 ]));
     /// 
     /// // Save param to local
-    /// let l1 = func.push_local(ir::Local::new(ir::ValueType::I32)); // Allocate local of type i32
-    /// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1)); // Save the given param to the local
+    /// let l1 = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32))); // Allocate local of type i32
+    /// func.push(ir::Ins::PopLocalValue(ir::ValueType::I32, l1)); // Save the given param to the local
     /// 
-    /// func.push(ir::Ins::PushLocal(ir::ValueType::I32, l1)); // Push the local back onto the stack
+    /// func.push(ir::Ins::PushLocalValue(ir::ValueType::I32, l1)); // Push the local back onto the stack
     /// func.push(ir::Ins::Ret);
     /// ```
     PushLocalValue(ValueType, LocalIndex),
@@ -23,8 +24,8 @@ pub enum Ins {
     /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ], vec![ ]));
     /// 
     /// // Save param to local
-    /// let l1 = func.push_local(ir::Local::new(ir::ValueType::I32)); // Allocate local of type i32
-    /// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1)); // Save the given param to the local
+    /// let l1 = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32))); // Allocate local of type i32
+    /// func.push(ir::Ins::PopLocalValue(ir::ValueType::I32, l1)); // Save the given param to the local
     /// 
     /// func.push(ir::Ins::PushLocalRef(ir::StorableType::Value(ir::ValueType::I32), l1));
     /// func.push(ir::Ins::Drop);
@@ -36,13 +37,14 @@ pub enum Ins {
     /// Pops the last value on the stack to the local at the given index. The local must be a value, and the local and popped item must match in value type to the ValueType given
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ir::ValueType::I32 ], vec![ ir::ValueType::I32 ]));
     /// 
     /// // Save param to local
-    /// let l1 = func.push_local(ir::Local::new(ir::ValueType::I32)); // Allocate local of type i32
-    /// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1)); // Save the given param to the local
+    /// let l1 = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32))); // Allocate local of type i32
+    /// func.push(ir::Ins::PopLocalValue(ir::ValueType::I32, l1)); // Save the given param to the local
     /// 
-    /// func.push(ir::Ins::PushLocal(ir::ValueType::I32, l1)); // Push the local back onto the stack
+    /// func.push(ir::Ins::PushLocalValue(ir::ValueType::I32, l1)); // Push the local back onto the stack
     /// func.push(ir::Ins::Ret);
     /// ```
     PopLocalValue(ValueType, LocalIndex),
@@ -50,14 +52,15 @@ pub enum Ins {
     /// Pops the value followd by the ref from the stack, and writes the value to the ref. The ref must be a value of the given ValueType, which must be the valuetype of the popped value.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ValueType::I32 ], vec![ ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ir::ValueType::I32 ], vec![ ]));
     /// 
     /// // Save param to local
-    /// let l1 = func.push_local(ir::Local::new(ir::ValueType::I32)); // Allocate local of type i32
-    /// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1)); // Save the given param to the local
+    /// let l1 = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32))); // Allocate local of type i32
+    /// func.push(ir::Ins::PopLocalValue(ir::ValueType::I32, l1)); // Save the given param to the local
     /// 
-    /// func.push(ir::Ins::PushLocalRef(ir::ValueType::I32, l1)); // Push a reference to the local onto the stack
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 10));
+    /// func.push(ir::Ins::PushLocalRef(ir::StorableType::Value(ir::ValueType::I32), l1)); // Push a reference to the local onto the stack
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 10));
     /// func.push(ir::Ins::PopRef(ir::ValueType::I32));
     /// func.push(ir::Ins::Ret);
     /// ```
@@ -66,12 +69,12 @@ pub enum Ins {
     /// Pop the compound type ref of the given type from the stack, and push the value of the field at the given index in that struct. The field must have the given valuetype.
     /// # Examples
     /// ```
+    /// use ir;
     /// let mut example_struct = ir::StructContent::new();
     /// example_struct.push_prop(ir::StructProperty::new("first_field", ir::StorableType::Value(ir::ValueType::I32)));
     /// example_struct.push_prop(ir::StructProperty::new("second_field", ir::StorableType::Value(ir::ValueType::I32)));
     /// 
     /// let example_struct = ir::CompoundType::new("example_struct", ir::TypeContent::Struct(example_struct));
-	/// unit.add_type(example_struct.clone());
     /// 
     /// let mut func = ir::Function::new("structs", ir::Signature::new(vec![ ], vec![ ir::ValueType::I32 ]));
     /// 
@@ -86,12 +89,12 @@ pub enum Ins {
     /// Pop the compound type ref of the given type from the stack, and push a reference to the value of the field at the given index in that struct. The field must have the given storabletype.
     /// # Examples
     /// ```
+    /// use ir;
     /// let mut example_struct = ir::StructContent::new();
     /// example_struct.push_prop(ir::StructProperty::new("first_field", ir::StorableType::Value(ir::ValueType::I32)));
     /// example_struct.push_prop(ir::StructProperty::new("second_field", ir::StorableType::Value(ir::ValueType::I32)));
     /// 
     /// let example_struct = ir::CompoundType::new("example_struct", ir::TypeContent::Struct(example_struct));
-	/// unit.add_type(example_struct.clone());
     /// 
     /// let mut func = ir::Function::new("structs", ir::Signature::new(vec![ ], vec![ ]));
     /// 
@@ -99,7 +102,7 @@ pub enum Ins {
     /// 
 	/// func.push(ir::Ins::PushLocalRef(ir::StorableType::Compound(example_struct.clone()), local));
     /// func.push(ir::Ins::PushPropertyRef(example_struct.clone(), ir::StorableType::Value(ir::ValueType::I32), 0)); // First field
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
     /// func.push(ir::Ins::PopRef(ir::ValueType::I32));
 	/// func.push(ir::Ins::Ret);
     /// ```
@@ -140,11 +143,12 @@ pub enum Ins {
     /// The return values will be popped from the stack in reverse order, so the first return value should be pushed first.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("divide_10_by_5", ir::Signature::new(vec![], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("divide_10_by_5", ir::Signature::new(vec![], vec![ ir::ValueType::I32 ]));
     /// 
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 10));
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
-    /// func.push(ir::Ins::Call(divide_function_index));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 10));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
+    /// func.push(ir::Ins::Call(0 /* some index */));
     /// func.push(ir::Ins::Ret);
     /// ```
     Call(FunctionIndex),
@@ -153,10 +157,11 @@ pub enum Ins {
     /// The values on the stack at this point must conform to the return values signature of the function
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("return_two_values", ir::Signature::new(vec![], vec![ ValueType::I32, ValueType::U8 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("return_two_values", ir::Signature::new(vec![], vec![ir::ValueType::I32, ir::ValueType::U8 ]));
     /// 
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 10));
-    /// func.push(ir::Ins::PushLiteral(ValueType::U8, 5));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 10));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::U8, 5));
     /// func.push(ir::Ins::Ret);
     /// ```
     Ret,
@@ -164,9 +169,10 @@ pub enum Ins {
     /// Adds the given value to the last item on the stack. The item must have the given value type, and will maintain that same valuetype.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("add_1", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("add_1", ir::Signature::new(vec![ ir::ValueType::I32 ], vec![ ir::ValueType::I32 ]));
     /// 
-    /// func.push(ir::Ins::Inc(ValueType::I32, 1));
+    /// func.push(ir::Ins::Inc(ir::ValueType::I32, 1));
     /// func.push(ir::Ins::Ret);
     /// ```
     Inc(ValueType, u64),
@@ -174,9 +180,10 @@ pub enum Ins {
     /// Subtracts the given value to the last item on the stack. The item must have the given value type, and will maintain that same valuetype.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("sub_1", ir::Signature::new(vec![ ValueType::I32 ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("sub_1", ir::Signature::new(vec![ ir::ValueType::I32 ], vec![ ir::ValueType::I32 ]));
     /// 
-    /// func.push(ir::Ins::Dec(ValueType::I32, 1));
+    /// func.push(ir::Ins::Dec(ir::ValueType::I32, 1));
     /// func.push(ir::Ins::Ret);
     /// ```
     Dec(ValueType, u64),
@@ -184,9 +191,10 @@ pub enum Ins {
     /// Adds the last two items on the stack, and pushes the result. The two items must both have the given value type, and the result will have the same value type.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("add", ir::Signature::new(vec![ ValueType::I32, ValueType::I32 ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("add", ir::Signature::new(vec![ ir::ValueType::I32, ir::ValueType::I32 ], vec![ ir::ValueType::I32 ]));
     /// 
-    /// func.push(ir::Ins::Add(ValueType::I32));
+    /// func.push(ir::Ins::Add(ir::ValueType::I32));
     /// func.push(ir::Ins::Ret);
     /// ```
     Add(ValueType),
@@ -194,9 +202,10 @@ pub enum Ins {
     /// Multiplies the last two items on the stack, and pushes the result. The two items must both have the given value type, and the result will have the same value type.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("mul", ir::Signature::new(vec![ ValueType::I32, ValueType::I32 ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("mul", ir::Signature::new(vec![ ir::ValueType::I32, ir::ValueType::I32 ], vec![ ir::ValueType::I32 ]));
     /// 
-    /// func.push(ir::Ins::Mul(ValueType::I32));
+    /// func.push(ir::Ins::Mul(ir::ValueType::I32));
     /// func.push(ir::Ins::Ret);
     /// ```
     Mul(ValueType),
@@ -204,11 +213,12 @@ pub enum Ins {
     /// Divides the second to last item by the last item on the stack, and pushes the result. The two items must both have the given value type, and the result will have the same value type.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("divide_10_by_5", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("divide_10_by_5", ir::Signature::new(vec![ ], vec![ ir::ValueType::I32 ]));
     /// 
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 10));
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
-    /// func.push(ir::Ins::Div(ValueType::I32));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 10));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
+    /// func.push(ir::Ins::Div(ir::ValueType::I32));
     /// func.push(ir::Ins::Ret);
     /// ```
     Div(ValueType),
@@ -216,11 +226,12 @@ pub enum Ins {
     /// Subtracts the last item from the second to last item on the stack, and pushes the result. The two items must both have the given value type, and the result will have the same value type.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("sub_5_from_10", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("sub_5_from_10", ir::Signature::new(vec![ ], vec![ ir::ValueType::I32 ]));
     /// 
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 10));
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
-    /// func.push(ir::Ins::Sub(ValueType::I32));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 10));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
+    /// func.push(ir::Ins::Sub(ir::ValueType::I32));
     /// func.push(ir::Ins::Ret);
     /// ```
     Sub(ValueType),
@@ -228,11 +239,12 @@ pub enum Ins {
     /// Pushes 1 if the last two items on the stack are equal, and 0 otherwise. The two items must both have the given value type, and the result will be a bool.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ir::ValueType::I32 ]));
     /// 
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
-    /// func.push(ir::Ins::Eq(ValueType::I32));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
+    /// func.push(ir::Ins::Eq(ir::ValueType::I32));
     /// func.push(ir::Ins::Ret);
     /// ```
     Eq(ValueType),
@@ -240,11 +252,12 @@ pub enum Ins {
     /// Pushes 0 if the last two items on the stack are equal, and 1 otherwise. The two items must both have the given value type, and the result will be a bool.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ir::ValueType::I32 ]));
     /// 
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 2));
-    /// func.push(ir::Ins::Ne(ValueType::I32));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 1));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 2));
+    /// func.push(ir::Ins::Ne(ir::ValueType::I32));
     /// func.push(ir::Ins::Ret);
     /// ```
     Ne(ValueType),
@@ -252,11 +265,12 @@ pub enum Ins {
     /// Pushes 1 if the second to last item on the stack is less than the last. The two items must both have the given value type, and the result will be a bool.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ir::ValueType::I32 ]));
     /// 
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 2));
-    /// func.push(ir::Ins::Lt(ValueType::I32));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 1));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 2));
+    /// func.push(ir::Ins::Lt(ir::ValueType::I32));
     /// func.push(ir::Ins::Ret);
     /// ```
     Lt(ValueType),
@@ -264,11 +278,12 @@ pub enum Ins {
     /// Pushes 1 if the second to last item on the stack is less than or equal to the last. The two items must both have the given value type, and the result will be a bool.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ir::ValueType::I32 ]));
     /// 
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
-    /// func.push(ir::Ins::Le(ValueType::I32));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 1));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 1));
+    /// func.push(ir::Ins::Le(ir::ValueType::I32));
     /// func.push(ir::Ins::Ret);
     /// ```
     Le(ValueType),
@@ -276,11 +291,12 @@ pub enum Ins {
     /// Pushes 1 if the second to last item on the stack is greater than the last. The two items must both have the given value type, and the result will be a bool.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ir::ValueType::I32 ]));
     /// 
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 2));
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
-    /// func.push(ir::Ins::Gt(ValueType::I32));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 2));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 1));
+    /// func.push(ir::Ins::Gt(ir::ValueType::I32));
     /// func.push(ir::Ins::Ret);
     /// ```
     Gt(ValueType),
@@ -288,11 +304,12 @@ pub enum Ins {
     /// Pushes 1 if the second to last item on the stack is greater than or equal to the last. The two items must both have the given value type, and the result will be a bool.
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("always_true", ir::Signature::new(vec![ ], vec![ ir::ValueType::I32 ]));
     /// 
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 2));
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 1));
-    /// func.push(ir::Ins::Ge(ValueType::I32));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 2));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 1));
+    /// func.push(ir::Ins::Ge(ir::ValueType::I32));
     /// func.push(ir::Ins::Ret);
     /// ```
     Ge(ValueType),
@@ -304,25 +321,26 @@ pub enum Ins {
     /// If a break is reached, the whole loop is stopped immediately.
     /// # Examples
     /// ```
+    /// use ir;
     /// let mut func = ir::Function::new("loop_5_times", ir::Signature::new(vec![ ], vec![ ]));
     /// 
-    /// let l1 = func.push_local(ir::Local::new(ir::ValueType::I32)); // Allocate local of type i32
-    /// func.push(ir::Ins::PushLiteral(ValueType::I32, 5));
-    /// func.push(ir::Ins::PopLocal(ir::ValueType::I32, l1));
+    /// let l1 = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32))); // Allocate local of type i32
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
+    /// func.push(ir::Ins::PopLocalValue(ir::ValueType::I32, l1));
     ///
     /// func.push(ir::Ins::Loop(
     ///     vec![ // Body
     ///         // do nothing
     ///     ],
     ///     vec![ // Condition
-    ///         ir::Ins::PushLocal(ir::ValueType::I32, l1),
-    ///         ir::Ins::PushLocal(ir::ValueType::I32, 0),
+    ///         ir::Ins::PushLocalValue(ir::ValueType::I32, l1),
+    ///         ir::Ins::PushLocalValue(ir::ValueType::I32, 0),
     ///         ir::Ins::Ne(ir::ValueType::I32),
     ///     ],
     ///     vec![ // Increment (or in this case, decrement)
-    ///         ir::Ins::PushLocal(ir::ValueType::I32, l1),
-    ///         ir::Ins::Dec(ValueType::I32, 1),
-    ///         ir::Ins::PopLocal(ir::ValueType::I32, l1),
+    ///         ir::Ins::PushLocalValue(ir::ValueType::I32, l1),
+    ///         ir::Ins::Dec(ir::ValueType::I32, 1),
+    ///         ir::Ins::PopLocalValue(ir::ValueType::I32, l1),
     ///     ]
     /// ));
     /// func.push(ir::Ins::Ret);
@@ -333,9 +351,10 @@ pub enum Ins {
     /// The instruction must start with one (bool) item on the stack, and it's content must end with 0.
     /// # Examples
     /// ```
+    /// use ir;
     /// let mut func = ir::Function::new("if_1", ir::Signature::new(vec![ ], vec![ ]));
     /// 
-    /// func.push(ir::Ins::PushLiteral(ValueType::Bool, 1));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::Bool, 1));
     /// func.push(ir::Ins::If(vec![
     ///     // Do something
     /// ]));
@@ -347,9 +366,10 @@ pub enum Ins {
     /// The instruction must start with one (bool) item on the stack, and both branches must end with 0.
     /// # Examples
     /// ```
+    /// use ir;
     /// let mut func = ir::Function::new("if_1_else", ir::Signature::new(vec![ ], vec![ ]));
     /// 
-    /// func.push(ir::Ins::PushLiteral(ValueType::Bool, 1));
+    /// func.push(ir::Ins::PushLiteral(ir::ValueType::Bool, 1));
     /// func.push(ir::Ins::IfElse(vec![
     ///     // Do something
     /// ], vec![
@@ -362,6 +382,7 @@ pub enum Ins {
     /// Breaks out of the loop at the depth above the current instruction given. The depth must refer to a Loop, and must run with an empty stack
     /// # Examples
     /// ```
+    /// use ir;
     /// let mut func = ir::Function::new("break_immediately", ir::Signature::new(vec![ ], vec![ ]));
     /// 
     /// func.push(ir::Ins::Loop(
@@ -383,9 +404,10 @@ pub enum Ins {
     /// Continues to the the increment and then top of the loop at the depth above the current instruction given. The depth must refer to a Loop, and must run with an empty stack.
     /// # Examples
     /// ```
+    /// use ir;
     /// let mut func = ir::Function::new("continue_immediately", ir::Signature::new(vec![ ], vec![ ]));
     /// 
-    /// Infinite loop
+    /// // Infinite loop
     /// func.push(ir::Ins::Loop(
     ///     vec![ // Body
     ///         ir::Ins::Continue(0),
@@ -405,7 +427,8 @@ pub enum Ins {
     /// Push the literal number with the given valuetype to the stack
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ], vec![ ir::ValueType::I32 ]));
     /// 
     /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 42));
     /// func.push(ir::Ins::Ret);
@@ -416,7 +439,8 @@ pub enum Ins {
     /// On register based targets this will be removed entirely
     /// # Examples
     /// ```
-    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ], vec![ ValueType::I32 ]));
+    /// use ir;
+    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ], vec![ ir::ValueType::I32 ]));
     /// 
     /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 42));
     /// func.push(ir::Ins::Drop);
