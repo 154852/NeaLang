@@ -6,15 +6,12 @@ struct __attribute__((packed)) slice_t {
 	size_t len;
 };
 
-struct slice_t* nl_alloc_slice_u8(size_t length) {
-	struct slice_t* slice = malloc(sizeof(struct slice_t) + length);
-	slice->data = slice + sizeof(struct slice_t);
-	slice->len = length;
-	return slice;
+void* nl_new_object(size_t size) {
+	return malloc(size);
 }
 
-struct slice_t* nl_alloc_slice_u32(size_t length) {
-	struct slice_t* slice = malloc(sizeof(struct slice_t) + (length * sizeof(unsigned int)));
+struct slice_t* nl_new_slice(size_t length, size_t size) {
+	struct slice_t* slice = malloc(sizeof(struct slice_t) + length*size);
 	slice->data = slice + sizeof(struct slice_t);
 	slice->len = length;
 	return slice;

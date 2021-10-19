@@ -61,6 +61,7 @@ impl ast::TypeExpr {
 			"i64" => return Ok(ir::StorableType::Value(ir::ValueType::I64)),
 			"u64" => return Ok(ir::StorableType::Value(ir::ValueType::U64)),
 			"uptr" => return Ok(ir::StorableType::Value(ir::ValueType::UPtr)),
+			"iptr" => return Ok(ir::StorableType::Value(ir::ValueType::IPtr)),
 			"u8" => return Ok(ir::StorableType::Value(ir::ValueType::U8)),
 			_ => {}
 		}
@@ -75,7 +76,7 @@ impl ast::TypeExpr {
 	fn to_ir_storable_type(&self, ir_unit: &ir::TranslationUnit) -> Result<ir::StorableType, IrGenError> {
 		let mut st = self.to_ir_base_storable_type(ir_unit)?;
 
-		for _ in 0..self.slice_depth {
+		for _ in 0..self.slice_lengths.len() {
 			st = ir::StorableType::Slice(Box::new(st));
 		}
 
@@ -497,6 +498,7 @@ impl ast::Expr {
 			ast::Expr::Index(index_expr) => index_expr.append_ir_value(ctx, target, prefered),
 			ast::Expr::As(as_expr) => as_expr.append_ir(ctx, target, prefered),
 			ast::Expr::StringLit(string_expr) => string_expr.append_ir_value(ctx, target, prefered),
+			ast::Expr::NewExpr(new_expr) => new_expr.append_ir_value(ctx, target, prefered),
 		}
 	}
 
@@ -511,7 +513,32 @@ impl ast::Expr {
 			ast::Expr::Index(index_expr) => index_expr.append_ir_ref(ctx, target, prefered),
 			ast::Expr::As(as_expr) => return Err(IrGenError::new(as_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
 			ast::Expr::StringLit(string_expr) => return Err(IrGenError::new(string_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
+			ast::Expr::NewExpr(new_expr) => return Err(IrGenError::new(new_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
 		}
+	}
+}
+
+impl ast::NewExpr {
+	fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+		let st = self.new_type.to_ir_storable_type(ctx.ir_unit)?;
+		match &st {
+			ir::StorableType::Slice(slice_st) => {
+				if let Some(Some(expr)) = self.new_type.slice_lengths.last() {
+					if expr.append_ir_value(ctx, target, Some(&ir::ValueType::UPtr))? != ir::ValueType::UPtr {
+						return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexValue));
+					}
+				} else {
+					target.push(ir::Ins::PushLiteral(ir::ValueType::UPtr, 0));
+				}
+				target.push(ir::Ins::NewSlice(slice_st.as_ref().clone()));
+			},
+			ir::StorableType::SliceData(_) => unreachable!(),
+			_ => {
+				target.push(ir::Ins::New(st.clone()));
+			},
+		}
+
+		Ok(ir::ValueType::Ref(Box::new(st)))
 	}
 }
 

@@ -208,6 +208,16 @@ impl ast::Expr {
                     name
                 })
             },
+            Some(TokenKind::NewKeyword) => {
+                stream.step();
+                
+                let new_type = syntax::ex!(syntax::parse!(stream, ast::TypeExpr::parse), stream.error("Expected a type"));
+                
+                ast::Expr::NewExpr(ast::NewExpr {
+                    span: syntax::Span::new(start, stream.tell_start()),
+                    new_type
+                })
+            },
             _ => return syntax::MatchResult::Fail
         };
 
@@ -381,15 +391,19 @@ impl ast::TypeExpr {
             if !syntax::tk_iss!(stream, TokenKind::Dot) { break }
         }
 
-        let mut slice_depth = 0;
+        let mut slice_lengths = Vec::new();
         while syntax::tk_iss!(stream, TokenKind::OpenBracket) {
-            syntax::req!(syntax::tk_iss!(stream, TokenKind::CloseBracket), stream.error("Expected ']'"));
-            slice_depth += 1;
+            if syntax::tk_iss!(stream, TokenKind::CloseBracket) {
+                slice_lengths.push(None);
+            } else {
+                slice_lengths.push(Some(syntax::ex!(syntax::parse!(stream, ast::Expr::parse), stream.error("Expected expression"))));
+                syntax::req!(syntax::tk_iss!(stream, TokenKind::CloseBracket), stream.error("Expected ']'"));
+            }
         }
 
         syntax::MatchResult::Ok(ast::TypeExpr {
             span: syntax::Span::new(start, stream.tell_start()),
-            path, slice_depth
+            path, slice_lengths
         })
     }
 }

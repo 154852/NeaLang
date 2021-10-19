@@ -4,7 +4,7 @@ use syntax::Span;
 pub struct TypeExpr {
 	pub span: Span,
 	pub path: Vec<String>,
-	pub slice_depth: usize
+	pub slice_lengths: Vec<Option<Expr>>
 }
 
 #[derive(Debug)]
@@ -47,7 +47,14 @@ pub enum Expr {
 	MemberAccess(MemberAccessExpr),
 	Index(IndexExpr),
 	As(AsExpr),
-	StringLit(StringLitExpr)
+	StringLit(StringLitExpr),
+	NewExpr(NewExpr)
+}
+
+#[derive(Debug)]
+pub struct NewExpr {
+	pub span: Span,
+	pub new_type: TypeExpr
 }
 
 #[derive(Debug)]
