@@ -5,6 +5,14 @@ use ofile::{elf, elfbuilder};
 
 const TEXT_BASE: u64 = 0x401000;
 
+fn name_for_func(func: &ir::Function) -> String {
+	if let Some(ctr) = func.method_of() {
+		format!("{}.{}", ctr.name(), func.name())
+	} else {
+		func.name().to_string()
+	}
+}
+
 pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Result<(), String> {
 	let mut elf = if relocatable {
 		elfbuilder::StaticELF::new_relocatable()
@@ -26,13 +34,13 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 			if !relocatable {
 				return Err(format!("Cannot import function '{}' with a statically compiled binary", func.name()));
 			}
-			gid_allocator.push_global_symbol_mapping(gid, elf.push_symbol(elfbuilder::Symbol::Relocatable(func.name().to_string())), 0);
+			gid_allocator.push_global_symbol_mapping(gid, elf.push_symbol(elfbuilder::Symbol::Relocatable(name_for_func(func))), 0);
 		} else {
 			let mut ins = ctx.translate_function(&func, unit);
 			x86::opt::pass_zero(&mut ins);
 			
 			let (addr, length) = x86_encoding.append_function(&ins);
-			gid_allocator.push_global_symbol_mapping(gid, elf.push_symbol(elfbuilder::Symbol::Function(func.name().to_string(), text_base + addr as u64, length as u64)), 0);
+			gid_allocator.push_global_symbol_mapping(gid, elf.push_symbol(elfbuilder::Symbol::Function(name_for_func(func), text_base + addr as u64, length as u64)), 0);
 		}
 	}
 

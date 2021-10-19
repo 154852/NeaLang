@@ -231,6 +231,10 @@ impl Function {
         self.code.is_none()
     }
 
+    pub fn method_of(&self) -> Option<CompoundTypeRef> {
+        self.method_of.clone()
+    }
+
 	pub fn name(&self) -> &str {
 		&self.name
 	}
