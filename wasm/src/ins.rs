@@ -83,7 +83,27 @@ pub enum Ins {
 	MemoryCopy,
 	MemoryFill,
 
-	
+	ConstI32(i32),
+	ConstI64(i64),
+	ConstF32(f32),
+	ConstF64(f64),
+
+	Eqz(NumType),
+	Eq(NumType),
+	Ne(NumType),
+	Lt(NumType, bool),
+	Le(NumType, bool),
+	Gt(NumType, bool),
+	Ge(NumType, bool),
+
+	Add(NumType),
+	Sub(NumType),
+	Mul(NumType),
+	Div(NumType, bool),
+	Rem(NumType, bool),
+	And(NumType),
+	Or(NumType),
+	Xor(NumType)
 }
 
 impl WasmEncodable for Ins {
@@ -296,6 +316,109 @@ impl WasmEncodable for Ins {
 			},
 			Ins::MemoryCopy => data.extend([0xfc, 10, 0x00, 0x00]),
 			Ins::MemoryFill => data.extend([0xfc, 11, 0x00]),
+
+			Ins::ConstI32(i) => {
+				data.push(0x41);
+				i.wasm_encode(data);
+			},
+			Ins::ConstI64(i) => {
+				data.push(0x42);
+				i.wasm_encode(data);
+			},
+			Ins::ConstF32(i) => {
+				data.push(0x43);
+				i.wasm_encode(data);
+			},
+			Ins::ConstF64(i) => {
+				data.push(0x44);
+				i.wasm_encode(data);
+			},
+
+			Ins::Eqz(t) => data.push(match t {
+				NumType::I32 => 0x45,
+				NumType::I64 => 0x50,
+				_ => panic!("Eqz only exists on i32 and i64")
+			}),
+			Ins::Eq(t) => data.push(match t {
+				NumType::I32 => 0x46,
+				NumType::I64 => 0x51,
+				NumType::F32 => 0x5b,
+				NumType::F64 => 0x61
+			}),
+			Ins::Ne(t) => data.push(match t {
+				NumType::I32 => 0x47,
+				NumType::I64 => 0x52,
+				NumType::F32 => 0x5c,
+				NumType::F64 => 0x62
+			}),
+			Ins::Lt(t, signed) => data.push(match t {
+				NumType::I32 => if *signed { 0x48 } else { 0x49 },
+				NumType::I64 => if *signed { 0x53 } else { 0x54 },
+				NumType::F32 => 0x5d,
+				NumType::F64 => 0x63
+			}),
+			Ins::Le(t, signed) => data.push(match t {
+				NumType::I32 => if *signed { 0x4c } else { 0x4d },
+				NumType::I64 => if *signed { 0x57 } else { 0x58 },
+				NumType::F32 => 0x5f,
+				NumType::F64 => 0x65
+			}),
+			Ins::Gt(t, signed) => data.push(match t {
+				NumType::I32 => if *signed { 0x4a } else { 0x4b },
+				NumType::I64 => if *signed { 0x55 } else { 0x56 },
+				NumType::F32 => 0x5e,
+				NumType::F64 => 0x64
+			}),
+			Ins::Ge(t, signed) => data.push(match t {
+				NumType::I32 => if *signed { 0x4e } else { 0x4f },
+				NumType::I64 => if *signed { 0x59 } else { 0x5a },
+				NumType::F32 => 0x60,
+				NumType::F64 => 0x66
+			}),
+			Ins::Add(t) => data.push(match t {
+				NumType::I32 => 0x6a,
+				NumType::I64 => 0x7c,
+				NumType::F32 => 0x92,
+				NumType::F64 => 0xa0
+			}),
+			Ins::Sub(t) => data.push(match t {
+				NumType::I32 => 0x6b,
+				NumType::I64 => 0x7d,
+				NumType::F32 => 0x93,
+				NumType::F64 => 0xa1
+			}),
+			Ins::Mul(t) => data.push(match t {
+				NumType::I32 => 0x6c,
+				NumType::I64 => 0x7e,
+				NumType::F32 => 0x94,
+				NumType::F64 => 0xa2
+			}),
+			Ins::Div(t, signed) => data.push(match t {
+				NumType::I32 => if *signed { 0x6d } else { 0x6e },
+				NumType::I64 => if *signed { 0x7f } else { 0x80 },
+				NumType::F32 => 0x94,
+				NumType::F64 => 0xa3
+			}),
+			Ins::Rem(t, signed) => data.push(match t {
+				NumType::I32 => if *signed { 0x6f } else { 0x70 },
+				NumType::I64 => if *signed { 0x81 } else { 0x82 },
+				_ => panic!("Rem only exists on i32 and i64")
+			}),
+			Ins::Or(t) => data.push(match t {
+				NumType::I32 => 0x72,
+				NumType::I64 => 0x84,
+				_ => panic!("Or only exists on i32 and i64")
+			}),
+			Ins::And(t) => data.push(match t {
+				NumType::I32 => 0x71,
+				NumType::I64 => 0x85,
+				_ => panic!("And only exists on i32 and i64")
+			}),
+			Ins::Xor(t) => data.push(match t {
+				NumType::I32 => 0x73,
+				NumType::I64 => 0x85,
+				_ => panic!("Xor only exists on i32 and i64")
+			}),
         }
     }
 }
