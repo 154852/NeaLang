@@ -24,12 +24,6 @@ pub struct Function {
 	pub return_types: Vec<TypeExpr>
 }
 
-impl Function {
-	pub fn is_method(&self) -> bool {
-		self.path.len() > 0
-	}
-}
-
 #[derive(Debug)]
 pub struct FunctionParam {
 	pub span: Span,
@@ -183,7 +177,14 @@ pub struct Assignment {
 #[derive(Debug)]
 pub enum TopLevelNode {
 	Function(Function),
-	StructDeclaration(StructDeclaration)
+	StructDeclaration(StructDeclaration),
+	Import(ImportStmt)
+}
+
+#[derive(Debug)]
+pub struct ImportStmt {
+	pub span: Span,
+	pub path: Vec<String>
 }
 
 #[derive(Debug)]

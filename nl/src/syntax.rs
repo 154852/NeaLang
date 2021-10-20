@@ -163,9 +163,31 @@ impl ast::TopLevelNode {
         match stream.token().map(|x| x.kind()) {
             Some(TokenKind::FuncKeyword) => syntax::MatchResult::Ok(ast::TopLevelNode::Function(syntax::parse!(stream, ast::Function::parse).unwrap())),
             Some(TokenKind::StructKeyword) => syntax::MatchResult::Ok(ast::TopLevelNode::StructDeclaration(syntax::parse!(stream, ast::StructDeclaration::parse).unwrap())),
+            Some(TokenKind::ImportKeyword) => syntax::MatchResult::Ok(ast::TopLevelNode::Import(syntax::parse!(stream, ast::ImportStmt::parse).unwrap())),
             
             _ => syntax::MatchResult::Fail
         }
+    }
+}
+
+
+impl ast::ImportStmt {
+    fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::ImportStmt> {
+        let start = stream.tell_start();
+        syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::ImportKeyword));
+
+        let mut path = Vec::new();
+        loop {
+            path.push(syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident), stream.error("Expected identifier")).to_owned());
+            stream.step();
+
+            if !syntax::tk_iss!(stream, TokenKind::Dot) { break }
+        }
+
+        syntax::MatchResult::Ok(ast::ImportStmt {
+            span: syntax::Span::new(start, stream.tell_start()),
+            path
+        })
     }
 }
 

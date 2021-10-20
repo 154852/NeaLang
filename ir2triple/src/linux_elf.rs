@@ -27,6 +27,8 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 
 	let mut gid_allocator = ir2x86::GlobalIDAllocator::new(unit);
 
+	let data_base_symbol = elf.push_symbol(elfbuilder::Symbol::Section(2)); // data is section 2, TODO: This should not be hard coded
+
 	for (i, func) in unit.functions().iter().enumerate() {
 		let gid = gid_allocator.global_id_of_function(i);
 		
@@ -45,8 +47,6 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 	}
 
 	let data_base = if relocatable { 0 } else { ofile::align_up(text_base + x86_encoding.len() as u64, 1 << 12) };
-
-	let data_base_symbol = elf.push_symbol(elfbuilder::Symbol::Section(2)); // data is section 2, TODO: This should not be hard coded
 
 	let mut relocs = Vec::new();
 	let mut data = Vec::new();

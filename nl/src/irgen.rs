@@ -24,7 +24,8 @@ pub enum IrGenErrorKind {
 	IllegalIndexObject,
 	IllegalIndexValue,
 	NonValueCast,
-	StdLinkError
+	StdLinkError,
+	ImportNotFound
 }
 
 pub struct IrGenError {
@@ -100,43 +101,11 @@ impl PartialEq for ast::TypeExpr {
 }
 
 impl ast::TranslationUnit {
-	fn func(&self, name: &str) -> Option<(usize, &ast::Function)> {
-		let mut id = 0;
-		for node in &self.nodes {
-			match node {
-    			ast::TopLevelNode::Function(func) => {
-					if func.path.len() == 0 && func.name == name { return Some((id, func)); }
-					id += 1;
-				},
-				_ => {}
-			}
-		}
-
-		None
-	}
-
-	fn method(&self, struct_name: &str, name: &str) -> Option<(usize, &ast::Function)> {
-		let mut id = 0;
-		for node in &self.nodes {
-			match node {
-    			ast::TopLevelNode::Function(func) => {
-					if func.is_method() && func.path[0] == struct_name && func.name == name { return Some((id, func)); }
-					id += 1;
-				},
-				_ => {}
-			}
-		}
-
-		None
-	}
-
-	pub fn to_ir(&self) -> Result<ir::TranslationUnit, IrGenError> {
-		let mut unit = ir::TranslationUnit::new();
-
+	pub fn to_extern_ir_on(&self, unit: &mut ir::TranslationUnit) -> Result<(), IrGenError> {
 		for node in &self.nodes {
 			match node {
 				ast::TopLevelNode::StructDeclaration(decl) => {
-					let ct = decl.to_ir(&unit, self)?;
+					let ct = decl.to_ir(unit, self)?;
 					unit.add_type(ct);
 				},
 				_ => {}
@@ -146,8 +115,37 @@ impl ast::TranslationUnit {
 		for node in &self.nodes {
 			match node {
     			ast::TopLevelNode::Function(func) => {
-					let func = func.to_ir_base(&unit, self)?;
+					let mut func = func.to_ir_base(unit, self)?;
+					func.set_extern();
 					unit.add_function(func);
+				},
+				_ => {}
+			}
+		}
+
+		Ok(())
+	}
+
+	pub fn to_ir_on(&self, unit: &mut ir::TranslationUnit) -> Result<(), IrGenError> {
+		for node in &self.nodes {
+			match node {
+				ast::TopLevelNode::StructDeclaration(decl) => {
+					let ct = decl.to_ir(unit, self)?;
+					unit.add_type(ct);
+				},
+				_ => {}
+			}
+		}
+
+		let mut first_index = None;
+		for node in &self.nodes {
+			match node {
+    			ast::TopLevelNode::Function(func) => {
+					let func = func.to_ir_base(unit, self)?;
+					let idx = unit.add_function(func);
+					if first_index.is_none() {
+						first_index = Some(idx);
+					}
 				},
 				_ => {}
 			}
@@ -158,7 +156,7 @@ impl ast::TranslationUnit {
 			match node {
     			ast::TopLevelNode::Function(func) => {
 					if func.code.is_some() {
-						func.append_ir(self, &mut unit, id)?;
+						func.append_ir(self, unit, id + first_index.unwrap())?;
 					}
 					id += 1;
 				},
@@ -166,7 +164,7 @@ impl ast::TranslationUnit {
 			}
 		}
 
-		Ok(unit)
+		Ok(())
 	}
 }
 
@@ -709,8 +707,8 @@ impl ast::CallExpr {
 	fn append_ir_in_expr<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
 		let (func_id, func) = match self.object.as_ref() {
 			ast::Expr::Name(name) => {
-				match ctx.unit.func(&name.name) {
-					Some(x) => x,
+				match ctx.ir_unit.find_function_index(&name.name) {
+					Some(x) => (x, ctx.ir_unit.get_function(x)),
 					_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist))
 				}
 			},
@@ -720,8 +718,8 @@ impl ast::CallExpr {
 				match v {
 					ir::ValueType::Ref(r) => match r.as_ref() {
 						ir::StorableType::Compound(c) => {
-							match ctx.unit.method(c.name(), &member_access.prop) {
-								Some(x) => x,
+							match ctx.ir_unit.find_method_index(c.clone(), &member_access.prop) {
+								Some(x) => (x, ctx.ir_unit.get_function(x)),
 								_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist)),
 							}
 						},
@@ -733,12 +731,12 @@ impl ast::CallExpr {
 			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist))
 		};
 
-		if func.return_types.len() != 1 {
+		if func.signature().returns().len() != 1 {
 			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallNotOneReturnInExpr));
 		}
 		
-		if func.is_method() {
-			if self.args.len() + 1 != func.params.len() {
+		if func.method_of().is_some() {
+			if self.args.len() + 1 != func.signature().params().len() {
 				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch));
 			}
 			
@@ -749,7 +747,7 @@ impl ast::CallExpr {
 				}
 			}
 		} else {
-			if self.args.len() != func.params.len() {
+			if self.args.len() != func.signature().params().len() {
 				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch));
 			}
 			
@@ -769,15 +767,15 @@ impl ast::CallExpr {
 	fn append_ir_out_expr<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<usize, IrGenError> {
 		let (func_id, func) = match self.object.as_ref() {
 			ast::Expr::Name(name) => {
-				match ctx.unit.func(&name.name) {
-					Some(x) => x,
+				match ctx.ir_unit.find_function_index(&name.name) {
+					Some(x) => (x, ctx.ir_unit.get_function(x)),
 					_ => todo!() // Possibly a local or global
 				}
 			},
 			_ => todo!()
 		};
 
-		if self.args.len() != func.params.len() {
+		if self.args.len() != func.signature().params().len() {
 			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch));
 		}
 

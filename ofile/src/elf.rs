@@ -603,7 +603,7 @@ impl Symbol {
             value: 0,
             size: 0,
             symbol_type: SymbolType::Section,
-            symbol_bind: SymbolBind::Global,
+            symbol_bind: SymbolBind::Local,
             visibility: SymbolVisibility::Default,
             section: section_index
         }

@@ -62,8 +62,30 @@ impl TranslationUnit {
 
     pub fn find_function_index(&self, name: &str) -> Option<FunctionIndex> {
         for (c, ct) in self.functions.iter().enumerate() {
-            if ct.name() == name {
+            if ct.method_of().is_none() && ct.name() == name {
                 return Some(c);
+            }
+        }
+
+        None
+    }
+
+    pub fn find_method_index(&self, ctr: CompoundTypeRef, name: &str) -> Option<FunctionIndex> {
+        for (c, func) in self.functions.iter().enumerate() {
+            if let Some(ct) = func.method_of() {
+                if ct == ctr && func.name() == name {
+                    return Some(c);
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn find_function(&self, name: &str) -> Option<&Function> {
+        for ct in self.functions.iter() {
+            if ct.method_of().is_none() && ct.name() == name {
+                return Some(ct);
             }
         }
 
@@ -229,6 +251,10 @@ impl Function {
 
     pub fn is_extern(&self) -> bool {
         self.code.is_none()
+    }
+
+    pub fn set_extern(&mut self) {
+        self.code = None;
     }
 
     pub fn method_of(&self) -> Option<CompoundTypeRef> {
