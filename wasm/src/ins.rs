@@ -427,9 +427,29 @@ pub struct Expr {
 	ins: Vec<Ins>
 }
 
+impl Expr {
+	pub fn new() -> Expr {
+		Expr {
+			ins: Vec::new()
+		}
+	}
+
+	pub fn with(ins: Vec<Ins>) -> Expr {
+		Expr {
+			ins
+		}
+	}	
+
+	pub fn push(&mut self, ins: Ins) {
+		self.ins.push(ins);
+	}
+}
+
 impl WasmEncodable for Expr {
 	fn wasm_encode(&self, data: &mut Vec<u8>) {
-		self.ins.wasm_encode(data);
+		for ins in &self.ins {
+			ins.wasm_encode(data);
+		}
 		data.push(0x0b);
 	}
 }

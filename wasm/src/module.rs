@@ -1,5 +1,22 @@
 use crate::{Expr, encode::WasmEncodable};
 
+#[cfg(test)]
+mod test {
+    use crate::encode::{self, WasmEncodable};
+
+	fn encode(x: impl WasmEncodable) -> Vec<u8> {
+		let mut data = Vec::new();
+		x.wasm_encode(&mut data);
+		data
+	}
+
+	#[test]
+	fn leb128() {
+		assert_eq!(encode(42u32), [0x2a]);
+		assert_eq!(encode(42i32), [0x2a]);
+	}
+}
+
 pub enum NumType {
 	I32,
 	I64,
@@ -51,6 +68,14 @@ pub type ResultType = Vec<ValType>;
 pub struct FunctionType {
 	parameters: ResultType,
 	results: ResultType,
+}
+
+impl FunctionType {
+	pub fn new(parameters: ResultType, results: ResultType) -> FunctionType {
+		FunctionType {
+			parameters, results
+		}
+	}
 }
 
 impl WasmEncodable for FunctionType {
@@ -288,13 +313,21 @@ pub struct Code {
 	expr: Expr
 }
 
+impl Code {
+	pub fn new(locals: Vec<ValType>, expr: Expr) -> Code {
+		Code {
+			locals, expr
+		}
+	}
+}
+
 impl WasmEncodable for Code {
 	fn wasm_encode(&self, data: &mut Vec<u8>) {
 		let mut tmp = Vec::new();
 
-		self.locals.len().wasm_encode(data);
+		self.locals.len().wasm_encode(&mut tmp);
 		for local in &self.locals {
-			(1u32).wasm_encode(data);
+			(1u32).wasm_encode(&mut tmp);
 			local.wasm_encode(&mut tmp);
 		}
 
@@ -347,6 +380,63 @@ pub struct Module {
 }
 
 impl Module {
+	pub fn new() -> Module {
+		Module {
+			types: Vec::new(),
+			imports: Vec::new(),
+			functions: Vec::new(),
+			tables: Vec::new(),
+			memories: Vec::new(),
+			globals: Vec::new(),
+			exports: Vec::new(),
+			start: None,
+			elems: Vec::new(),
+			code: Vec::new(),
+			data: Vec::new()
+		}
+	}
+
+	pub fn add_type(&mut self, wtype: FunctionType) -> TypeIdx {
+		self.types.push(wtype);
+		self.types.len() - 1
+	}
+
+	pub fn add_import(&mut self, import: Import) {
+		self.imports.push(import);
+	}
+
+	pub fn add_function(&mut self, function: TypeIdx) {
+		self.functions.push(function);
+	}
+
+	pub fn add_table(&mut self, table: TableType) {
+		self.tables.push(table);
+	}
+
+	pub fn add_memory(&mut self, memory: MemType) {
+		self.memories.push(memory);
+	}
+
+	pub fn add_global(&mut self, global: Global) {
+		self.globals.push(global);
+	}
+
+	pub fn add_export(&mut self, export: Export) {
+		self.exports.push(export);
+	}
+
+	pub fn add_elem(&mut self, elem: Elem) {
+		self.elems.push(elem);
+	}
+
+	pub fn add_code(&mut self, code: Code) {
+		self.code.push(code);
+	}
+
+	pub fn add_data(&mut self, data: Data) {
+		self.data.push(data);
+	}
+
 	fn encode_section(id: u8, sec: &impl WasmEncodable, data: &mut Vec<u8>) {
 		data.push(id);
 		
