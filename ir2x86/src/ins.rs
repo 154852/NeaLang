@@ -38,107 +38,92 @@ impl TranslationContext {
         }
     }
 
+    fn addr_in_path(&self, path: &ir::ValuePath, ir_ins: &ir::Ins, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
+        match path.origin() {
+            ir::ValuePathOrigin::Local(local, _local_type) => {
+                ins.push(x86::Ins::LeaRegMem(
+                    ftc.stack().push_ptr(),
+                    ftc.local_mem(*local)
+                ));
+            },
+            ir::ValuePathOrigin::Global(global, _global_type) => {
+                ins.push(x86::Ins::LeaRegGlobalSymbol(
+                    ftc.stack().push_ptr(),
+                    ftc.symbol_id_for_global(*global)
+                ));
+            },
+            ir::ValuePathOrigin::Deref(_deref_type) => {
+                // Do nothing, the value on the stack is an address, as required
+            },
+        };
+
+        for component in path.components() {
+            match component {
+                ir::ValuePathComponent::Slice(slice_type) => {
+                    let slice = ftc.stack().pop_ptr();
+                    let index = ftc.stack().pop_vt(&ir::ValueType::UPtr);
+                        
+                    ins.push(x86::Ins::MovRegMem(
+                        slice,
+                        x86::Mem::new().base(slice.class()),
+                    ));
+    
+                    let addr = ftc.stack().push_ptr();
+    
+                    ins.push(x86::Ins::LeaRegMem(
+                        addr,
+                        x86::Mem::new().base(slice.class()).index(index.class()).scale(match crate::registerify::size_for_st(slice_type, self.mode) {
+                            1 => 0,
+                            2 => 1,
+                            4 => 2,
+                            8 => 3,
+                            _ => todo!()
+                        }),
+                    ));
+                },
+                ir::ValuePathComponent::Property(idx, compound_type, _prop_type) => {
+                    ins.push(x86::Ins::LeaRegMem(
+                        ftc.stack().peek_ptr(),
+                        x86::Mem::new().base(ftc.stack().peek()).disp(
+                            crate::registerify::offset_of_prop(compound_type, *idx, ftc.mode()) as i64,
+                        ),
+                    ));
+                },
+                ir::ValuePathComponent::Length => {
+                    ins.push(x86::Ins::LeaRegMem(
+                        ftc.stack().peek_ptr(),
+                        x86::Mem::new().base(ftc.stack().peek()).disp(
+                            self.mode.ptr_size() as i64
+                        ),
+                    ));
+                },
+            }
+        }
+    }
+
     pub(crate) fn translate_instruction_to(&self, ir_ins: &ir::Ins, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
         match ir_ins {
-            ir::Ins::PushLocalValue(vt, idx) => {
-                ins.push(x86::Ins::MovRegMem(
-                    ftc.stack().push_vt(vt),
-                    ftc.local_mem(*idx)
-                ));
-            },
-            ir::Ins::PushLocalRef(st, idx) => {
-                ins.push(x86::Ins::LeaRegMem(
-                    ftc.stack().push_vt(&ir::ValueType::Ref(Box::new(st.clone()))),
-                    ftc.local_mem(*idx)
-                ));
-            },
-            ir::Ins::PopLocalValue(vt, idx) => {
-                ins.push(x86::Ins::MovMemReg(
-                    ftc.local_mem(*idx),
-                    ftc.stack().pop_vt(vt),
-                ));
-            },
-            ir::Ins::PopRef(vt) => {
-                let val = ftc.stack().pop_vt(vt);
-                let addr = ftc.stack().pop_vt(&ir::ValueType::Ref(Box::new(ir::StorableType::Value(vt.clone()))));
-                ins.push(x86::Ins::MovMemReg(
-                    x86::Mem::new().base(addr.class()),
-                    val,
-                ));
-            },
-            ir::Ins::PushProperty(ct, vt, idx) => {
+            ir::Ins::Push(source, vt) => {
+                // Push addr
+                self.addr_in_path(source, ir_ins, ftc, ins);
+
+                // Deref
                 ins.push(x86::Ins::MovRegMem(
                     ftc.stack().peek_vt(vt),
-                    x86::Mem::new().base(ftc.stack().peek()).disp(
-                        crate::registerify::offset_of_prop(ct, *idx, ftc.mode()) as i64,
-                    ),
+                    x86::Mem::new().base(ftc.stack().peek())
                 ));
             },
-            ir::Ins::PushPropertyRef(ct, st, idx) => {
-                ins.push(x86::Ins::LeaRegMem(
-                    ftc.stack().peek_vt(&ir::ValueType::Ref(Box::new(st.clone()))),
-                    x86::Mem::new().base(ftc.stack().peek()).disp(
-                        crate::registerify::offset_of_prop(ct, *idx, ftc.mode()) as i64,
-                    ),
-                ));
-            },
-            // Slices are a packed struct, the ptr to the first element of the slice, followed by the length.
-            ir::Ins::PushSliceLen(_) => {
-                ins.push(x86::Ins::MovRegMem(
-                    ftc.stack().peek_vt(&ir::ValueType::UPtr),
-                    x86::Mem::new().base(ftc.stack().peek()).disp(
-                        self.mode.ptr_size() as i64
-                    ),
-                ));
-            },
-            ir::Ins::PushSliceElement(st) => {
-                let index = ftc.stack().pop_vt(&ir::ValueType::UPtr);
-                let slice = ftc.stack().pop_vt(&ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(st.clone())))));
+            ir::Ins::Pop(source, vt) => {
+                // Push addr
+                self.addr_in_path(source, ir_ins, ftc, ins);
 
-                let data = ftc.stack().push().uptr(&self.mode);
-                
-                ins.push(x86::Ins::MovRegMem(
-                    slice,
-                    x86::Mem::new().base(slice.class()),
-                ));
+                let addr = ftc.stack().pop_ptr();
+                let val = ftc.stack().pop_vt(vt);
 
-                ins.push(x86::Ins::MovRegMem(
-                    data,
-                    x86::Mem::new().base(slice.class()).index(index.class()).scale(match crate::registerify::size_for_st(st, self.mode) {
-                        1 => 0,
-                        2 => 1,
-                        4 => 2,
-                        8 => 3,
-                        _ => todo!()
-                    }),
-                ));
-            },
-            ir::Ins::PushSliceElementRef(st) => {
-                let index = ftc.stack().pop_vt(&ir::ValueType::UPtr);
-                let slice = ftc.stack().pop_vt(&ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(st.clone())))));
-
-                let data = ftc.stack().push().uptr(&self.mode);
-                
-                ins.push(x86::Ins::MovRegMem(
-                    slice,
-                    x86::Mem::new().base(slice.class()),
-                ));
-
-                ins.push(x86::Ins::LeaRegMem(
-                    data,
-                    x86::Mem::new().base(slice.class()).index(index.class()).scale(match crate::registerify::size_for_st(st, self.mode) {
-                        1 => 0,
-                        2 => 1,
-                        4 => 2,
-                        8 => 3,
-                        _ => todo!()
-                    }),
-                ));
-            },
-            ir::Ins::PushGlobalRef(st, idx) => {
-                ins.push(x86::Ins::LeaRegGlobalSymbol(
-                    ftc.stack().push_vt(&ir::ValueType::Ref(Box::new(st.clone()))),
-                    ftc.symbol_id_for_global(*idx)
+                // Write
+                ins.push(x86::Ins::MovMemReg(
+                    x86::Mem::new().base(addr.class()),
+                    val
                 ));
             },
             ir::Ins::New(st) => {

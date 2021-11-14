@@ -8,10 +8,10 @@ fn main() {
     
 	let local = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32)));
     
-	func.push(ir::Ins::PushLocalRef(ir::StorableType::Value(ir::ValueType::I32), local));
-	func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 0));
-	func.push(ir::Ins::PopRef(ir::ValueType::I32));
-	func.push(ir::Ins::Ret);
+	// func.push(ir::Ins::PushLocalRef(ir::StorableType::Value(ir::ValueType::I32), local));
+	// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 0));
+	// func.push(ir::Ins::PopRef(ir::ValueType::I32));
+	// func.push(ir::Ins::Ret);
 
     let func_id = unit.add_function(func);
 

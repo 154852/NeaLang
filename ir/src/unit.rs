@@ -39,8 +39,8 @@ impl TranslationUnit {
         &self.globals
     }
 
-    pub fn get_global(&self, idx: GlobalIndex) -> &Global {
-        &self.globals[idx]
+    pub fn get_global(&self, idx: GlobalIndex) -> Option<&Global> {
+        self.globals.get(idx)
     }
 
     pub fn add_function(&mut self, function: Function) -> FunctionIndex {
@@ -284,6 +284,10 @@ impl Function {
 
     pub fn code(&self) -> &Vec<Ins> {
         self.code.as_ref().expect("Attempt to get code from extern function")
+    }
+
+    pub fn code_opt(&self) -> Option<&Vec<Ins>> {
+        self.code.as_ref()
     }
 
     pub fn code_mut(&mut self) -> &mut Vec<Ins> {

@@ -176,6 +176,18 @@ impl StackToReg {
 		reg_for_vt(vt, self.mode, self.push())
 	}
 
+	pub fn push_ptr(&mut self) -> x86::Reg {
+		self.push().uptr(&self.mode)
+	}
+
+	pub fn pop_ptr(&mut self) -> x86::Reg {
+		self.pop().uptr(&self.mode)
+	}
+
+	pub fn peek_ptr(&self) -> x86::Reg {
+		self.peek().uptr(&self.mode)
+	}
+
 	pub fn peek_vt(&self, vt: &ir::ValueType) -> x86::Reg {
 		reg_for_vt(vt, self.mode, self.peek())
 	}

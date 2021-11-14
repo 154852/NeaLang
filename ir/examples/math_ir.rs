@@ -7,9 +7,9 @@ fn main() {
     
     // Save param to local
     let l1 = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32)));
-    func.push(ir::Ins::PopLocalValue(ir::ValueType::I32, l1));
+    func.push(ir::Ins::Pop(ir::ObjectSource::Local(l1), ir::ValueType::I32));
 
-    func.push(ir::Ins::PushLocalValue(ir::ValueType::I32, l1));
+    func.push(ir::Ins::Push(ir::ObjectSource::Local(l1), ir::ValueType::I32));
     func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
     func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
     func.push(ir::Ins::Add(ir::ValueType::I32));

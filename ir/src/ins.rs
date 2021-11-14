@@ -1,124 +1,60 @@
 use crate::{CompoundTypeRef, PropertyIndex, StorableType, unit::*};
 
 #[derive(Debug)]
+pub enum ValuePathOrigin {
+    Local(LocalIndex, StorableType),
+    Global(GlobalIndex, StorableType),
+    Deref(StorableType)
+}
+
+#[derive(Debug)]
+pub enum ValuePathComponent {
+    Slice(StorableType),
+    Property(PropertyIndex, CompoundTypeRef, StorableType),
+    Length
+}
+
+#[derive(Debug)]
+pub struct ValuePath {
+    origin: ValuePathOrigin,
+    components: Vec<ValuePathComponent>
+}
+
+impl ValuePath {
+    pub fn new(origin: ValuePathOrigin, components: Vec<ValuePathComponent>) -> ValuePath {
+        ValuePath {
+            origin, components
+        }
+    }
+
+    pub fn new_origin_only(origin: ValuePathOrigin) -> ValuePath {
+        ValuePath {
+            origin,
+            components: Vec::new()
+        }
+    }
+
+    pub fn origin(&self) -> &ValuePathOrigin {
+        &self.origin
+    }
+
+    pub fn component_count(&self) -> usize {
+        self.components.len()
+    }
+
+    pub fn component(&self, idx: usize) -> Option<&ValuePathComponent> {
+        self.components.get(idx)
+    }
+
+    pub fn components(&self) -> &Vec<ValuePathComponent> {
+        &self.components
+    }
+}
+
+#[derive(Debug)]
 pub enum Ins {
-    /// Pushes the local at the given index to the stack. The local must match be a value, and must match in value type to the ValueType given
-    /// # Examples
-    /// ```
-    /// use ir;
-    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ir::ValueType::I32 ], vec![ ir::ValueType::I32 ]));
-    /// 
-    /// // Save param to local
-    /// let l1 = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32))); // Allocate local of type i32
-    /// func.push(ir::Ins::PopLocalValue(ir::ValueType::I32, l1)); // Save the given param to the local
-    /// 
-    /// func.push(ir::Ins::PushLocalValue(ir::ValueType::I32, l1)); // Push the local back onto the stack
-    /// func.push(ir::Ins::Ret);
-    /// ```
-    PushLocalValue(ValueType, LocalIndex),
-
-    /// Pushes a reference the local at the given index to the stack. The local must have the given storable type.
-    /// Note: Returning a local ref can cause severe problems in some architectures
-    /// # Examples
-    /// ```
-    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ], vec![ ]));
-    /// 
-    /// // Save param to local
-    /// let l1 = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32))); // Allocate local of type i32
-    /// func.push(ir::Ins::PopLocalValue(ir::ValueType::I32, l1)); // Save the given param to the local
-    /// 
-    /// func.push(ir::Ins::PushLocalRef(ir::StorableType::Value(ir::ValueType::I32), l1));
-    /// func.push(ir::Ins::Drop);
-    ///
-    /// func.push(ir::Ins::Ret);
-    /// ```
-    PushLocalRef(StorableType, LocalIndex),
-    
-    /// Pops the last value on the stack to the local at the given index. The local must be a value, and the local and popped item must match in value type to the ValueType given
-    /// # Examples
-    /// ```
-    /// use ir;
-    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ir::ValueType::I32 ], vec![ ir::ValueType::I32 ]));
-    /// 
-    /// // Save param to local
-    /// let l1 = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32))); // Allocate local of type i32
-    /// func.push(ir::Ins::PopLocalValue(ir::ValueType::I32, l1)); // Save the given param to the local
-    /// 
-    /// func.push(ir::Ins::PushLocalValue(ir::ValueType::I32, l1)); // Push the local back onto the stack
-    /// func.push(ir::Ins::Ret);
-    /// ```
-    PopLocalValue(ValueType, LocalIndex),
-
-    /// Pops the value followd by the ref from the stack, and writes the value to the ref. The ref must be a value of the given ValueType, which must be the valuetype of the popped value.
-    /// # Examples
-    /// ```
-    /// use ir;
-    /// let mut func = ir::Function::new("do_nothing", ir::Signature::new(vec![ ir::ValueType::I32 ], vec![ ]));
-    /// 
-    /// // Save param to local
-    /// let l1 = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32))); // Allocate local of type i32
-    /// func.push(ir::Ins::PopLocalValue(ir::ValueType::I32, l1)); // Save the given param to the local
-    /// 
-    /// func.push(ir::Ins::PushLocalRef(ir::StorableType::Value(ir::ValueType::I32), l1)); // Push a reference to the local onto the stack
-    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 10));
-    /// func.push(ir::Ins::PopRef(ir::ValueType::I32));
-    /// func.push(ir::Ins::Ret);
-    /// ```
-    PopRef(ValueType),
-
-    /// Pop the compound type ref of the given type from the stack, and push the value of the field at the given index in that struct. The field must have the given valuetype.
-    /// # Examples
-    /// ```
-    /// use ir;
-    /// let mut example_struct = ir::StructContent::new();
-    /// example_struct.push_prop(ir::StructProperty::new("first_field", ir::StorableType::Value(ir::ValueType::I32)));
-    /// example_struct.push_prop(ir::StructProperty::new("second_field", ir::StorableType::Value(ir::ValueType::I32)));
-    /// 
-    /// let example_struct = ir::CompoundType::new("example_struct", ir::TypeContent::Struct(example_struct));
-    /// 
-    /// let mut func = ir::Function::new("structs", ir::Signature::new(vec![ ], vec![ ir::ValueType::I32 ]));
-    /// 
-	/// let local = func.push_local(ir::Local::new(ir::StorableType::Compound(example_struct.clone())));
-    /// 
-	/// func.push(ir::Ins::PushLocalRef(ir::StorableType::Compound(example_struct.clone()), local));
-    /// func.push(ir::Ins::PushProperty(example_struct.clone(), ir::ValueType::I32, 1)); // Second field
-	/// func.push(ir::Ins::Ret);
-    /// ```
-    PushProperty(CompoundTypeRef, ValueType, PropertyIndex),
-
-    /// Pop the compound type ref of the given type from the stack, and push a reference to the value of the field at the given index in that struct. The field must have the given storabletype.
-    /// # Examples
-    /// ```
-    /// use ir;
-    /// let mut example_struct = ir::StructContent::new();
-    /// example_struct.push_prop(ir::StructProperty::new("first_field", ir::StorableType::Value(ir::ValueType::I32)));
-    /// example_struct.push_prop(ir::StructProperty::new("second_field", ir::StorableType::Value(ir::ValueType::I32)));
-    /// 
-    /// let example_struct = ir::CompoundType::new("example_struct", ir::TypeContent::Struct(example_struct));
-    /// 
-    /// let mut func = ir::Function::new("structs", ir::Signature::new(vec![ ], vec![ ]));
-    /// 
-	/// let local = func.push_local(ir::Local::new(ir::StorableType::Compound(example_struct.clone())));
-    /// 
-	/// func.push(ir::Ins::PushLocalRef(ir::StorableType::Compound(example_struct.clone()), local));
-    /// func.push(ir::Ins::PushPropertyRef(example_struct.clone(), ir::StorableType::Value(ir::ValueType::I32), 0)); // First field
-    /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
-    /// func.push(ir::Ins::PopRef(ir::ValueType::I32));
-	/// func.push(ir::Ins::Ret);
-    /// ```
-    PushPropertyRef(CompoundTypeRef, StorableType, PropertyIndex),
-
-    /// Pop a reference to a slice from the stack, and push it's length as a usize. The slice must be of the given storable type.
-    PushSliceLen(StorableType),
-
-    /// Pop a uptr index from the stack, pop a reference to a slice from the stack, and push the element in the slice at that index. The slice must be of the given type, and the pushed value will have that type. The slice type must be a value.
-    PushSliceElement(StorableType),
-
-    /// Pop a uptr index from the stack, pop a reference to a slice from the stack, and push a reference to the element in the slice at that index. The slice must be of the given type, and the pushed value will have that type.
-    PushSliceElementRef(StorableType),
-
-    /// Push a reference to the global at the given index, which must have the given storable type
-    PushGlobalRef(StorableType, GlobalIndex),
+    Push(ValuePath, ValueType),
+    Pop(ValuePath, ValueType),
 
     /// Allocates a value of the given type, and pushes a reference to it
     New(StorableType),

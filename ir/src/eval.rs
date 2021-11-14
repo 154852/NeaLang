@@ -181,47 +181,49 @@ enum EvalResultAction {
 impl Ins {
     fn evaluate(&self, stack: &mut Stack, function: &Function, ctx: &mut FunctionContext, unit: &TranslationUnit) -> Result<EvalResultAction, EvalError> {
         match &self {
-            Ins::PushLocalValue(vt, idx) => {
-                stack.push(StackElement::new_num(ctx.get_local_value(*idx, vt), vt.clone()));
-                Ok(EvalResultAction::Next)
-            },
-            Ins::PushLocalRef(st, idx) => {
-                stack.push(StackElement::new(StackValue::LocalRef(*idx), ValueType::Ref(Box::new(st.clone()))));
-                Ok(EvalResultAction::Next)
-            },
-            Ins::PopLocalValue(vt, idx) => {
-                *ctx.get_local_value_mut(*idx, vt) = stack.pop(vt).get_num();
-                Ok(EvalResultAction::Next)
-            },
-            Ins::PopRef(vt) => {
-                let val = stack.pop(vt);
-                let dest = stack.pop(&ValueType::Ref(Box::new(StorableType::Value(vt.clone()))));
+            // Ins::PushLocalValue(vt, idx) => {
+            //     stack.push(StackElement::new_num(ctx.get_local_value(*idx, vt), vt.clone()));
+            //     Ok(EvalResultAction::Next)
+            // },
+            // Ins::PushLocalRef(st, idx) => {
+            //     stack.push(StackElement::new(StackValue::LocalRef(*idx), ValueType::Ref(Box::new(st.clone()))));
+            //     Ok(EvalResultAction::Next)
+            // },
+            // Ins::PopLocalValue(vt, idx) => {
+            //     *ctx.get_local_value_mut(*idx, vt) = stack.pop(vt).get_num();
+            //     Ok(EvalResultAction::Next)
+            // },
+            // Ins::PopRef(vt) => {
+            //     let val = stack.pop(vt);
+            //     let dest = stack.pop(&ValueType::Ref(Box::new(StorableType::Value(vt.clone()))));
 
-                match dest.value {
-                    StackValue::Num(_) => panic!("Cannot PopRef to non-ref"),
-                    StackValue::LocalRef(idx) => {
-                        match vt {
-                            ValueType::Ref(st) => {
-                                ctx.get_local_mut(idx, st).value = LocalElementValue::LocalRef(match val.value {
-                                    StackValue::LocalRef(i) => i,
-                                    _ => unreachable!()
-                                });
-                            },
-                            _ => {
-                                *ctx.get_local_value_mut(idx, vt) = val.get_num();
-                            }
-                        }
-                    },
-                }
+            //     match dest.value {
+            //         StackValue::Num(_) => panic!("Cannot PopRef to non-ref"),
+            //         StackValue::LocalRef(idx) => {
+            //             match vt {
+            //                 ValueType::Ref(st) => {
+            //                     ctx.get_local_mut(idx, st).value = LocalElementValue::LocalRef(match val.value {
+            //                         StackValue::LocalRef(i) => i,
+            //                         _ => unreachable!()
+            //                     });
+            //                 },
+            //                 _ => {
+            //                     *ctx.get_local_value_mut(idx, vt) = val.get_num();
+            //                 }
+            //             }
+            //         },
+            //     }
 
-                Ok(EvalResultAction::Next)
-            },
-            Ins::PushProperty(_, _, _) => todo!(),
-            Ins::PushPropertyRef(_, _, _) => todo!(),
-            Ins::PushSliceLen(_) => todo!(),
-            Ins::PushSliceElement(_) => todo!(),
-            Ins::PushSliceElementRef(_) => todo!(),
-            Ins::PushGlobalRef(_, _) => todo!(),
+            //     Ok(EvalResultAction::Next)
+            // },
+            // Ins::PushProperty(_, _, _) => todo!(),
+            // Ins::PushPropertyRef(_, _, _) => todo!(),
+            // Ins::PushSliceLen(_) => todo!(),
+            Ins::Push(_, _) => todo!(),
+            Ins::Pop(_, _) => todo!(),
+            // Ins::PushSliceElement(_) => todo!(),
+            // Ins::PushSliceElementRef(_) => todo!(),
+            // Ins::PushGlobalRef(_, _) => todo!(),
             Ins::New(_) => todo!(),
             Ins::NewSlice(_) => todo!(),
             Ins::Convert(from, to) => {

@@ -1,4 +1,4 @@
-use crate::{Function, Ins, Signature, StorableType, TranslationUnit, TypeContent, ValueType};
+use crate::{Function, Ins, Signature, StorableType, TranslationUnit, TypeContent, ValuePath, ValuePathComponent, ValuePathOrigin, ValueType};
 
 struct TypeStack {
     types: Vec<ValueType>
@@ -93,119 +93,113 @@ pub enum ValidationError {
     StackDepthNotZero,
     StackDepthNotOne,
     StackNotValue,
+    PathIncorrectType,
+    PathNotValue,
     LocalDoesNotExist,
     LocalIncorrectType,
     GlobalIncorrectType,
-    FieldIncorrectType,
+    PropertyIncorrectType,
+    PropertyDoesNotExist,
     GlobalDoesNotExist,
     FunctionDoesNotExist,
     NotBreakable,
     NotContinuable,
-    NoFinalReturn
+    NoFinalReturn,
+    NotARef,
+    LengthWrite
 }
 
 impl Ins {
+    fn resolve_path(&self, path: &ValuePath, stack: &mut TypeStack, function: &Function, unit: &TranslationUnit, write: bool) -> Result<ValueType, ValidationError> {
+        let mut st = match path.origin() {
+            ValuePathOrigin::Local(idx, local_type) => match function.get_local(*idx) {
+                None => return Err(ValidationError::LocalDoesNotExist),
+                Some(x) => if x.local_type() != local_type {
+                    return Err(ValidationError::LocalIncorrectType)
+                } else {
+                    local_type.clone()
+                },
+            },
+            ValuePathOrigin::Global(idx, global_type) => match unit.get_global(*idx) {
+                None => return Err(ValidationError::GlobalDoesNotExist),
+                Some(x) => if x.global_type() != global_type {
+                    return Err(ValidationError::GlobalIncorrectType)
+                } else {
+                    global_type.clone()
+                },
+            },
+            ValuePathOrigin::Deref(deref_type) => match stack.pop_any()? {
+                ValueType::Ref(st) => if st.as_ref() != deref_type {
+                    return Err(ValidationError::StackIncorrectType)
+                } else {
+                    deref_type.clone()
+                },
+                _ => return Err(ValidationError::NotARef)
+            },
+        };
+
+        for component in path.components() {
+            st = match component {
+                ValuePathComponent::Slice(slice_type) => match st {
+                    StorableType::Slice(st) => {
+                        if st.as_ref() != slice_type { return Err(ValidationError::PathIncorrectType) }
+                        stack.pop(&ValueType::UPtr)?;
+                        slice_type.clone()
+                    },
+                    _ => return Err(ValidationError::PathIncorrectType)
+                },
+                ValuePathComponent::Property(idx, compound_type, prop_type) => match st {
+                    StorableType::Compound(ct) => if &ct != compound_type {
+                        return Err(ValidationError::PathIncorrectType)
+                    } else {
+                        match ct.content() {
+                            TypeContent::Struct(struc) => match struc.prop(*idx) {
+                                Some(x) => if x.prop_type() != prop_type {
+                                    return Err(ValidationError::PropertyIncorrectType)
+                                } else {
+                                    prop_type.clone()
+                                },
+                                None => return Err(ValidationError::PropertyDoesNotExist)
+                            },
+                        }
+                    },
+                    _ => return Err(ValidationError::PathIncorrectType)
+                },
+                ValuePathComponent::Length => if write { return Err(ValidationError::LengthWrite) } else {
+                    match st {
+                        StorableType::Slice(_) => StorableType::Value(ValueType::UPtr),
+                        _ => return Err(ValidationError::PathIncorrectType)
+                    }
+                }
+            }
+        }
+
+        match st {
+            StorableType::Value(v) => Ok(v),
+            _ => return Err(ValidationError::PathNotValue)
+        }
+    }
+    
     fn validate(&self, stack: &mut TypeStack, blocks: &mut BlockStack, function: &Function, unit: &TranslationUnit) -> Result<(), ValidationError> {
         match &self {
-            Ins::PushLocalValue(vt, idx) => {
-                if let Some(local) = function.locals().get(*idx) {
-                    if !local.local_type().is_value(vt) {
-                        Err(ValidationError::LocalIncorrectType)
-                    } else {
-                        Ok(stack.push(vt.clone()))
-                    }
-                } else {
-                    Err(ValidationError::LocalDoesNotExist)
+            Ins::Push(path, expected_vt) => {
+                let vt = self.resolve_path(path, stack, function, unit, false)?;
+
+                if &vt != expected_vt {
+                    return Err(ValidationError::PathIncorrectType)
                 }
-            },
-            Ins::PushLocalRef(st, idx) => {
-                if let Some(local) = function.locals().get(*idx) {
-                    if local.local_type() != st {
-                        Err(ValidationError::LocalIncorrectType)
-                    } else {
-                        Ok(stack.push(ValueType::Ref(Box::new(st.clone()))))
-                    }
-                } else {
-                    Err(ValidationError::LocalDoesNotExist)
-                }
-            },
-            Ins::PopLocalValue(vt, idx) => {
-                if let Some(local) = function.locals().get(*idx) {
-                    if !local.local_type().is_value(vt) {
-                        Err(ValidationError::LocalIncorrectType)
-                    } else {
-                        stack.pop(vt)
-                    }
-                } else {
-                    Err(ValidationError::LocalDoesNotExist)
-                }
-            },
-            Ins::PopRef(vt) => {
-                stack.pop(vt)?;
-                stack.pop(&ValueType::Ref(Box::new(StorableType::Value(vt.clone()))))?;
+
+                stack.push(vt);
                 Ok(())
             },
-            Ins::PushProperty(ct, vt, idx) => {
-                stack.pop(&ValueType::Ref(Box::new(StorableType::Compound(ct.clone()))))?;
-                stack.push(vt.clone());
-                
-                match ct.as_ref().content() {
-                    TypeContent::Struct(s) => {
-                        if !matches!(s.prop(*idx), Some(p) if p.prop_type().is_value(vt)) {
-                            Err(ValidationError::FieldIncorrectType)
-                        } else {
-                            Ok(())
-                        }
-                    },
-                }
-            },
-            Ins::PushPropertyRef(ct, st, idx) => {
-                stack.pop(&ValueType::Ref(Box::new(StorableType::Compound(ct.clone()))))?;
-                stack.push(ValueType::Ref(Box::new(st.clone())));
-                
-                match ct.as_ref().content() {
-                    TypeContent::Struct(s) => {
-                        if !matches!(s.prop(*idx), Some(p) if p.prop_type() == st) {
-                            Err(ValidationError::FieldIncorrectType)
-                        } else {
-                            Ok(())
-                        }
-                    },
-                }
-            },
-            Ins::PushSliceLen(st) => {
-                stack.pop(&ValueType::Ref(Box::new(StorableType::Slice(Box::new(st.clone())))))?;
-                stack.push(ValueType::UPtr);
+            Ins::Pop(path, expected_vt) => {
+                let vt = self.resolve_path(path, stack, function, unit, true)?;
 
-                Ok(())
-            },
-            Ins::PushSliceElement(st) => {
-                stack.pop(&ValueType::UPtr)?;
-                stack.pop(&ValueType::Ref(Box::new(StorableType::Slice(Box::new(st.clone())))))?;
-                stack.push(match st {
-                    StorableType::Value(v) => v.clone(),
-                    _ => return Err(ValidationError::StackNotValue),
-                });
-
-                Ok(())
-            },
-            Ins::PushSliceElementRef(st) => {
-                stack.pop(&ValueType::UPtr)?;
-                stack.pop(&ValueType::Ref(Box::new(StorableType::Slice(Box::new(st.clone())))))?;
-                stack.push(ValueType::Ref(Box::new(st.clone())));
-
-                Ok(())
-            },
-            Ins::PushGlobalRef(st, idx) => {
-                if *idx >= unit.globals().len() {
-                    return Err(ValidationError::GlobalDoesNotExist);
+                if &vt != expected_vt {
+                    return Err(ValidationError::PathIncorrectType)
                 }
 
-                if unit.get_global(*idx).global_type() != st {
-                    return Err(ValidationError::GlobalIncorrectType);
-                }
-
-                stack.push(ValueType::Ref(Box::new(st.clone())));
+                stack.pop(&expected_vt)?;
 
                 Ok(())
             },
