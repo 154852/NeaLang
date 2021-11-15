@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use x86::GlobalSymbolID;
 
-use crate::{registerify::StackToReg};
+use crate::{registerify::{SYS_V_ABI, StackToReg, reg_for_vt}};
 
 pub(crate) enum LocalSymbol {
     If,
@@ -152,16 +152,24 @@ impl TranslationContext {
 
         let mut ftc = FunctionTranslationContext::new(self.mode, func, unit);
 
-        if func.signature().params().len() == 0 {
-            ftc.stack().set_no_params();
-        } else {
-            ftc.stack().push_many(func.signature().params().len());
-        }
+        ftc.stack().set_no_params();
+        // if func.signature().params().len() == 0 {
+        // } else {
+        //     ftc.stack().push_many(func.signature().params().len());
+        // }
 
         if func.locals().len() > 0 {
             x86_ins.push(x86::Ins::PushReg(self.mode.base_ptr()));
             x86_ins.push(x86::Ins::MovRegReg(self.mode.base_ptr(), self.mode.stack_ptr()));
             x86_ins.push(x86::Ins::SubRegImm(self.mode.stack_ptr(), ftc.local_addr(func.locals().len() - 1)));
+
+            // Put params into locals
+            for (p, param) in func.signature().params().iter().enumerate() {
+                x86_ins.push(x86::Ins::MovMemReg(
+                    ftc.local_mem(p),
+                    reg_for_vt(param, self.mode, SYS_V_ABI[p])
+                ));
+            }
         }
 
         for ins in func.code() {

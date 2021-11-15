@@ -38,7 +38,7 @@ impl TranslationContext {
         }
     }
 
-    fn addr_in_path(&self, path: &ir::ValuePath, ir_ins: &ir::Ins, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
+    fn addr_in_path(&self, path: &ir::ValuePath, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
         match path.origin() {
             ir::ValuePathOrigin::Local(local, _local_type) => {
                 ins.push(x86::Ins::LeaRegMem(
@@ -53,7 +53,6 @@ impl TranslationContext {
                 ));
             },
             ir::ValuePathOrigin::Deref(_deref_type) => {
-                // Do nothing, the value on the stack is an address, as required
             },
         };
 
@@ -61,7 +60,7 @@ impl TranslationContext {
             match component {
                 ir::ValuePathComponent::Slice(slice_type) => {
                     let slice = ftc.stack().pop_ptr();
-                    let index = ftc.stack().pop_vt(&ir::ValueType::UPtr);
+                    let index = ftc.stack().pop_ptr();
                         
                     ins.push(x86::Ins::MovRegMem(
                         slice,
@@ -103,32 +102,30 @@ impl TranslationContext {
 
     pub(crate) fn translate_instruction_to(&self, ir_ins: &ir::Ins, ftc: &mut FunctionTranslationContext, ins: &mut Vec<x86::Ins>) {
         match ir_ins {
-            ir::Ins::Push(source, vt) => {
-                // Push addr
-                self.addr_in_path(source, ir_ins, ftc, ins);
+            ir::Ins::PushPath(path, _vt) => {
+                self.addr_in_path(path, ftc, ins); // Push the Path onto the stack
+            },
+            ir::Ins::Push(vt) => {
+                let addr = ftc.stack().pop();
 
                 // Deref
                 ins.push(x86::Ins::MovRegMem(
-                    ftc.stack().peek_vt(vt),
-                    x86::Mem::new().base(ftc.stack().peek())
+                    ftc.stack().push_vt(vt),
+                    x86::Mem::new().base(addr)
                 ));
             },
-            ir::Ins::Pop(source, vt) => {
-                // Push addr
-                self.addr_in_path(source, ir_ins, ftc, ins);
-
-                let addr = ftc.stack().pop_ptr();
+            ir::Ins::Pop(vt) => {
                 let val = ftc.stack().pop_vt(vt);
+                let addr = ftc.stack().pop();
+                // TODO: Forbid writing to the length of a slice
 
                 // Write
                 ins.push(x86::Ins::MovMemReg(
-                    x86::Mem::new().base(addr.class()),
+                    x86::Mem::new().base(addr),
                     val
                 ));
             },
             ir::Ins::New(st) => {
-                // TODO: This technically is POSIX not x86
-                
                 ins.push(x86::Ins::MovRegImm(
                     ftc.stack().push_vt(&ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(st.clone()))))),
                     crate::registerify::size_for_st(st, self.mode) as u64

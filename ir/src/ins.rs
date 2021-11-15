@@ -53,8 +53,12 @@ impl ValuePath {
 
 #[derive(Debug)]
 pub enum Ins {
-    Push(ValuePath, ValueType),
-    Pop(ValuePath, ValueType),
+    // Push the given path to the path stack, popping from the stack as needed to get references / indices etc
+    PushPath(ValuePath, ValueType),
+    // Pop a path from the path stack and push the value it points to
+    Push(ValueType),
+    // Pop a path from the path stack, and pop the value it should point to
+    Pop(ValueType),
 
     /// Allocates a value of the given type, and pushes a reference to it
     New(StorableType),

@@ -1,13 +1,13 @@
-use crate::{Function, Ins, Signature, StorableType, TranslationUnit, TypeContent, ValuePath, ValuePathComponent, ValuePathOrigin, ValueType};
+use crate::{Function, Ins, StorableType, TranslationUnit, TypeContent, ValuePath, ValuePathComponent, ValuePathOrigin, ValueType};
 
 struct TypeStack {
     types: Vec<ValueType>
 }
 
 impl TypeStack {
-    fn from_signature(sig: &Signature) -> TypeStack {
+    fn new() -> TypeStack {
         TypeStack {
-            types: sig.params().clone()
+            types: Vec::new()
         }
     }
 
@@ -49,6 +49,29 @@ impl TypeStack {
 
     fn depth(&self) -> usize {
         self.types.len()
+    }
+}
+
+struct PathStack {
+    types: Vec<ValueType>
+}
+
+impl PathStack {
+    pub fn new() -> PathStack {
+        PathStack {
+            types: Vec::new()
+        }
+    }
+
+    pub fn pop(&mut self) -> Result<ValueType, ValidationError> {
+        match self.types.pop() {
+            Some(x) => Ok(x),
+            None => Err(ValidationError::PathUnderflow)
+        }
+    }
+
+    pub fn push(&mut self, value: ValueType) {
+        self.types.push(value)
     }
 }
 
@@ -97,6 +120,7 @@ pub enum ValidationError {
     PathNotValue,
     LocalDoesNotExist,
     LocalIncorrectType,
+    LocalUnderflow,
     GlobalIncorrectType,
     PropertyIncorrectType,
     PropertyDoesNotExist,
@@ -106,7 +130,8 @@ pub enum ValidationError {
     NotContinuable,
     NoFinalReturn,
     NotARef,
-    LengthWrite
+    LengthWrite,
+    PathUnderflow
 }
 
 impl Ins {
@@ -180,10 +205,10 @@ impl Ins {
         }
     }
     
-    fn validate(&self, stack: &mut TypeStack, blocks: &mut BlockStack, function: &Function, unit: &TranslationUnit) -> Result<(), ValidationError> {
+    fn validate(&self, stack: &mut TypeStack, path_stack: &mut PathStack, blocks: &mut BlockStack, function: &Function, unit: &TranslationUnit) -> Result<(), ValidationError> {
         match &self {
-            Ins::Push(path, expected_vt) => {
-                let vt = self.resolve_path(path, stack, function, unit, false)?;
+            Ins::Push(expected_vt) => {
+                let vt = path_stack.pop()?;
 
                 if &vt != expected_vt {
                     return Err(ValidationError::PathIncorrectType)
@@ -192,15 +217,22 @@ impl Ins {
                 stack.push(vt);
                 Ok(())
             },
-            Ins::Pop(path, expected_vt) => {
-                let vt = self.resolve_path(path, stack, function, unit, true)?;
+            Ins::Pop(expected_vt) => {
+                stack.pop(&expected_vt)?;
+                let vt = path_stack.pop()?;
 
                 if &vt != expected_vt {
                     return Err(ValidationError::PathIncorrectType)
                 }
 
-                stack.pop(&expected_vt)?;
-
+                Ok(())
+            },
+            Ins::PushPath(path, expected_vt) => {
+                let vt = self.resolve_path(path, stack, function, unit, false)?;
+                if &vt != expected_vt {
+                    return Err(ValidationError::PathIncorrectType)
+                }
+                path_stack.push(vt);
                 Ok(())
             },
             Ins::New(st) => {
@@ -265,15 +297,15 @@ impl Ins {
             Ins::Loop(block, condition, inc) => {
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::Loop, |blocks| {
-                    for el in block { el.validate(stack, blocks, function, unit)?; }
+                    for el in block { el.validate(stack, path_stack, blocks, function, unit)?; }
                     Ok(())
                 })?;
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotOne); }
 
-                for el in inc { el.validate(stack, blocks, function, unit)?; }
+                for el in inc { el.validate(stack, path_stack, blocks, function, unit)?; }
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotOne); }
 
-                for el in condition { el.validate(stack, blocks, function, unit)?; }
+                for el in condition { el.validate(stack, path_stack, blocks, function, unit)?; }
                 if stack.depth() != 1 { return Err(ValidationError::StackDepthNotOne); }
 
                 stack.pop(&ValueType::Bool)?;
@@ -285,7 +317,7 @@ impl Ins {
 
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::If, |blocks| {
-                    for el in block { el.validate(stack, blocks, function, unit)?; }
+                    for el in block { el.validate(stack, path_stack, blocks, function, unit)?; }
                     Ok(())
                 })?;
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
@@ -297,13 +329,13 @@ impl Ins {
                 
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::IfElse, |blocks| {
-                    for el in block_a { el.validate(stack, blocks, function, unit)?; }
+                    for el in block_a { el.validate(stack, path_stack, blocks, function, unit)?; }
                     Ok(())
                 })?;
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
 
                 blocks.with(BlockElement::IfElse, |blocks| {
-                    for el in block_b { el.validate(stack, blocks, function, unit)?; }
+                    for el in block_b { el.validate(stack, path_stack, blocks, function, unit)?; }
                     Ok(())
                 })?;
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
@@ -349,11 +381,16 @@ impl Function {
     pub fn validate(&self, unit: &TranslationUnit) -> Result<(), ValidationError> {
         if self.is_extern() { return Ok(()); }
 
-        let mut type_stack = TypeStack::from_signature(&self.signature());
+        let mut type_stack = TypeStack::new();
+        let mut path_stack = PathStack::new();
         let mut block_stack = BlockStack::new();
 
+        if self.signature().params().len() > self.locals().len() {
+            return Err(ValidationError::LocalUnderflow);
+        }
+
         for ins in self.code().iter() {
-            ins.validate(&mut type_stack, &mut block_stack, self, unit)?;
+            ins.validate(&mut type_stack, &mut path_stack, &mut block_stack, self, unit)?;
         }
 
         if type_stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
