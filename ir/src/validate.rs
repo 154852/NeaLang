@@ -1,7 +1,12 @@
 use crate::{Function, Ins, StorableType, TranslationUnit, TypeContent, ValuePath, ValuePathComponent, ValuePathOrigin, ValueType};
 
+enum ValueOrPath {
+    Value(ValueType),
+    Path(ValueType)
+}
+
 struct TypeStack {
-    types: Vec<ValueType>
+    types: Vec<ValueOrPath>
 }
 
 impl TypeStack {
@@ -12,12 +17,12 @@ impl TypeStack {
     }
 
     fn push(&mut self, value_type: ValueType) {
-        self.types.push(value_type);
+        self.types.push(ValueOrPath::Value(value_type));
     }
 
     fn ensure(&self, value_type: &ValueType, index: usize) -> Result<(), ValidationError> {
         if let Some(t) = self.types.get(self.types.len() - 1 - index) {
-            if t != value_type {
+            if !matches!(t, ValueOrPath::Value(v) if v == value_type) {
                 Err(ValidationError::StackIncorrectType)
             } else {
                 Ok(())
@@ -29,7 +34,10 @@ impl TypeStack {
 
     fn pop_any(&mut self) -> Result<ValueType, ValidationError> {
         if let Some(t) = self.types.pop() {
-            Ok(t)
+            match t {
+                ValueOrPath::Value(v) => Ok(v),
+                ValueOrPath::Path(_) => Err(ValidationError::StackIncorrectType)
+            }
         } else {
             Err(ValidationError::StackUnderflow)
         }
@@ -37,7 +45,23 @@ impl TypeStack {
 
     fn pop(&mut self, value_type: &ValueType) -> Result<(), ValidationError> {
         if let Some(t) = self.types.pop() {
-            if &t != value_type {
+            if !matches!(&t, ValueOrPath::Value(v) if v == value_type) {
+                Err(ValidationError::StackIncorrectType)
+            } else {
+                Ok(())
+            }
+        } else {
+            Err(ValidationError::StackUnderflow)
+        }
+    }
+
+    fn push_path(&mut self, path_value: ValueType) {
+        self.types.push(ValueOrPath::Path(path_value));
+    }
+
+    fn pop_path(&mut self, value_type: &ValueType) -> Result<(), ValidationError> {
+        if let Some(t) = self.types.pop() {
+            if !matches!(&t, ValueOrPath::Path(v) if v == value_type) {
                 Err(ValidationError::StackIncorrectType)
             } else {
                 Ok(())
@@ -49,29 +73,6 @@ impl TypeStack {
 
     fn depth(&self) -> usize {
         self.types.len()
-    }
-}
-
-struct PathStack {
-    types: Vec<ValueType>
-}
-
-impl PathStack {
-    pub fn new() -> PathStack {
-        PathStack {
-            types: Vec::new()
-        }
-    }
-
-    pub fn pop(&mut self) -> Result<ValueType, ValidationError> {
-        match self.types.pop() {
-            Some(x) => Ok(x),
-            None => Err(ValidationError::PathUnderflow)
-        }
-    }
-
-    pub fn push(&mut self, value: ValueType) {
-        self.types.push(value)
     }
 }
 
@@ -205,25 +206,17 @@ impl Ins {
         }
     }
     
-    fn validate(&self, stack: &mut TypeStack, path_stack: &mut PathStack, blocks: &mut BlockStack, function: &Function, unit: &TranslationUnit) -> Result<(), ValidationError> {
+    fn validate(&self, stack: &mut TypeStack, blocks: &mut BlockStack, function: &Function, unit: &TranslationUnit) -> Result<(), ValidationError> {
         match &self {
             Ins::Push(expected_vt) => {
-                let vt = path_stack.pop()?;
+                stack.pop_path(&expected_vt)?;
 
-                if &vt != expected_vt {
-                    return Err(ValidationError::PathIncorrectType)
-                }
-
-                stack.push(vt);
+                stack.push(expected_vt.clone());
                 Ok(())
             },
             Ins::Pop(expected_vt) => {
                 stack.pop(&expected_vt)?;
-                let vt = path_stack.pop()?;
-
-                if &vt != expected_vt {
-                    return Err(ValidationError::PathIncorrectType)
-                }
+                stack.pop_path(&expected_vt)?;
 
                 Ok(())
             },
@@ -232,7 +225,7 @@ impl Ins {
                 if &vt != expected_vt {
                     return Err(ValidationError::PathIncorrectType)
                 }
-                path_stack.push(vt);
+                stack.push_path(vt);
                 Ok(())
             },
             Ins::New(st) => {
@@ -297,15 +290,15 @@ impl Ins {
             Ins::Loop(block, condition, inc) => {
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::Loop, |blocks| {
-                    for el in block { el.validate(stack, path_stack, blocks, function, unit)?; }
+                    for el in block { el.validate(stack, blocks, function, unit)?; }
                     Ok(())
                 })?;
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotOne); }
 
-                for el in inc { el.validate(stack, path_stack, blocks, function, unit)?; }
+                for el in inc { el.validate(stack, blocks, function, unit)?; }
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotOne); }
 
-                for el in condition { el.validate(stack, path_stack, blocks, function, unit)?; }
+                for el in condition { el.validate(stack, blocks, function, unit)?; }
                 if stack.depth() != 1 { return Err(ValidationError::StackDepthNotOne); }
 
                 stack.pop(&ValueType::Bool)?;
@@ -317,7 +310,7 @@ impl Ins {
 
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::If, |blocks| {
-                    for el in block { el.validate(stack, path_stack, blocks, function, unit)?; }
+                    for el in block { el.validate(stack, blocks, function, unit)?; }
                     Ok(())
                 })?;
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
@@ -329,13 +322,13 @@ impl Ins {
                 
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::IfElse, |blocks| {
-                    for el in block_a { el.validate(stack, path_stack, blocks, function, unit)?; }
+                    for el in block_a { el.validate(stack, blocks, function, unit)?; }
                     Ok(())
                 })?;
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
 
                 blocks.with(BlockElement::IfElse, |blocks| {
-                    for el in block_b { el.validate(stack, path_stack, blocks, function, unit)?; }
+                    for el in block_b { el.validate(stack, blocks, function, unit)?; }
                     Ok(())
                 })?;
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
@@ -382,7 +375,6 @@ impl Function {
         if self.is_extern() { return Ok(()); }
 
         let mut type_stack = TypeStack::new();
-        let mut path_stack = PathStack::new();
         let mut block_stack = BlockStack::new();
 
         if self.signature().params().len() > self.locals().len() {
@@ -390,7 +382,7 @@ impl Function {
         }
 
         for ins in self.code().iter() {
-            ins.validate(&mut type_stack, &mut path_stack, &mut block_stack, self, unit)?;
+            ins.validate(&mut type_stack, &mut block_stack, self, unit)?;
         }
 
         if type_stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
