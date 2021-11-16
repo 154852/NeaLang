@@ -24,7 +24,7 @@ enum SubCommand {
 
 #[derive(Clap, Debug)]
 struct BuildOpts {
-	path: String,
+	path: Vec<String>,
 
 	#[clap(short, long, default_value = "a.out")]
 	output: String,
@@ -95,33 +95,34 @@ fn append_imports_of(unit: &ast::TranslationUnit, ir_unit: &mut ir::TranslationU
 }
 
 fn build(build_opts: &BuildOpts) -> Result<(), NlError> {
-	let path = Path::new(&build_opts.path);
-	let content = match std::fs::read_to_string(path) {
-		Ok(s) => s,
-		Err(e) => return Err(NlError::Import(e, path.to_path_buf()))
-	};
-
-    let mut matcher = crate::lexer::TokenStream::new(&content, Box::new(lexer::Matcher {}));
-    matcher.step();
-
-    let unit = match ast::TranslationUnit::parse(&mut matcher) {
-        ::syntax::MatchResult::Ok(code) => code,
-        ::syntax::MatchResult::Err(e) => return Err(NlError::Syntax(e, path.to_path_buf())),
-		_ => unreachable!()
-    };
-
-	if build_opts.emit_ast {
-		println!("{:#?}", unit);
-	}
-
-
 	let mut ir_unit = ir::TranslationUnit::new();
 
-	append_imports_of(&unit, &mut ir_unit, path, build_opts.relocatable)?;
+	for path in &build_opts.path {
+		let path = Path::new(path);
+		let content = match std::fs::read_to_string(path) {
+			Ok(s) => s,
+			Err(e) => return Err(NlError::Import(e, path.to_path_buf()))
+		};
 
-	match unit.to_ir_on(&mut ir_unit) {
-		Ok(_) => {},
-		Err(e) => return Err(NlError::Semantic(e, path.to_path_buf()))
+		let mut matcher = crate::lexer::TokenStream::new(&content, Box::new(lexer::Matcher {}));
+		matcher.step();
+
+		let unit = match ast::TranslationUnit::parse(&mut matcher) {
+			::syntax::MatchResult::Ok(code) => code,
+			::syntax::MatchResult::Err(e) => return Err(NlError::Syntax(e, path.to_path_buf())),
+			_ => unreachable!()
+		};
+
+		if build_opts.emit_ast {
+			println!("{:#?}", unit);
+		}
+
+		append_imports_of(&unit, &mut ir_unit, path, build_opts.relocatable)?;
+
+		match unit.to_ir_on(&mut ir_unit) {
+			Ok(_) => {},
+			Err(e) => return Err(NlError::Semantic(e, path.to_path_buf()))
+		}
 	}
 
 	if build_opts.emit_ir {

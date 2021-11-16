@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use crate::ast;
-use ir::{self, ValueType};
+use ir;
 use syntax::Span;
 
 #[derive(Debug)]
@@ -25,7 +25,6 @@ pub enum IrGenErrorKind {
 	IllegalIndexValue,
 	NonValueCast,
 	StdLinkError,
-	ImportNotFound
 }
 
 pub struct IrGenError {
@@ -156,7 +155,7 @@ impl ast::TranslationUnit {
 			match node {
     			ast::TopLevelNode::Function(func) => {
 					if func.code.is_some() {
-						func.append_ir(self, unit, id + first_index.unwrap())?;
+						func.append_ir(unit, id + first_index.unwrap())?;
 					}
 					id += 1;
 				},
@@ -169,7 +168,6 @@ impl ast::TranslationUnit {
 }
 
 struct IrGenFunctionContext<'a> {
-	unit: &'a ast::TranslationUnit,
 	ir_unit: &'a mut ir::TranslationUnit,
 	function_idx: ir::FunctionIndex,
 
@@ -262,9 +260,8 @@ impl ast::Function {
 		Ok(func)
 	}
 
-	fn append_ir(&self, unit: &ast::TranslationUnit, ir_unit: &mut ir::TranslationUnit, idx: ir::FunctionIndex) -> Result<(), IrGenError> {
+	fn append_ir(&self, ir_unit: &mut ir::TranslationUnit, idx: ir::FunctionIndex) -> Result<(), IrGenError> {
 		let mut ctx = IrGenFunctionContext {
-			unit,
 			ir_unit,
 			function_idx: idx,
 			local_map: HashMap::new()
