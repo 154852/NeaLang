@@ -417,7 +417,7 @@ impl ast::Assignment {
 					path, st_v.clone()
 				));
 
-				let vt = self.right.append_ir_value(ctx, target, None)?;
+				let vt = self.right.append_ir_value(ctx, target, Some(&st_v))?;
 
 				if st_v != vt {
 					return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
@@ -465,7 +465,7 @@ impl ast::VarDeclaration {
 		};
 
 		let expr_type = match &self.expr {
-			Some(expr) => Some(expr.resultant_type(ctx)?),
+			Some(expr) => Some(expr.resultant_type(ctx, expected_type.as_ref())?),
 			None => None
 		};
 
@@ -491,7 +491,7 @@ impl ast::VarDeclaration {
 				ir::ValuePathOrigin::Local(idx, ir::StorableType::Value(expr_type.clone())),
 			), expr_type.clone()));
 
-			let v = expr.append_ir_value(ctx, target, None)?;
+			let v = expr.append_ir_value(ctx, target, Some(&expr_type))?;
 			assert_eq!(&v, &expr_type);
 			
 			target.push(ir::Ins::Pop(expr_type));
@@ -517,18 +517,18 @@ impl ast::Expr {
 		}
 	}
 
-	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
+	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
 		match self {
-			ast::Expr::BinaryExpr(binary_expr) => binary_expr.resultant_type(ctx),
-			ast::Expr::Name(name_expr) => name_expr.resultant_type(ctx),
-			ast::Expr::Closed(closed_expr) => closed_expr.expr.resultant_type(ctx),
-			ast::Expr::NumberLit(number_lit) => number_lit.resultant_type(ctx),
-			ast::Expr::Call(call_expr) => call_expr.resultant_type(ctx),
-			ast::Expr::MemberAccess(member_access) => member_access.resultant_type(ctx),
-			ast::Expr::Index(index_expr) => index_expr.resultant_type(ctx),
-			ast::Expr::As(as_expr) => as_expr.resultant_type(ctx),
-			ast::Expr::StringLit(string_expr) => string_expr.resultant_type(ctx),
-			ast::Expr::NewExpr(new_expr) => new_expr.resultant_type(ctx),
+			ast::Expr::BinaryExpr(binary_expr) => binary_expr.resultant_type(ctx, prefered),
+			ast::Expr::Name(name_expr) => name_expr.resultant_type(ctx, prefered),
+			ast::Expr::Closed(closed_expr) => closed_expr.expr.resultant_type(ctx, prefered),
+			ast::Expr::NumberLit(number_lit) => number_lit.resultant_type(ctx, prefered),
+			ast::Expr::Call(call_expr) => call_expr.resultant_type(ctx, prefered),
+			ast::Expr::MemberAccess(member_access) => member_access.resultant_type(ctx, prefered),
+			ast::Expr::Index(index_expr) => index_expr.resultant_type(ctx, prefered),
+			ast::Expr::As(as_expr) => as_expr.resultant_type(ctx, prefered),
+			ast::Expr::StringLit(string_expr) => string_expr.resultant_type(ctx, prefered),
+			ast::Expr::NewExpr(new_expr) => new_expr.resultant_type(ctx, prefered),
 		}
 	}
 
@@ -549,7 +549,7 @@ impl ast::Expr {
 }
 
 impl ast::NewExpr {
-	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
+	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
 		let st = self.new_type.to_ir_storable_type(ctx.ir_unit)?;
 		Ok(ir::ValueType::Ref(Box::new(st)))
 	}
@@ -578,7 +578,7 @@ impl ast::NewExpr {
 }
 
 impl ast::StringLitExpr {
-	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
+	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
 		let st = ir::StorableType::Compound(match ctx.ir_unit.find_type("String") {
 			Some(x) => x,
 			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::StdLinkError))
@@ -635,7 +635,7 @@ impl ast::StringLitExpr {
 }
 
 impl ast::AsExpr {
-	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
+	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
 		match self.new_type.to_ir_storable_type(ctx.ir_unit)? {
 			ir::StorableType::Value(v) => Ok(v),
 			_ => Err(IrGenError::new(self.span.clone(), IrGenErrorKind::NonValueCast)),
@@ -660,8 +660,8 @@ impl ast::AsExpr {
 }
 
 impl ast::IndexExpr {
-	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
-		match self.object.resultant_type(ctx)? {
+	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+		match self.object.resultant_type(ctx, None)? {
 			ir::ValueType::Ref(st) => match st.as_ref() {
 				ir::StorableType::Slice(t) => match t.as_ref() {
 					ir::StorableType::Value(v) => Ok(v.clone()),
@@ -732,8 +732,8 @@ impl ast::IndexExpr {
 }
 
 impl ast::MemberAccessExpr {
-	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
-		let object = self.object.resultant_type(ctx)?;
+	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+		let object = self.object.resultant_type(ctx, None)?;
 
 		match object {
     		ir::ValueType::Ref(r) => match r.as_ref() {
@@ -854,22 +854,22 @@ impl ast::MemberAccessExpr {
 }
 
 impl ast::CallExpr {
-	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
-		let func_id = match self.object.as_ref() {
+	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+		let (func_id, func) = match self.object.as_ref() {
 			ast::Expr::Name(name) => {
 				match ctx.ir_unit.find_function_index(&name.name) {
-					Some(x) => x,
+					Some(x) => (x, ctx.ir_unit.get_function(x)),
 					_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist))
 				}
 			},
 			ast::Expr::MemberAccess(member_access) => {
 				// Also acts as first argument:
-				let v = member_access.object.resultant_type(ctx)?;
+				let v = member_access.object.resultant_type(ctx, None)?;
 				match v {
 					ir::ValueType::Ref(r) => match r.as_ref() {
 						ir::StorableType::Compound(c) => {
 							match ctx.ir_unit.find_method_index(c.clone(), &member_access.prop) {
-								Some(x) => x,
+								Some(x) => (x, ctx.ir_unit.get_function(x)),
 								_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist)),
 							}
 						},
@@ -880,6 +880,10 @@ impl ast::CallExpr {
 			},
 			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist))
 		};
+
+		if func.signature().returns().len() != 1 {
+			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallNotOneReturnInExpr));
+		}
 
 		Ok(ctx.ir_unit.get_function(func_id).signature().returns()[0].clone())
 	}
@@ -973,13 +977,13 @@ impl ast::CallExpr {
 }
 
 impl ast::BinaryExpr {
-	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
-		self.left.resultant_type(ctx)
+	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+		self.left.resultant_type(ctx, if self.op.is_num() { prefered } else { None })
 	}
 
 	fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
 		let left = self.left.append_ir_value(ctx, target, if self.op.is_num() { prefered } else { None })?;
-		let right = self.right.append_ir_value(ctx, target, if self.op.is_num() { prefered } else { None })?;
+		let right = self.right.append_ir_value(ctx, target, if self.op.is_num() { prefered } else { Some(&left) })?;
 
 		if left != right { return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::BinaryOpTypeMismatch)) }
 
@@ -1003,7 +1007,7 @@ impl ast::BinaryExpr {
 }
 
 impl ast::NameExpr {
-	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
+	fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
 		if let Some(idx) = ctx.local_map.get(self.name.as_str()) {
 			let st = ctx.func().get_local(*idx).unwrap().local_type();
 
@@ -1058,8 +1062,11 @@ impl ast::NameExpr {
 }
 
 impl ast::NumberLitExpr {
-	fn resultant_type<'a>(&'a self, _ctx: &IrGenFunctionContext<'a>) -> Result<ir::ValueType, IrGenError> {
-		Ok(ir::ValueType::I32)
+	fn resultant_type<'a>(&'a self, _ctx: &IrGenFunctionContext<'a>, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+		Ok(match prefered {
+			Some(vt) if vt.is_num() => vt.clone(),
+			_ => ir::ValueType::I32
+		})
 	}
 
 	fn append_ir<'a>(&'a self, _ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
