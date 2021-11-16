@@ -21,6 +21,14 @@ pub struct MemArg {
 	offset: u32
 }
 
+impl MemArg {
+	pub fn new(align: u32, offset: u32) -> MemArg {
+		MemArg {
+			align, offset
+		}
+	}
+}
+
 impl WasmEncodable for MemArg {
     fn wasm_encode(&self, data: &mut Vec<u8>) {
         self.align.wasm_encode(data);
@@ -114,27 +122,27 @@ impl WasmEncodable for Ins {
             Ins::Block(bt, ins) => {
 				data.push(0x02);
 				bt.wasm_encode(data);
-				ins.wasm_encode(data);
+				for ins in ins { ins.wasm_encode(data); }
 				data.push(0x0b);
 			},
             Ins::Loop(bt, ins) => {
 				data.push(0x03);
 				bt.wasm_encode(data);
-				ins.wasm_encode(data);
+				for ins in ins { ins.wasm_encode(data); }
 				data.push(0x0b);
 			},
             Ins::If(bt, ins) => {
 				data.push(0x04);
 				bt.wasm_encode(data);
-				ins.wasm_encode(data);
+				for ins in ins { ins.wasm_encode(data); }
 				data.push(0x0b);
 			},
             Ins::IfElse(bt, true_then, false_then) => {
 				data.push(0x04);
 				bt.wasm_encode(data);
-				true_then.wasm_encode(data);
+				for ins in true_then { ins.wasm_encode(data); }
 				data.push(0x05);
-				false_then.wasm_encode(data);
+				for ins in false_then { ins.wasm_encode(data); }
 				data.push(0x0b);
 			},
             Ins::Br(idx) => {

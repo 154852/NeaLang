@@ -1,0 +1,50 @@
+const primaryPath = process.argv[2];
+// const stdPath = process.argv[3];
+
+const fs = require("fs");
+
+class Heap {
+    constructor() {
+        this.offset = 512;
+    }
+
+    alloc(size) {
+        this.offset += size;
+        return this.offset - size;
+    }
+}
+
+(async function() {
+    let mem;
+    const heap = new Heap();
+
+    const core = {
+        exit: (code) => process.exit(code),
+        putchar: (char) => process.stdout.write(String.fromCharCode(char)),
+        nl_new_object: (size) => heap.alloc(size),
+        nl_new_slice: (length, size) => {
+            let addr = heap.alloc(8);
+            let data = heap.alloc(length * size);
+            let sliced = new Uint8Array(mem.buffer);
+            
+            sliced[addr] = data & 0xff;
+            sliced[addr + 1] = (data >> 8) & 0xff;
+            sliced[addr + 2] = (data >> 16) & 0xff;
+            sliced[addr + 3] = (data >> 24) & 0xff;
+
+            sliced[addr + 4] = length & 0xff;
+            sliced[addr + 4 + 1] = (length >> 8) & 0xff;
+            sliced[addr + 4 + 2] = (length >> 16) & 0xff;
+            sliced[addr + 4 + 3] = (length >> 24) & 0xff;
+
+            return addr;
+        }
+    };
+    
+    let primary = await WebAssembly.instantiate(fs.readFileSync(primaryPath), {
+        std: core
+    });
+
+    mem = primary.instance.exports.mem;
+    primary.instance.exports.main();
+})();

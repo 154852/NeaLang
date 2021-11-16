@@ -1,5 +1,6 @@
 use crate::{Function, Ins, StorableType, TranslationUnit, TypeContent, ValuePath, ValuePathComponent, ValuePathOrigin, ValueType};
 
+#[derive(Debug)]
 enum ValueOrPath {
     Value(ValueType),
     Path(ValueType)
@@ -46,6 +47,7 @@ impl TypeStack {
     fn pop(&mut self, value_type: &ValueType) -> Result<(), ValidationError> {
         if let Some(t) = self.types.pop() {
             if !matches!(&t, ValueOrPath::Value(v) if v == value_type) {
+                println!("{:?} {:?}", value_type, t);
                 Err(ValidationError::StackIncorrectType)
             } else {
                 Ok(())
@@ -114,6 +116,7 @@ impl BlockStack {
 pub enum ValidationError {
     StackUnderflow,
     StackIncorrectType,
+    StackNotNum,
     StackDepthNotZero,
     StackDepthNotOne,
     StackNotValue,
@@ -169,7 +172,7 @@ impl Ins {
                 ValuePathComponent::Slice(slice_type) => match st {
                     StorableType::Slice(st) => {
                         if st.as_ref() != slice_type { return Err(ValidationError::PathIncorrectType) }
-                        stack.pop(&ValueType::UPtr)?;
+                        stack.pop(&ValueType::Index(st.clone()))?;
                         slice_type.clone()
                     },
                     _ => return Err(ValidationError::PathIncorrectType)
@@ -228,6 +231,11 @@ impl Ins {
                 stack.push_path(vt);
                 Ok(())
             },
+            Ins::Index(st) => {
+                stack.pop(&ValueType::UPtr)?;
+                stack.push(ValueType::Index(Box::new(st.clone())));
+                Ok(())
+            },
             Ins::New(st) => {
                 stack.push(ValueType::Ref(Box::new(st.clone())));
                 Ok(())
@@ -276,12 +284,14 @@ impl Ins {
                     Ok(())
                 }
             },
-            Ins::Inc(vt, _) => stack.ensure(vt, 0),
-            Ins::Dec(vt, _) => stack.ensure(vt, 0),
-            Ins::Add(vt) => stack.pop(vt).and(stack.ensure(vt, 0)),
-            Ins::Mul(vt) => stack.pop(vt).and(stack.ensure(vt, 0)),
-            Ins::Div(vt) => stack.pop(vt).and(stack.ensure(vt, 0)),
-            Ins::Sub(vt) => stack.pop(vt).and(stack.ensure(vt, 0)),
+            Ins::Inc(vt, _) | Ins::Dec(vt, _) => {
+                if !vt.is_num() { return Err(ValidationError::StackNotNum) }
+                stack.ensure(vt, 0)
+            },
+            Ins::Add(vt) | Ins::Mul(vt) | Ins::Div(vt) | Ins::Sub(vt) => {
+                if !vt.is_num() { return Err(ValidationError::StackNotNum) }
+                stack.pop(vt).and(stack.ensure(vt, 0))
+            },
             Ins::Eq(vt) | Ins::Ne(vt) | Ins::Lt(vt) | Ins::Le(vt) | Ins::Gt(vt) | Ins::Ge(vt) => {
                 stack.pop(vt).and(stack.pop(vt))?;
                 stack.push(ValueType::Bool);

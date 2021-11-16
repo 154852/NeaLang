@@ -16,7 +16,7 @@ func String.at(self: String, idx: uptr): u8 {
 }
 
 func print(string: String) {
-	for var i = 0 as uptr; i < string.len(); i = i + 1 {
+	for var i: uptr = 0; i < string.len(); i = i + 1 {
 		putchar(string.at(i) as u32);
 	}
 }

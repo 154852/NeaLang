@@ -11,23 +11,6 @@ impl<T: WasmEncodable> WasmEncodable for Vec<T> {
     }
 }
 
-impl WasmEncodable for u32 {
-    fn wasm_encode(&self, data: &mut Vec<u8>) {
-		let mut value = *self;
-		loop {
-			let byte = (value & 0x7f) as u8;
-			value >>= 7;
-
-			if value == 0 {
-				data.push(byte);
-				break;
-			}
-
-			data.push(byte | 0x80);
-		}
-    }
-}
-
 impl WasmEncodable for u64 {
     fn wasm_encode(&self, data: &mut Vec<u8>) {
 		let mut value = *self;
@@ -45,15 +28,32 @@ impl WasmEncodable for u64 {
     }
 }
 
-impl WasmEncodable for i32 {
+impl WasmEncodable for u32 {
     fn wasm_encode(&self, data: &mut Vec<u8>) {
-		(*self as u32).wasm_encode(data)
+		(*self as u64).wasm_encode(data)
     }
 }
 
 impl WasmEncodable for i64 {
     fn wasm_encode(&self, data: &mut Vec<u8>) {
-		(*self as u32).wasm_encode(data)
+		let mut value = *self as i32;
+		loop {
+			let byte = (value & 0x7f) as u8;
+			value >>= 7;
+
+			if (value == 0 && (byte & 0x40 == 0)) || (value == -1 && (byte & 0x40 != 0)) {
+				data.push(byte);
+				break;
+			}
+			
+			data.push(byte | 0x80);
+		}
+    }
+}
+
+impl WasmEncodable for i32 {
+    fn wasm_encode(&self, data: &mut Vec<u8>) {
+		(*self as i64).wasm_encode(data)
     }
 }
 

@@ -125,6 +125,9 @@ impl TranslationContext {
                     val
                 ));
             },
+            ir::Ins::Index(_) => {
+                // Do nothing, will be handled in addr_in_path
+            },
             ir::Ins::New(st) => {
                 ins.push(x86::Ins::MovRegImm(
                     ftc.stack().push_vt(&ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(st.clone()))))),

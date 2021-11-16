@@ -29,7 +29,7 @@ struct BuildOpts {
 	#[clap(short, long, default_value = "a.out")]
 	output: String,
 
-	#[clap(long, default_value = "linux-elf-x86_64")]
+	#[clap(long, short, default_value = "linux-elf-x86_64")]
 	triple: String,
 
 	#[clap(short = 'c')]
@@ -133,6 +133,12 @@ fn build(build_opts: &BuildOpts) -> Result<(), NlError> {
 	match build_opts.triple.as_str() {
 		"linux-elf-x86_64" => {
 			match ir2triple::linux_elf::encode(&ir_unit, &build_opts.output, build_opts.relocatable) {
+				Ok(_) => Ok(()),
+				Err(err) => return Err(NlError::Encode(err))
+			}
+		},
+		"wasm" => {
+			match ir2triple::wasm::encode(&ir_unit, &build_opts.output, build_opts.relocatable) {
 				Ok(_) => Ok(()),
 				Err(err) => return Err(NlError::Encode(err))
 			}

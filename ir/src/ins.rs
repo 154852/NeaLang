@@ -49,6 +49,16 @@ impl ValuePath {
     pub fn components(&self) -> &Vec<ValuePathComponent> {
         &self.components
     }
+
+    pub fn slice_stack_presence(&self) -> usize {
+        let mut count = 0;
+        for component in &self.components {
+            if matches!(component, ValuePathComponent::Slice(_)) {
+                count += 1;
+            }
+        }
+        count
+    }
 }
 
 #[derive(Debug)]
@@ -59,6 +69,9 @@ pub enum Ins {
     Push(ValueType),
     // Pop a path from the path stack, and pop the value it should point to
     Pop(ValueType),
+
+    // Pop a uptr and push an Index in it's place
+    Index(StorableType),
 
     /// Allocates a value of the given type, and pushes a reference to it
     New(StorableType),

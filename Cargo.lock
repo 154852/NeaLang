@@ -99,9 +99,18 @@ name = "ir2triple"
 version = "0.1.0"
 dependencies = [
  "ir",
+ "ir2wasm",
  "ir2x86",
  "ofile",
  "x86",
+]
+
+[[package]]
+name = "ir2wasm"
+version = "0.1.0"
+dependencies = [
+ "ir",
+ "wasm",
 ]
 
 [[package]]

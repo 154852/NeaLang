@@ -677,11 +677,19 @@ impl ast::IndexExpr {
 		}
 	}
 
-	fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+	fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {		
 		if self.arg.append_ir_value(ctx, target, Some(&ir::ValueType::UPtr))? != ir::ValueType::UPtr {
 			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexValue));
 		}
-		
+
+		target.push(ir::Ins::Index(match self.object.resultant_type(ctx, None)? {
+			ir::ValueType::Ref(st) => match st.as_ref() {
+				ir::StorableType::Slice(t) => t.as_ref().clone(),
+				_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexObject))
+			},
+			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexObject))
+		}));
+
 		let el = match self.object.append_ir_value(ctx, target, None)? {
 			ir::ValueType::Ref(st) => match st.as_ref() {
 				ir::StorableType::Slice(t) => t.clone(),
@@ -713,6 +721,14 @@ impl ast::IndexExpr {
 		if self.arg.append_ir_value(ctx, target, Some(&ir::ValueType::UPtr))? != ir::ValueType::UPtr {
 			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexValue));
 		}
+		
+		target.push(ir::Ins::Index(match self.object.resultant_type(ctx, None)? {
+			ir::ValueType::Ref(st) => match st.as_ref() {
+				ir::StorableType::Slice(t) => t.as_ref().clone(),
+				_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexObject))
+			},
+			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexObject))
+		}));
 		
 		let el = match self.object.append_ir_value(ctx, target, None)? {
 			ir::ValueType::Ref(st) => match st.as_ref() {

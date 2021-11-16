@@ -102,19 +102,20 @@ pub enum ValueType {
     UPtr, IPtr,
     Bool,
     Ref(Box<StorableType>),
+    Index(Box<StorableType>)
 }
 
 impl ValueType {
     pub fn signed(&self) -> bool {
         match &self {
-            ValueType::U8 | ValueType::U16 | ValueType::U32 | ValueType::U64 | ValueType::UPtr | ValueType::Bool | ValueType::Ref(_) => false,
+            ValueType::U8 | ValueType::U16 | ValueType::U32 | ValueType::U64 | ValueType::UPtr | ValueType::Bool | ValueType::Ref(_) | ValueType::Index(_) => false,
             ValueType::I8 | ValueType::I16 | ValueType::I32 | ValueType::I64 | ValueType::IPtr => true,
         }
     }
 
     pub fn is_num(&self) -> bool {
         match &self {
-            ValueType::Ref(_) => false,
+            ValueType::Ref(_) | ValueType::Index(_) => false,
             _ => true,
         }
     }

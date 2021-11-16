@@ -1,22 +1,6 @@
 use crate::{Expr, encode::WasmEncodable};
 
-#[cfg(test)]
-mod test {
-    use crate::encode::{self, WasmEncodable};
-
-	fn encode(x: impl WasmEncodable) -> Vec<u8> {
-		let mut data = Vec::new();
-		x.wasm_encode(&mut data);
-		data
-	}
-
-	#[test]
-	fn leb128() {
-		assert_eq!(encode(42u32), [0x2a]);
-		assert_eq!(encode(42i32), [0x2a]);
-	}
-}
-
+#[derive(PartialEq, Eq)]
 pub enum NumType {
 	I32,
 	I64,
@@ -91,6 +75,22 @@ pub struct Limits {
 	max: Option<u32>
 }
 
+impl Limits {
+	pub fn new(min: u32) -> Limits {
+		Limits {
+			min,
+			max: None
+		}
+	}
+
+	pub fn new_with_max(min: u32, max: u32) -> Limits {
+		Limits {
+			min,
+			max: Some(max)
+		}
+	}
+}
+
 impl WasmEncodable for Limits {
     fn wasm_encode(&self, data: &mut Vec<u8>) {
         if let Some(max) = self.max {
@@ -106,6 +106,14 @@ impl WasmEncodable for Limits {
 
 pub struct MemType {
 	limits: Limits
+}
+
+impl MemType {
+	pub fn new(limits: Limits) -> MemType {
+		MemType {
+			limits
+		}
+	}
 }
 
 impl WasmEncodable for MemType {
@@ -184,6 +192,16 @@ pub struct Import {
 	descriptor: ImportDescriptor
 }
 
+impl Import {
+	pub fn new<T: Into<String>, U: Into<String>>(module_name: T, name: U, descriptor: ImportDescriptor) -> Import {
+		Import {
+			module_name: module_name.into(),
+			name: name.into(),
+			descriptor
+		}
+	}
+}
+
 impl WasmEncodable for Import {
 	fn wasm_encode(&self, data: &mut Vec<u8>) {
 		self.module_name.wasm_encode(data);
@@ -237,6 +255,15 @@ impl WasmEncodable for ExportDescriptor {
 pub struct Export {
 	name: String,
 	descriptor: ExportDescriptor
+}
+
+impl Export {
+	pub fn new<T: Into<String>>(name: T, descriptor: ExportDescriptor) -> Export {
+		Export {
+			name: name.into(),
+			descriptor
+		}
+	}
 }
 
 impl WasmEncodable for Export {
@@ -495,7 +522,7 @@ impl Module {
 
 		if self.data.len() > 0 {
 			Module::encode_section(11, &self.data, &mut data);
-			Module::encode_section(12, &self.data.len(), &mut data); // data count section
+			// Module::encode_section(12, &self.data.len(), &mut data); // data count section
 		}
 
 		data

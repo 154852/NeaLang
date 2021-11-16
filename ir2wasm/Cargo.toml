@@ -1,14 +1,10 @@
 [package]
-name = "ir2triple"
+name = "ir2wasm"
 version = "0.1.0"
-authors = ["154852Ploix"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 ir = { path = "../ir" }
-ofile = { path = "../ofile" }
-ir2x86 = { path = "../ir2x86" }
-x86 = { path = "../x86" }
-ir2wasm = { path = "../ir2wasm" }
+wasm = { path = "../wasm" }
