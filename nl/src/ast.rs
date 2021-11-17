@@ -45,6 +45,23 @@ pub enum Expr {
 	NewExpr(NewExpr)
 }
 
+impl Expr {
+	pub fn span(&self) -> &Span {
+		match self {
+			Expr::BinaryExpr(be) => &be.span,
+			Expr::Name(name) => &name.span,
+			Expr::Closed(closed) => &closed.span,
+			Expr::NumberLit(num) => &num.span,
+			Expr::Call(call) => &call.span,
+			Expr::MemberAccess(mem_acc) => &mem_acc.span,
+			Expr::Index(index) => &index.span,
+			Expr::As(a) => &a.span,
+			Expr::StringLit(str) => &str.span,
+			Expr::NewExpr(expr) => &expr.span,
+		}
+	}
+}
+
 #[derive(Debug)]
 pub struct NewExpr {
 	pub span: Span,

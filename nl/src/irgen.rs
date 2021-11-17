@@ -8,19 +8,19 @@ use syntax::Span;
 #[derive(Debug)]
 pub enum IrGenErrorKind {
 	UnknownType,
-	VariableDoesNotExist,
-	FunctionDoesNotExist,
+	VariableDoesNotExist(String),
+	FunctionDoesNotExist(String),
 	InvalidInteger,
 	BinaryOpTypeMismatch,
 	AssignmentTypeMismatch,
 	CannotInferType,
-	CallArgParamCountMismatch,
-	CallArgTypeMismatch,
+	CallArgParamCountMismatch(usize, usize),
+	CallArgTypeMismatch(String, String),
 	CallNotOneReturnInExpr,
 	InvalidLHS,
 	InvalidRHS,
 	CompositeTypeOnStack,
-	PropDoesNotExist,
+	PropDoesNotExist(String, String),
 	IllegalIndexObject,
 	IllegalIndexValue,
 	NonValueCast,
@@ -48,7 +48,57 @@ impl IrGenError {
 	}
 
 	pub fn message(&self) -> String {
-		format!("{:?}", self.kind)
+		match &self.kind {
+			IrGenErrorKind::UnknownType => format!("Unknown type"),
+			IrGenErrorKind::VariableDoesNotExist(name) => format!("Variable '{}' does not exist", name),
+			IrGenErrorKind::FunctionDoesNotExist(name) => format!("Function or method '{}' does not exist", name),
+			IrGenErrorKind::InvalidInteger => format!("Invalid integer"),
+			IrGenErrorKind::BinaryOpTypeMismatch => format!("Type mismatch in binary operation"),
+			IrGenErrorKind::AssignmentTypeMismatch => format!("Type mismatch in assignment"),
+			IrGenErrorKind::CannotInferType => format!("Cannot infer type"),
+			IrGenErrorKind::CallArgParamCountMismatch(found, expected) => format!("Incorrect arg count, found {}, expected {}", found, expected),
+			IrGenErrorKind::CallArgTypeMismatch(found, expected) => format!("Type mismatch in arg, found {}, expected {}", found, expected),
+			IrGenErrorKind::CallNotOneReturnInExpr => format!("Call to function returning not one value"),
+			IrGenErrorKind::InvalidLHS => format!("Invalid lhs expression"),
+			IrGenErrorKind::InvalidRHS => format!("Invalid rhs expression"),
+			IrGenErrorKind::CompositeTypeOnStack => format!("Composite type in expression"),
+			IrGenErrorKind::PropDoesNotExist(prop, type_name) => format!("Property '{}' does not exist on {} type", prop, type_name),
+			IrGenErrorKind::IllegalIndexObject => format!("Not a slice, cannot index"),
+			IrGenErrorKind::IllegalIndexValue => format!("Can only index with a uptr"),
+			IrGenErrorKind::NonValueCast => format!("Cannot cast to non-value type"),
+			IrGenErrorKind::StdLinkError => format!("Not linked with std, try importing std"),
+		}
+	}
+}
+
+pub fn storable_type_to_string(st: &ir::StorableType) -> String {
+	match st {
+		ir::StorableType::Compound(ct) => ct.name().to_string(),
+		ir::StorableType::Value(v) => value_type_to_string(v),
+		ir::StorableType::Slice(st) => {
+			let mut s = storable_type_to_string(st);
+			s.push_str("[]");
+			s
+		},
+		ir::StorableType::SliceData(_) => unreachable!(),
+	}
+}
+
+pub fn value_type_to_string(vt: &ir::ValueType) -> String {
+	match vt {
+		ir::ValueType::U8 => "u8".to_string(),
+		ir::ValueType::I8 => "i8".to_string(),
+		ir::ValueType::U16 => "u16".to_string(),
+		ir::ValueType::I16 => "i16".to_string(),
+		ir::ValueType::U32 => "u32".to_string(),
+		ir::ValueType::I32 => "i32".to_string(),
+		ir::ValueType::U64 => "u64".to_string(),
+		ir::ValueType::I64 => "i64".to_string(),
+		ir::ValueType::UPtr => "uptr".to_string(),
+		ir::ValueType::IPtr => "iptr".to_string(),
+		ir::ValueType::Bool => "bool".to_string(),
+		ir::ValueType::Ref(st) => storable_type_to_string(st),
+		ir::ValueType::Index(_) => "uptr".to_string(),
 	}
 }
 
@@ -399,7 +449,7 @@ impl ast::Assignment {
 
 					target.push(ir::Ins::Pop(vt));
 				} else {
-					todo!() // Global?
+					return Err(IrGenError::new(name.span.clone(), IrGenErrorKind::VariableDoesNotExist(name.name.clone())));
 				}
 			},
 			_ => {				
@@ -469,7 +519,7 @@ impl ast::VarDeclaration {
 		let expr_type = if let Some(var_type) = expected_type {
 			if let Some(expr_type) = expr_type {
 				if var_type != expr_type {
-					return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
+					return Err(IrGenError::new(self.expr.as_ref().unwrap().span().clone(), IrGenErrorKind::AssignmentTypeMismatch));
 				}
 				expr_type
 			} else {
@@ -755,7 +805,7 @@ impl ast::MemberAccessExpr {
 						ir::TypeContent::Struct(s) => {
 							let idx = match s.props().iter().position(|x| x.name() == self.prop) {
 								Some(x) => x,
-								None => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist)),
+								None => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist(self.prop.clone(), c.name().to_string()))),
 							};
 							let prop = s.prop(idx).unwrap();
 							let t = match prop.prop_type() {
@@ -770,7 +820,7 @@ impl ast::MemberAccessExpr {
 				ir::StorableType::Value(_) => Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
 				ir::StorableType::Slice(_st) => {
 					if self.prop != "length" {
-						return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist));
+						return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist(self.prop.clone(), storable_type_to_string(&r))));
 					}
 
 					Ok(ir::ValueType::UPtr)
@@ -791,7 +841,7 @@ impl ast::MemberAccessExpr {
 						ir::TypeContent::Struct(s) => {
 							let idx = match s.props().iter().position(|x| x.name() == self.prop) {
 								Some(x) => x,
-								None => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist)),
+								None => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist(self.prop.clone(), c.name().to_string()))),
 							};
 							let prop = s.prop(idx).unwrap();
 							let t = match prop.prop_type() {
@@ -813,7 +863,7 @@ impl ast::MemberAccessExpr {
 				ir::StorableType::Value(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
 				ir::StorableType::Slice(_st) => {
 					if self.prop != "length" {
-						return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist));
+						return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist(self.prop.clone(), storable_type_to_string(&r))));
 					}
 
 					target.push(ir::Ins::PushPath(ir::ValuePath::new(
@@ -828,7 +878,7 @@ impl ast::MemberAccessExpr {
 				},
 				ir::StorableType::SliceData(_) => unreachable!(),
 			},
-			_ => unreachable!()
+			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist(self.prop.clone(), value_type_to_string(&object))))
 		}
 	}
 
@@ -842,7 +892,7 @@ impl ast::MemberAccessExpr {
 						ir::TypeContent::Struct(s) => {
 							let idx = match s.props().iter().position(|x| x.name() == self.prop) {
 								Some(x) => x,
-								None => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist)),
+								None => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist(self.prop.clone(), c.name().to_string()))),
 							};
 							let prop = s.prop(idx).unwrap();
 
@@ -858,7 +908,7 @@ impl ast::MemberAccessExpr {
 					}
 				},
 				ir::StorableType::Value(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
-				ir::StorableType::Slice(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist)),
+				ir::StorableType::Slice(_) => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::PropDoesNotExist(self.prop.clone(), storable_type_to_string(&r)))),
 				ir::StorableType::SliceData(_) => unreachable!(),
 			},
 			_ => unreachable!()
@@ -872,7 +922,7 @@ impl ast::CallExpr {
 			ast::Expr::Name(name) => {
 				match ctx.ir_unit.find_function_index(&name.name) {
 					Some(x) => (x, ctx.ir_unit.get_function(x)),
-					_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist))
+					_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist(name.name.clone())))
 				}
 			},
 			ast::Expr::MemberAccess(member_access) => {
@@ -883,7 +933,7 @@ impl ast::CallExpr {
 						ir::StorableType::Compound(c) => {
 							match ctx.ir_unit.find_method_index(c.clone(), &member_access.prop) {
 								Some(x) => (x, ctx.ir_unit.get_function(x)),
-								_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist)),
+								_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist(member_access.prop.clone()))),
 							}
 						},
 						_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
@@ -891,7 +941,7 @@ impl ast::CallExpr {
 					_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS))
 				}
 			},
-			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist))
+			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS))
 		};
 
 		if func.signature().returns().len() != 1 {
@@ -906,7 +956,7 @@ impl ast::CallExpr {
 			ast::Expr::Name(name) => {
 				match ctx.ir_unit.find_function_index(&name.name) {
 					Some(x) => (x, ctx.ir_unit.get_function(x)),
-					_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist))
+					_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist(name.name.clone())))
 				}
 			},
 			ast::Expr::MemberAccess(member_access) => {
@@ -917,7 +967,7 @@ impl ast::CallExpr {
 						ir::StorableType::Compound(c) => {
 							match ctx.ir_unit.find_method_index(c.clone(), &member_access.prop) {
 								Some(x) => (x, ctx.ir_unit.get_function(x)),
-								_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist)),
+								_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist(member_access.prop.clone()))),
 							}
 						},
 						_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
@@ -925,7 +975,7 @@ impl ast::CallExpr {
 					_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS))
 				}
 			},
-			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist))
+			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS))
 		};
 
 		if func.signature().returns().len() != 1 {
@@ -934,24 +984,26 @@ impl ast::CallExpr {
 		
 		if func.method_of().is_some() {
 			if self.args.len() + 1 != func.signature().params().len() {
-				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch));
+				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch(self.args.len() + 1, func.signature().params().len())));
 			}
 			
 			for (a, arg) in self.args.iter().enumerate() {
 				let expected = ctx.ir_unit.get_function(func_id).signature().params()[a + 1].clone();
-				if arg.append_ir_value(ctx, target, Some(&expected))? != expected {
-					return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgTypeMismatch));
+				let found = arg.append_ir_value(ctx, target, Some(&expected))?;
+				if found != expected {
+					return Err(IrGenError::new(arg.span().clone(), IrGenErrorKind::CallArgTypeMismatch(value_type_to_string(&found), value_type_to_string(&expected))));
 				}
 			}
 		} else {
 			if self.args.len() != func.signature().params().len() {
-				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch));
+				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch(self.args.len(), func.signature().params().len())));
 			}
 			
 			for (a, arg) in self.args.iter().enumerate() {
 				let expected = ctx.ir_unit.get_function(func_id).signature().params()[a].clone();
-				if arg.append_ir_value(ctx, target, Some(&expected))? != expected {
-					return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgTypeMismatch));
+				let found = arg.append_ir_value(ctx, target, Some(&expected))?;
+				if found != expected {
+					return Err(IrGenError::new(arg.span().clone(), IrGenErrorKind::CallArgTypeMismatch(value_type_to_string(&found), value_type_to_string(&expected))));
 				}
 			}
 		}
@@ -966,20 +1018,21 @@ impl ast::CallExpr {
 			ast::Expr::Name(name) => {
 				match ctx.ir_unit.find_function_index(&name.name) {
 					Some(x) => (x, ctx.ir_unit.get_function(x)),
-					_ => todo!() // Possibly a local or global
+					_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist(name.name.clone())))
 				}
 			},
-			_ => todo!()
+			_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS))
 		};
 
 		if self.args.len() != func.signature().params().len() {
-			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch));
+			return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch(self.args.len(), func.signature().params().len())));
 		}
 
 		for (a, arg) in self.args.iter().enumerate() {
 			let expected = ctx.ir_unit.get_function(func_id).signature().params()[a].clone();
-			if arg.append_ir_value(ctx, target, Some(&expected))? != expected {
-				return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgTypeMismatch));
+			let found = arg.append_ir_value(ctx, target, Some(&expected))?;
+			if found != expected {
+				return Err(IrGenError::new(arg.span().clone(), IrGenErrorKind::CallArgTypeMismatch(value_type_to_string(&found), value_type_to_string(&expected))));
 			}
 		}
 
@@ -1031,7 +1084,7 @@ impl ast::NameExpr {
 				_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CompositeTypeOnStack)),
 			}
 		} else {
-			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::VariableDoesNotExist))
+			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::VariableDoesNotExist(self.name.clone())))
 		}
 	}
 
@@ -1055,7 +1108,7 @@ impl ast::NameExpr {
 				_ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CompositeTypeOnStack)),
 			}
 		} else {
-			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::VariableDoesNotExist))
+			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::VariableDoesNotExist(self.name.clone())))
 		}
 	}
 
@@ -1069,7 +1122,7 @@ impl ast::NameExpr {
 				ir::ValuePathOrigin::Local(idx, st.clone()),
 			)))
 		} else {
-			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::VariableDoesNotExist))
+			Err(IrGenError::new(self.span.clone(), IrGenErrorKind::VariableDoesNotExist(self.name.clone())))
 		}
 	}
 }

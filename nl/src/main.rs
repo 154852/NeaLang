@@ -39,32 +39,38 @@ struct BuildOpts {
 	emit_ir: bool,
 }
 
-fn print_error_range(start: usize, end: usize, source: &str) {
-	let mut start_idx = start;
-	for _ in 0..3 {
-		start_idx -= 1;
-		while start_idx != 0 && source.as_bytes()[start_idx] != '\n' as u8 {
-			start_idx -= 1;
-		}
-
-		if start_idx == 0 { break }
+fn print_error_range(mut start: usize, mut end: usize, source: &str, path: &Path, message: &str) {
+	while start < source.len() - 1 && source.as_bytes()[start].is_ascii_whitespace() {
+		start += 1;
 	}
 
-	let mut end_idx = end;
-	for _ in 0..3 {
-		end_idx += 1;
-		while end_idx != source.len() - 1 && source.as_bytes()[end_idx] != '\n' as u8 {
-			end_idx += 1;
+	while end > 0 && source.as_bytes()[end - 1].is_ascii_whitespace() {
+		end -= 1;
+	}
+	
+	end = end.max(start);
+
+	let mut idx = 0;
+	let main_line = source[0..start].matches('\n').count();
+	let first_line = if main_line <= 3 { 0 } else { main_line - 3 };
+	
+	eprintln!("\u{001b}[34m{}:{}\u{001b}[0m", path.display(), main_line);
+	for (l, line) in source.lines().enumerate() {
+		if l < first_line || l > main_line + 3 {
+			idx += line.len() + 1;
+			continue;
 		}
 
-		if end_idx == source.len() - 1 { break }
-	}
+		eprint!("\u{001b}[34m{:>4}\u{001b}[0m  ", l + 1);
+		if l == main_line {
+			eprintln!("{}\u{001b}[31m{}\u{001b}[0m{}", &source[idx..start], &source[start..end], &source[end..idx + line.len()]);
+			eprintln!("{}\u{001b}[33m^ {} here\u{001b}[0m", " ".repeat(source[idx..start].len() + 6), message);
+		} else {
+			eprintln!("{}", line);
+		}
 
-	eprintln!("{}", "-".repeat(50));
-	eprint!("{}", &source[start_idx..start]);
-	eprint!("\u{001b}[31m{}\u{001b}[0m", &source[start..end]);
-	eprint!("{}", &source[end..end_idx]);
-	eprintln!("{}", "-".repeat(50));
+		idx += line.len() + 1;
+	}
 }
 
 fn append_imports_of(unit: &ast::TranslationUnit, ir_unit: &mut ir::TranslationUnit, path: &Path, relocatable: bool) {
@@ -93,7 +99,7 @@ fn append_imports_of(unit: &ast::TranslationUnit, ir_unit: &mut ir::TranslationU
 					::syntax::MatchResult::Ok(code) => code,
 					::syntax::MatchResult::Err(e) => {
 						eprintln!("SyntaxError in {}: {}", child_path.display(), e.message());
-						print_error_range(e.start(), e.end(), &content);
+						print_error_range(e.start(), e.end(), &content, &child_path, e.message());
 						std::process::exit(1);
 					},
 					_ => unreachable!()
@@ -105,7 +111,8 @@ fn append_imports_of(unit: &ast::TranslationUnit, ir_unit: &mut ir::TranslationU
 					match unit.to_extern_ir_on(ir_unit) {
 						Ok(_) => {},
 						Err(e) => {
-							eprintln!("SemanticError: {}: {}-{}: {}", path.display(), e.start(), e.end(), e.message());
+							eprintln!("SemanticError: {}: {}", path.display(), e.message());
+							print_error_range(e.start(), e.end(), &content, &child_path, &e.message());
 							std::process::exit(1);
 						}
 					}
@@ -113,7 +120,8 @@ fn append_imports_of(unit: &ast::TranslationUnit, ir_unit: &mut ir::TranslationU
 					match unit.to_ir_on(ir_unit) {
 						Ok(_) => {},
 						Err(e) => {
-							eprintln!("SemanticError: {}: {}-{}: {}", path.display(), e.start(), e.end(), e.message());
+							eprintln!("SemanticError: {}: {}", path.display(), e.message());
+							print_error_range(e.start(), e.end(), &content, &child_path, &e.message());
 							std::process::exit(1);
 						}
 					}
@@ -144,7 +152,7 @@ fn build(build_opts: &BuildOpts) {
 			::syntax::MatchResult::Ok(code) => code,
 			::syntax::MatchResult::Err(e) => {
 				eprintln!("SyntaxError in {}: {}", path.display(), e.message());
-				print_error_range(e.start(), e.end(), &content);
+				print_error_range(e.start(), e.end(), &content, &path, e.message());
 				std::process::exit(1);
 			},
 			_ => unreachable!()
@@ -159,7 +167,8 @@ fn build(build_opts: &BuildOpts) {
 		match unit.to_ir_on(&mut ir_unit) {
 			Ok(_) => {},
 			Err(e) => {
-				eprintln!("SemanticError: {}: {}-{}: {}", path.display(), e.start(), e.end(), e.message());
+				eprintln!("SemanticError: {}: {}", path.display(), e.message());
+				print_error_range(e.start(), e.end(), &content, path, &e.message());
 				std::process::exit(1);
 			}
 		}
