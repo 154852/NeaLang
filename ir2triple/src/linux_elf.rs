@@ -24,6 +24,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 	let ctx = ir2x86::TranslationContext::new(x86::Mode::X8664);
 
 	let text_base = if relocatable { 0 } else { TEXT_BASE };
+	let mut entry = None;
 
 	let mut gid_allocator = ir2x86::GlobalIDAllocator::new(unit);
 
@@ -42,7 +43,14 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 			x86::opt::pass_zero(&mut ins);
 			
 			let (addr, length) = x86_encoding.append_function(&ins);
-			gid_allocator.push_global_symbol_mapping(gid, elf.push_symbol(elfbuilder::Symbol::Function(name_for_func(func), text_base + addr as u64, length as u64)), 0);
+			if func.is_entry() {
+				entry = Some(text_base + addr as u64);
+			}
+			gid_allocator.push_global_symbol_mapping(gid, elf.push_symbol(elfbuilder::Symbol::Function(if func.is_entry() {
+				"main".to_owned()
+			} else {
+				name_for_func(func)
+			}, text_base + addr as u64, length as u64)), 0);
 		}
 	}
 
@@ -162,7 +170,13 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 		elf::ABI::SysV,
 		if relocatable { elf::ObjectFileType::Relocatable } else { elf::ObjectFileType::Executable },
 		elf::Machine::X8664,
-		text_base // TODO: Use function entry
+		if let Some(entry) = entry {
+			entry
+		} else if relocatable {
+			0
+		} else {
+			return Err("No entry point specified".to_string());
+		}
 	);
 	let (header, body) = elf.encode::<ofile::LittleEndian64>(header);
 

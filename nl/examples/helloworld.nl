@@ -1,6 +1,6 @@
 import std
 
-func main() {
+func other() {
 	var other_string = new String;
 	var text = new u8[4];
 	text[0] = 65;
@@ -14,4 +14,8 @@ func main() {
 	print("Hello world\n");
 	print("Hello 2\n");
 	exit(0);
+}
+
+func [entry] x() {
+	other();
 }

@@ -206,7 +206,8 @@ pub struct Function {
     locals: Vec<Local>,
     signature: Signature,
     code: Option<Vec<Ins>>,
-    method_of: Option<CompoundTypeRef>
+    method_of: Option<CompoundTypeRef>,
+    entry: bool
 }
 
 impl Function {
@@ -216,7 +217,8 @@ impl Function {
             locals: Vec::new(),
             signature,
             code: Some(Vec::new()),
-            method_of: None
+            method_of: None,
+            entry: false
         }
     }
 
@@ -226,7 +228,8 @@ impl Function {
             locals: Vec::new(),
             signature,
             code: Some(Vec::new()),
-            method_of: Some(ctr)
+            method_of: Some(ctr),
+            entry: false
         }
     }
 
@@ -236,7 +239,8 @@ impl Function {
             locals: Vec::new(),
             signature,
             code: None,
-            method_of: None
+            method_of: None,
+            entry: false
         }
     }
 
@@ -246,7 +250,8 @@ impl Function {
             locals: Vec::new(),
             signature,
             code: None,
-            method_of: Some(ctr)
+            method_of: Some(ctr),
+            entry: false
         }
     }
 
@@ -256,6 +261,14 @@ impl Function {
 
     pub fn set_extern(&mut self) {
         self.code = None;
+    }
+
+    pub fn set_entry(&mut self) {
+        self.entry = true;
+    }
+
+    pub fn is_entry(&self) -> bool {
+        self.entry
     }
 
     pub fn method_of(&self) -> Option<CompoundTypeRef> {

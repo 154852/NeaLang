@@ -25,6 +25,7 @@ pub enum IrGenErrorKind {
 	IllegalIndexValue,
 	NonValueCast,
 	StdLinkError,
+	UnknownAnnotation(String)
 }
 
 pub struct IrGenError {
@@ -67,6 +68,7 @@ impl IrGenError {
 			IrGenErrorKind::IllegalIndexValue => format!("Can only index with a uptr"),
 			IrGenErrorKind::NonValueCast => format!("Cannot cast to non-value type"),
 			IrGenErrorKind::StdLinkError => format!("Not linked with std, try importing std"),
+			IrGenErrorKind::UnknownAnnotation(name) => format!("Unknown annotation '{}'", name),
 		}
 	}
 }
@@ -287,7 +289,7 @@ impl ast::Function {
 			returns.push(return_type.to_ir_value_type(ir_unit)?);
 		}
 
-		let func = if self.path.len() > 0 {
+		let mut func = if self.path.len() > 0 {
 			assert_eq!(self.path.len(), 1);
 			let ctr = match ir_unit.find_type(&self.path[0]) {
 				Some(x) => x,
@@ -306,6 +308,15 @@ impl ast::Function {
 				ir::Function::new_extern(&self.name, ir::Signature::new(params, returns))
 			}
 		};
+
+		for annotation in &self.annotations {
+			match annotation.name.as_str() {
+				"entry" => {
+					func.set_entry();
+				},
+				_ => return Err(IrGenError::new(annotation.span.clone(), IrGenErrorKind::UnknownAnnotation(annotation.name.clone())))
+			}
+		}
 
 		Ok(func)
 	}

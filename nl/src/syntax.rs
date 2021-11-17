@@ -170,7 +170,6 @@ impl ast::TopLevelNode {
     }
 }
 
-
 impl ast::ImportStmt {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::ImportStmt> {
         let start = stream.tell_start();
@@ -495,10 +494,37 @@ impl ast::FunctionParam {
     }
 }
 
+impl ast::FunctionAnnotation {
+    fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::FunctionAnnotation> {
+        let start = stream.tell_start();
+        let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident)).to_owned();
+        stream.step();
+
+        syntax::MatchResult::Ok(ast::FunctionAnnotation {
+            span: syntax::Span::new(start, stream.tell_start()),
+            name,
+        })
+    }
+}
+
 impl ast::Function {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Function> {
         let start = stream.tell_start();
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::FuncKeyword));
+
+        let mut annotations = Vec::new();
+        if syntax::tk_iss!(stream, TokenKind::OpenBracket) {
+            loop {
+                annotations.push(match syntax::parse!(stream, ast::FunctionAnnotation::parse) {
+                    Some(x) => x,
+                    None => break
+                });
+    
+                if !syntax::tk_iss!(stream, TokenKind::Comma) { break }
+            }
+
+            syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseBracket), stream.error("Expected ']'"));
+        }
 
         let mut name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident), stream.error("Expected a name")).to_owned();
         stream.step();
@@ -567,7 +593,7 @@ impl ast::Function {
             span: syntax::Span::new(start, end),
             path, name, params, code,
 			return_types: returns,
-			annotations: Vec::new()
+			annotations
         })
     }
 }
