@@ -201,6 +201,11 @@ impl<'a> TranslationContext<'a> {
         module.add_memory(wasm::MemType::new(wasm::Limits::new(8)));
         module.add_export(wasm::Export::new("mem", wasm::ExportDescriptor::Mem(0)));
 
+        let mem_size = module.add_global(wasm::Global::new(wasm::GlobalType::new(wasm::ValType::Num(wasm::NumType::I32)), wasm::Expr::with(vec![
+            wasm::Ins::ConstI32(raw.len() as i32)
+        ])));
+        module.add_export(wasm::Export::new("mem_size", wasm::ExportDescriptor::Global(mem_size)));
+
         module.add_data(wasm::Data::Active(0, wasm::Expr::with(vec![
             wasm::Ins::ConstI32(0)
         ]), raw));

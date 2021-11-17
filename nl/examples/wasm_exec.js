@@ -4,8 +4,8 @@ const primaryPath = process.argv[2];
 const fs = require("fs");
 
 class Heap {
-    constructor() {
-        this.offset = 512;
+    constructor(offset) {
+        this.offset = offset;
     }
 
     alloc(size) {
@@ -16,7 +16,7 @@ class Heap {
 
 (async function() {
     let mem;
-    const heap = new Heap();
+    let heap;
 
     const core = {
         exit: (code) => process.exit(code),
@@ -46,5 +46,6 @@ class Heap {
     });
 
     mem = primary.instance.exports.mem;
+    heap = new Heap(primary.instance.exports.mem_size + 0);
     primary.instance.exports.main();
 })();

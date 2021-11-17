@@ -139,6 +139,15 @@ pub struct GlobalType {
 	mutable: bool
 }
 
+impl GlobalType {
+	pub fn new(val_type: ValType) -> GlobalType {
+		GlobalType {
+			val_type,
+			mutable: false
+		}
+	}
+}
+
 impl WasmEncodable for GlobalType {
     fn wasm_encode(&self, data: &mut Vec<u8>) {
         self.val_type.wasm_encode(data);
@@ -213,6 +222,14 @@ impl WasmEncodable for Import {
 pub struct Global {
 	global_type: GlobalType,
 	expr: Expr
+}
+
+impl Global {
+	pub fn new(global_type: GlobalType, expr: Expr) -> Global {
+		Global {
+			global_type, expr
+		}
+	}
 }
 
 impl WasmEncodable for Global {
@@ -444,8 +461,9 @@ impl Module {
 		self.memories.push(memory);
 	}
 
-	pub fn add_global(&mut self, global: Global) {
+	pub fn add_global(&mut self, global: Global) -> GlobalIdx {
 		self.globals.push(global);
+		self.globals.len() - 1
 	}
 
 	pub fn add_export(&mut self, export: Export) {
