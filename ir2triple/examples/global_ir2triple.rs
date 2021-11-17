@@ -23,9 +23,9 @@ fn main() {
 	));
 
 	let func_a = unit.get_function_mut(func_a_id);
-    func_a.push(ir::Ins::PushGlobalRef(ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::I32))), global_a));
-    func_a.push(ir::Ins::Drop);
-    func_a.push(ir::Ins::Ret);
+    // func_a.push(ir::Ins::PushGlobalRef(ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::I32))), global_a));
+    // func_a.push(ir::Ins::Drop);
+    // func_a.push(ir::Ins::Ret);
 
 	unit.validate().expect("Validation failed");
 

@@ -15,11 +15,11 @@ fn main() {
     
 	let local = func.push_local(ir::Local::new(ir::StorableType::Compound(example_struct.clone())));
     
-	func.push(ir::Ins::PushLocalRef(ir::StorableType::Compound(example_struct.clone()), local));
-    func.push(ir::Ins::PushPropertyRef(example_struct.clone(), ir::StorableType::Value(ir::ValueType::I32), 1));
-    func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 32));
-    func.push(ir::Ins::PopRef(ir::ValueType::I32));
-	func.push(ir::Ins::Ret);
+	// func.push(ir::Ins::PushLocalRef(ir::StorableType::Compound(example_struct.clone()), local));
+    // func.push(ir::Ins::PushPropertyRef(example_struct.clone(), ir::StorableType::Value(ir::ValueType::I32), 1));
+    // func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 32));
+    // func.push(ir::Ins::PopRef(ir::ValueType::I32));
+	// func.push(ir::Ins::Ret);
 
     let func_id = unit.add_function(func);
 

@@ -3,12 +3,10 @@ mod ast;
 mod syntax;
 mod irgen;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use clap::{AppSettings, Clap};
 use ir2triple;
-use irgen::IrGenError;
-use ::syntax::SyntaxError;
 
 #[derive(Clap)]
 #[clap(setting = AppSettings::ColoredHelp)]
@@ -41,14 +39,35 @@ struct BuildOpts {
 	emit_ir: bool,
 }
 
-enum NlError {
-	Syntax(SyntaxError, PathBuf),
-	Semantic(IrGenError, PathBuf),
-	Import(std::io::Error, PathBuf),
-	Encode(String)
+fn print_error_range(start: usize, end: usize, source: &str) {
+	let mut start_idx = start;
+	for _ in 0..3 {
+		start_idx -= 1;
+		while start_idx != 0 && source.as_bytes()[start_idx] != '\n' as u8 {
+			start_idx -= 1;
+		}
+
+		if start_idx == 0 { break }
+	}
+
+	let mut end_idx = end;
+	for _ in 0..3 {
+		end_idx += 1;
+		while end_idx != source.len() - 1 && source.as_bytes()[end_idx] != '\n' as u8 {
+			end_idx += 1;
+		}
+
+		if end_idx == source.len() - 1 { break }
+	}
+
+	eprintln!("{}", "-".repeat(50));
+	eprint!("{}", &source[start_idx..start]);
+	eprint!("\u{001b}[31m{}\u{001b}[0m", &source[start..end]);
+	eprint!("{}", &source[end..end_idx]);
+	eprintln!("{}", "-".repeat(50));
 }
 
-fn append_imports_of(unit: &ast::TranslationUnit, ir_unit: &mut ir::TranslationUnit, path: &Path, relocatable: bool) -> Result<(), NlError> {
+fn append_imports_of(unit: &ast::TranslationUnit, ir_unit: &mut ir::TranslationUnit, path: &Path, relocatable: bool) {
 	for node in &unit.nodes {
 		match node {
 			ast::TopLevelNode::Import(import_stmt) => {
@@ -61,7 +80,10 @@ fn append_imports_of(unit: &ast::TranslationUnit, ir_unit: &mut ir::TranslationU
 
 				let content = match std::fs::read_to_string(&child_path) {
 					Ok(x) => x,
-					Err(e) => return Err(NlError::Import(e, child_path))
+					Err(e) => {
+						eprintln!("Could not open import of {}: {} - {}", path.display(), child_path.display(), e);
+						std::process::exit(1);
+					}
 				};
 
 				let mut matcher = crate::lexer::TokenStream::new(&content, Box::new(lexer::Matcher {}));
@@ -69,39 +91,50 @@ fn append_imports_of(unit: &ast::TranslationUnit, ir_unit: &mut ir::TranslationU
 
 				let unit = match ast::TranslationUnit::parse(&mut matcher) {
 					::syntax::MatchResult::Ok(code) => code,
-					::syntax::MatchResult::Err(e) => return Err(NlError::Syntax(e, child_path)),
+					::syntax::MatchResult::Err(e) => {
+						eprintln!("SyntaxError in {}: {}", child_path.display(), e.message());
+						print_error_range(e.start(), e.end(), &content);
+						std::process::exit(1);
+					},
 					_ => unreachable!()
 				};
 
-				append_imports_of(&unit, ir_unit, child_path.as_path(), relocatable)?;
+				append_imports_of(&unit, ir_unit, child_path.as_path(), relocatable);
 
 				if relocatable {
 					match unit.to_extern_ir_on(ir_unit) {
 						Ok(_) => {},
-						Err(e) => return Err(NlError::Semantic(e, child_path))
+						Err(e) => {
+							eprintln!("SemanticError: {}: {}-{}: {}", path.display(), e.start(), e.end(), e.message());
+							std::process::exit(1);
+						}
 					}
 				} else {
 					match unit.to_ir_on(ir_unit) {
 						Ok(_) => {},
-						Err(e) => return Err(NlError::Semantic(e, child_path))
+						Err(e) => {
+							eprintln!("SemanticError: {}: {}-{}: {}", path.display(), e.start(), e.end(), e.message());
+							std::process::exit(1);
+						}
 					}
 				}
 			},
 			_ => {}
 		}
 	}
-
-	Ok(())
 }
 
-fn build(build_opts: &BuildOpts) -> Result<(), NlError> {
+fn build(build_opts: &BuildOpts) {
 	let mut ir_unit = ir::TranslationUnit::new();
 
 	for path in &build_opts.path {
 		let path = Path::new(path);
 		let content = match std::fs::read_to_string(path) {
 			Ok(s) => s,
-			Err(e) => return Err(NlError::Import(e, path.to_path_buf()))
+			Err(e) => {
+				eprintln!("Could not open source: {} - {}", path.display(), e);
+				std::process::exit(1);
+			}
 		};
 
 		let mut matcher = crate::lexer::TokenStream::new(&content, Box::new(lexer::Matcher {}));
@@ -109,7 +142,11 @@ fn build(build_opts: &BuildOpts) -> Result<(), NlError> {
 
 		let unit = match ast::TranslationUnit::parse(&mut matcher) {
 			::syntax::MatchResult::Ok(code) => code,
-			::syntax::MatchResult::Err(e) => return Err(NlError::Syntax(e, path.to_path_buf())),
+			::syntax::MatchResult::Err(e) => {
+				eprintln!("SyntaxError in {}: {}", path.display(), e.message());
+				print_error_range(e.start(), e.end(), &content);
+				std::process::exit(1);
+			},
 			_ => unreachable!()
 		};
 
@@ -117,11 +154,14 @@ fn build(build_opts: &BuildOpts) -> Result<(), NlError> {
 			println!("{:#?}", unit);
 		}
 
-		append_imports_of(&unit, &mut ir_unit, path, build_opts.relocatable)?;
+		append_imports_of(&unit, &mut ir_unit, path, build_opts.relocatable);
 
 		match unit.to_ir_on(&mut ir_unit) {
 			Ok(_) => {},
-			Err(e) => return Err(NlError::Semantic(e, path.to_path_buf()))
+			Err(e) => {
+				eprintln!("SemanticError: {}: {}-{}: {}", path.display(), e.start(), e.end(), e.message());
+				std::process::exit(1);
+			}
 		}
 	}
 
@@ -134,14 +174,20 @@ fn build(build_opts: &BuildOpts) -> Result<(), NlError> {
 	match build_opts.triple.as_str() {
 		"linux-elf-x86_64" => {
 			match ir2triple::linux_elf::encode(&ir_unit, &build_opts.output, build_opts.relocatable) {
-				Ok(_) => Ok(()),
-				Err(err) => return Err(NlError::Encode(err))
+				Ok(_) => (),
+				Err(e) => {
+					eprintln!("EncodeError: {}", e);
+					std::process::exit(1);
+				}
 			}
 		},
 		"wasm" => {
 			match ir2triple::wasm::encode(&ir_unit, &build_opts.output, build_opts.relocatable) {
-				Ok(_) => Ok(()),
-				Err(err) => return Err(NlError::Encode(err))
+				Ok(_) => (),
+				Err(e) => {
+					eprintln!("EncodeError: {}", e);
+					std::process::exit(1);
+				}
 			}
 		},
 		_ => {
@@ -155,28 +201,6 @@ fn main() {
 	let opts = Opts::parse();
 
 	match opts.cmd {
-		SubCommand::Build(build_opts) => {
-			match build(&build_opts) {
-				Ok(_) => {},
-				Err(e) => match e {
-					NlError::Syntax(e, path) => {
-						eprintln!("SyntaxError: {}: {}-{}: {}", path.display(), e.start(), e.end(), e.message());
-						std::process::exit(1);
-					},
-					NlError::Semantic(e, path) => {
-						eprintln!("SemanticError: {}: {}-{}: {}", path.display(), e.start(), e.end(), e.message());
-						std::process::exit(1);
-					},
-					NlError::Import(e, path) => {
-						eprintln!("IOError: {} - {}", path.display(), e);
-						std::process::exit(1);
-					},
-					NlError::Encode(e) => {
-						eprintln!("EncodeError: {}", e);
-						std::process::exit(1);
-					},
-				}
-			}
-		}
+		SubCommand::Build(build_opts) => build(&build_opts)
 	}
 }

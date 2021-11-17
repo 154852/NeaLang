@@ -6,7 +6,7 @@ func main() {
 	text[0] = 65;
 	text[1] = 66;
 	text[2] = 67;
-	text[3] = 10;
+	text[3] = 10
 
 	other_string.data = text;
 	print(other_string);
