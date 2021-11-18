@@ -3,7 +3,7 @@ mod ast;
 mod syntax;
 mod irgen;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use clap::{AppSettings, Clap};
 use ir2triple;
@@ -73,74 +73,30 @@ fn print_error_range(mut start: usize, mut end: usize, source: &str, path: &Path
 	}
 }
 
-fn append_imports_of(unit: &ast::TranslationUnit, ir_unit: &mut ir::TranslationUnit, path: &Path, relocatable: bool) {
-	for node in &unit.nodes {
-		match node {
-			ast::TopLevelNode::Import(import_stmt) => {
-				let mut child_path = path.parent().unwrap().to_path_buf(); // Can't be a directory, so can't be /
-				for element in &import_stmt.path {
-					child_path = child_path.join(element);
-				}
-
-				child_path = child_path.with_extension("nl");
-
-				let content = match std::fs::read_to_string(&child_path) {
-					Ok(x) => x,
-					Err(e) => {
-						eprintln!("Could not open import of {}: {} - {}", path.display(), child_path.display(), e);
-						std::process::exit(1);
-					}
-				};
-
-				let mut matcher = crate::lexer::TokenStream::new(&content, Box::new(lexer::Matcher {}));
-				matcher.step();
-
-				let unit = match ast::TranslationUnit::parse(&mut matcher) {
-					::syntax::MatchResult::Ok(code) => code,
-					::syntax::MatchResult::Err(e) => {
-						eprintln!("SyntaxError in {}: {}", child_path.display(), e.message());
-						print_error_range(e.start(), e.end(), &content, &child_path, e.message());
-						std::process::exit(1);
-					},
-					_ => unreachable!()
-				};
-
-				append_imports_of(&unit, ir_unit, child_path.as_path(), relocatable);
-
-				if relocatable {
-					match unit.to_extern_ir_on(ir_unit) {
-						Ok(_) => {},
-						Err(e) => {
-							eprintln!("SemanticError: {}: {}", path.display(), e.message());
-							print_error_range(e.start(), e.end(), &content, &child_path, &e.message());
-							std::process::exit(1);
-						}
-					}
-				} else {
-					match unit.to_ir_on(ir_unit) {
-						Ok(_) => {},
-						Err(e) => {
-							eprintln!("SemanticError: {}: {}", path.display(), e.message());
-							print_error_range(e.start(), e.end(), &content, &child_path, &e.message());
-							std::process::exit(1);
-						}
-					}
-				}
-			},
-			_ => {}
-		}
-	}
+pub struct BuildContext {
+	linked_paths: Vec<PathBuf>,
 }
 
-fn build(build_opts: &BuildOpts) {
-	let mut ir_unit = ir::TranslationUnit::new();
+impl BuildContext {
+	pub fn new(linked_paths: &Vec<String>) -> BuildContext {
+		BuildContext {
+			linked_paths: linked_paths.iter().map(|x| Path::new(x).canonicalize().expect("Invalid path")).collect(),
+		}
+	}
 
-	for path in &build_opts.path {
-		let path = Path::new(path);
-		let content = match std::fs::read_to_string(path) {
-			Ok(s) => s,
+	fn append_at_path(&self, ir_unit: &mut ir::TranslationUnit, path: &PathBuf, visited_paths: &mut Vec<PathBuf>) {
+		let path = path.canonicalize().expect("Invalid path");
+
+		if visited_paths.iter().position(|x| x == &path).is_some() {
+			return;
+		}
+
+		visited_paths.push(path.clone());
+
+		let content = match std::fs::read_to_string(&path) {
+			Ok(x) => x,
 			Err(e) => {
-				eprintln!("Could not open source: {} - {}", path.display(), e);
+				eprintln!("Could not open {} - {}", path.display(), e);
 				std::process::exit(1);
 			}
 		};
@@ -158,21 +114,58 @@ fn build(build_opts: &BuildOpts) {
 			_ => unreachable!()
 		};
 
-		if build_opts.emit_ast {
-			println!("{:#?}", unit);
+		// append_imports_of(&unit, build_paths, linked_paths, ir_unit, child_path.as_path(), relocatable);
+		for node in &unit.nodes {
+			match node {
+				ast::TopLevelNode::Import(import_stmt) => {
+					let mut child_path = path.parent().unwrap().to_path_buf(); // Can't be a directory, so can't be /
+					for element in &import_stmt.path {
+						child_path = child_path.join(element);
+					}
+
+					child_path = child_path.with_extension("nl");
+
+					self.append_at_path(ir_unit, &child_path, visited_paths);
+				},
+				_ => {}
+			}
 		}
 
-		append_imports_of(&unit, &mut ir_unit, path, build_opts.relocatable);
-
-		match unit.to_ir_on(&mut ir_unit) {
-			Ok(_) => {},
-			Err(e) => {
-				eprintln!("SemanticError: {}: {}", path.display(), e.message());
-				print_error_range(e.start(), e.end(), &content, path, &e.message());
-				std::process::exit(1);
+		if self.linked_paths.iter().position(|x| x == &path).is_some() {
+			match unit.to_ir_on(ir_unit) {
+				Ok(_) => {},
+				Err(e) => {
+					eprintln!("SemanticError: {}: {}", path.display(), e.message());
+					print_error_range(e.start(), e.end(), &content, &path, &e.message());
+					std::process::exit(1);
+				}
+			}
+		} else {
+			match unit.to_extern_ir_on(ir_unit) {
+				Ok(_) => {},
+				Err(e) => {
+					eprintln!("SemanticError: {}: {}", path.display(), e.message());
+					print_error_range(e.start(), e.end(), &content, &path, &e.message());
+					std::process::exit(1);
+				}
 			}
 		}
 	}
+
+	pub fn build(&mut self) -> ir::TranslationUnit {
+		let mut ir_unit = ir::TranslationUnit::new();
+
+		let mut visited_paths = Vec::new();
+		for path in &self.linked_paths {
+			self.append_at_path(&mut ir_unit, path, &mut visited_paths);
+		}
+
+		ir_unit
+	}
+}
+
+fn build(build_opts: &BuildOpts) {
+	let ir_unit = BuildContext::new(&build_opts.path).build();
 
 	if build_opts.emit_ir {
 		println!("{:#?}", ir_unit);

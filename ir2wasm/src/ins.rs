@@ -119,13 +119,13 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::New(st) => {
                 insns.push(wasm::Ins::ConstI32(size_for_st(st) as i32));
                 insns.push(wasm::Ins::Call(
-                    self.function_index(self.unit().find_function_index("nl_new_object").expect("Not linked with std"))
+                    self.function_index(self.unit().find_alloc().expect("Not linked with std"))
                 ));
             },
             ir::Ins::NewSlice(st) => {
                 insns.push(wasm::Ins::ConstI32(size_for_st(st) as i32));
                 insns.push(wasm::Ins::Call(
-                    self.function_index(self.unit().find_function_index("nl_new_slice").expect("Not linked with std"))
+                    self.function_index(self.unit().find_alloc_slice().expect("Not linked with std"))
                 ));
             },
             ir::Ins::PushLiteral(vt, i) => {

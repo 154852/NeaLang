@@ -253,6 +253,8 @@ impl<'a> TranslationContext<'a> {
 
             module.add_export(wasm::Export::new(if let Some(method_of) = func.method_of() {
                 format!("{}.{}", method_of.name(), func.name())
+            } else if func.is_entry() {
+                "main".to_owned()
             } else {
                 func.name().to_owned()
             }, wasm::ExportDescriptor::Func(wfunc)));

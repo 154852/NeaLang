@@ -134,7 +134,7 @@ impl TranslationContext {
                     crate::registerify::size_for_st(st, self.mode) as u64
                 ));
 
-                self.insert_call(ftc.unit().find_function_index("nl_new_object").expect("No nl_new_object included"), ftc, ins);
+                self.insert_call(ftc.unit().find_alloc().expect("No nl_new_object included"), ftc, ins);
             },
             ir::Ins::NewSlice(st) => {
                 ins.push(x86::Ins::MovRegImm(
@@ -142,7 +142,7 @@ impl TranslationContext {
                     crate::registerify::size_for_st(st, self.mode) as u64
                 ));
 
-                self.insert_call(ftc.unit().find_function_index("nl_new_slice").expect("No nl_new_slice included"), ftc, ins);
+                self.insert_call(ftc.unit().find_alloc_slice().expect("No nl_new_slice included"), ftc, ins);
             },
             ir::Ins::Convert(from, to) => {
                 let size_a = crate::registerify::size_for_vt(from, self.mode);

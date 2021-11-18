@@ -311,9 +311,9 @@ impl ast::Function {
 
 		for annotation in &self.annotations {
 			match annotation.name.as_str() {
-				"entry" => {
-					func.set_entry();
-				},
+				"entry" => func.set_entry(),
+				"alloc" => func.set_alloc(),
+				"alloc_slice" => func.set_alloc_slice(),
 				_ => return Err(IrGenError::new(annotation.span.clone(), IrGenErrorKind::UnknownAnnotation(annotation.name.clone())))
 			}
 		}

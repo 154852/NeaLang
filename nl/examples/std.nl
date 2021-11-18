@@ -1,7 +1,7 @@
 func exit(code: i32) extern
 func putchar(chr: u32) extern
-func nl_new_object(size: uptr): uptr extern
-func nl_new_slice(count: uptr, size: uptr): uptr extern
+func [alloc] nl_new_object(size: uptr): uptr extern
+func [alloc_slice] nl_new_slice(count: uptr, size: uptr): uptr extern
 
 struct String {
 	data: u8[]

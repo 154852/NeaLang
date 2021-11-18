@@ -35,6 +35,20 @@ impl TranslationUnit {
         self.globals.len() - 1
     }
 
+    pub fn find_alloc(&self) -> Option<FunctionIndex> {
+        for (f, function) in self.functions.iter().enumerate() {
+            if function.is_alloc() { return Some(f); }
+        }
+        None
+    }
+
+    pub fn find_alloc_slice(&self) -> Option<FunctionIndex> {
+        for (f, function) in self.functions.iter().enumerate() {
+            if function.is_alloc_slice() { return Some(f); }
+        }
+        None
+    }
+
     pub fn globals(&self) -> &Vec<Global> {
         &self.globals
     }
@@ -207,7 +221,10 @@ pub struct Function {
     signature: Signature,
     code: Option<Vec<Ins>>,
     method_of: Option<CompoundTypeRef>,
-    entry: bool
+    
+    entry: bool,
+    alloc: bool,
+    alloc_slice: bool,
 }
 
 impl Function {
@@ -218,7 +235,9 @@ impl Function {
             signature,
             code: Some(Vec::new()),
             method_of: None,
-            entry: false
+            entry: false,
+            alloc: false,
+            alloc_slice: false
         }
     }
 
@@ -229,7 +248,9 @@ impl Function {
             signature,
             code: Some(Vec::new()),
             method_of: Some(ctr),
-            entry: false
+            entry: false,
+            alloc: false,
+            alloc_slice: false
         }
     }
 
@@ -240,7 +261,9 @@ impl Function {
             signature,
             code: None,
             method_of: None,
-            entry: false
+            entry: false,
+            alloc: false,
+            alloc_slice: false
         }
     }
 
@@ -251,7 +274,9 @@ impl Function {
             signature,
             code: None,
             method_of: Some(ctr),
-            entry: false
+            entry: false,
+            alloc: false,
+            alloc_slice: false
         }
     }
 
@@ -259,17 +284,17 @@ impl Function {
         self.code.is_none()
     }
 
-    pub fn set_extern(&mut self) {
-        self.code = None;
-    }
+    pub fn set_extern(&mut self) { self.code = None; }
+    pub fn set_non_extern(&mut self) { self.code = Some(Vec::new()); }
 
-    pub fn set_entry(&mut self) {
-        self.entry = true;
-    }
+    pub fn set_entry(&mut self) { self.entry = true; }
+    pub fn is_entry(&self) -> bool { self.entry }
 
-    pub fn is_entry(&self) -> bool {
-        self.entry
-    }
+    pub fn set_alloc(&mut self) { self.alloc = true; }
+    pub fn is_alloc(&self) -> bool { self.alloc }
+
+    pub fn set_alloc_slice(&mut self) { self.alloc_slice = true; }
+    pub fn is_alloc_slice(&self) -> bool { self.alloc_slice }
 
     pub fn method_of(&self) -> Option<CompoundTypeRef> {
         self.method_of.clone()
