@@ -1,6 +1,5 @@
 mod lexer;
 mod ast;
-mod syntax;
 mod irgen;
 
 use std::path::{Path, PathBuf};

@@ -8,7 +8,6 @@ macro_rules! pop {
         };
     };
     ($stack:expr, = $e:expr) => {
-        println!("B");
         if $stack.pop()? != $e {
             return Err(ValidationError::StackIncorrectType);
         }
@@ -17,14 +16,12 @@ macro_rules! pop {
 
 macro_rules! pop_path {
     ($stack:expr, $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => {
-        println!("C");
         match $stack.pop_path()? {
             $( $pattern )|+ $( if $guard )? => {},
             _ => return Err(ValidationError::StackIncorrectType)
         };
     };
     ($stack:expr, = $e:expr) => {
-        println!("D");
         if $stack.pop_path()? != $e {
             return Err(ValidationError::StackIncorrectType);
         }
@@ -33,14 +30,12 @@ macro_rules! pop_path {
 
 macro_rules! peek {
     ($stack:expr, $idx:expr, $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => {
-        println!("E");
         match $stack.peek($idx)? {
             $( $pattern )|+ $( if $guard )? => {},
             _ => return Err(ValidationError::StackIncorrectType)
         };
     };
     ($stack:expr, $idx:expr, = $e:expr) => {
-        println!("F");
         if $stack.peek($idx)? != $e {
             return Err(ValidationError::StackIncorrectType);
         }
