@@ -257,6 +257,7 @@ pub enum Ins {
     /// ```
     Ge(ValueType),
 
+    /// Code, Condition, Inc
     /// Continues to loop over it's code while it's condition does not evaluate to zero, running inc after each iteration
     /// Initially evaluates the condition. If it is zero, it breaks. Otherwise it runs code, followed by inc, and then re-evaluates.
     /// Code will start and end with an empty stack, condition will start with an empty stack and end with one (bool) value, inc will start and end with an empty stack.
@@ -288,7 +289,7 @@ pub enum Ins {
     /// ));
     /// func.push(ir::Ins::Ret);
     /// ```
-    Loop(Vec<Ins>, Vec<Ins>, Vec<Ins>), // Code, Condition, Inc
+    Loop(Vec<Ins>, Vec<Ins>, Vec<Ins>),
 
     /// Executes it's children if the popped item is nonzero.
     /// The instruction must start with one (bool) item on the stack, and it's content must end with 0.

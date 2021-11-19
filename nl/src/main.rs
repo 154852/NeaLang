@@ -166,7 +166,9 @@ fn build(build_opts: &BuildOpts) {
 	let ir_unit = BuildContext::new(&build_opts.path).build();
 
 	if build_opts.emit_ir {
-		println!("{:#?}", ir_unit);
+		for (idx, func) in ir_unit.functions().iter().enumerate() {
+			println!("func {}:{:?} {}", idx, func.name(), func);
+		}
 	}
 
 	ir_unit.validate().expect("Could not validate IR");
@@ -189,6 +191,9 @@ fn build(build_opts: &BuildOpts) {
 					std::process::exit(1);
 				}
 			}
+		},
+		"none" => {
+			// Do nothing
 		},
 		_ => {
 			println!("Unknown triple: {}", build_opts.triple);
