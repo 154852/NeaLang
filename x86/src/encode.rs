@@ -204,7 +204,7 @@ impl Encoder {
 
     /// Sets W prefix for 64 bit instructions
     pub fn long(mut self) -> Self {
-        self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).w());
+        self.prefix = Some(self.prefix_or_new().w());
         self
     }
 
@@ -251,14 +251,21 @@ impl Encoder {
         }
     }
 
+    fn prefix_or_new(&self) -> Prefix {
+        match self.prefix {
+            Some(x) => x,
+            None => Prefix::new()
+        }
+    }
+
     /// For instruction such as push, where the target register is added to the opcode
     pub fn offset(mut self, reg: Reg) -> Self {
         assert!(self.opcode.len() == 1);
 
         self.opcode[0] += reg.class().id();
         
-        if reg.class().is_rn() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).b()) }
-        if matches!(reg.size(), Size::Quad) { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).w()) }
+        if reg.class().is_rn() { self.prefix = Some(self.prefix_or_new().b()) }
+        if matches!(reg.size(), Size::Quad) { self.prefix = Some(self.prefix_or_new().w()) }
         if matches!(reg.size(), Size::Word) { self.operand_size_override = true; }
 
         self
@@ -268,11 +275,11 @@ impl Encoder {
     pub fn rr(mut self, a: Reg, b: Reg) -> Self {
         self.operands.push(Reg::modrm_reg_addressing(a, b));
         
-        if a.class().is_rn() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).r()) }
-        if b.class().is_rn() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).b()) }
+        if a.class().is_rn() { self.prefix = Some(self.prefix_or_new().r()) }
+        if b.class().is_rn() { self.prefix = Some(self.prefix_or_new().b()) }
         
-        if matches!(a.size(), Size::Byte) && a.class().byte_forces_rex() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new())); }
-        if matches!(a.size(), Size::Quad) { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).w()) }
+        if matches!(a.size(), Size::Byte) && a.class().byte_forces_rex() { self.prefix = Some(self.prefix_or_new()); }
+        if matches!(a.size(), Size::Quad) { self.prefix = Some(self.prefix_or_new().w()) }
         if matches!(a.size(), Size::Word) { self.operand_size_override = true; }
 
         self
@@ -282,10 +289,10 @@ impl Encoder {
     pub fn rn(mut self, a: Reg, b: u8) -> Self {
         self.operands.push(a.modrm_reg_addressing_single(b));
         
-        if a.class().is_rn() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).b()) }
+        if a.class().is_rn() { self.prefix = Some(self.prefix_or_new().b()) }
         
-        if matches!(a.size(), Size::Byte) && a.class().byte_forces_rex() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new())); }
-        if matches!(a.size(), Size::Quad) { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).w()) }
+        if matches!(a.size(), Size::Byte) && a.class().byte_forces_rex() { self.prefix = Some(self.prefix_or_new()); }
+        if matches!(a.size(), Size::Quad) { self.prefix = Some(self.prefix_or_new().w()) }
         if matches!(a.size(), Size::Word) { self.operand_size_override = true; }
 
         self
@@ -295,13 +302,13 @@ impl Encoder {
     pub fn rm(mut self, a: Reg, b: &Mem) -> Self {
         b.modrm_to_reg(a, &mut self.operands);
         
-        if a.class().is_rn() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).r()) }
+        if a.class().is_rn() { self.prefix = Some(self.prefix_or_new().r()) }
 
-        if b.base.is_some() && b.base.unwrap().is_rn() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).b()) }
-        if b.index.is_some() && b.index.unwrap().is_rn() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).x()) }
+        if matches!(b.base, Some(b) if b.is_rn()) { self.prefix = Some(self.prefix_or_new().b()) }
+        if matches!(b.index, Some(b) if b.is_rn()) { self.prefix = Some(self.prefix_or_new().x()) }
         
-        if matches!(a.size(), Size::Byte) && a.class().byte_forces_rex() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new())); }
-        if matches!(a.size(), Size::Quad) { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).w()) }
+        if matches!(a.size(), Size::Byte) && a.class().byte_forces_rex() { self.prefix = Some(self.prefix_or_new()); }
+        if matches!(a.size(), Size::Quad) { self.prefix = Some(self.prefix_or_new().w()) }
         if matches!(a.size(), Size::Word) { self.operand_size_override = true; }
 
         self
@@ -316,10 +323,10 @@ impl Encoder {
     pub fn mn(mut self, size: Size, a: &Mem, x: u8) -> Self {
         a.modrm_with(x, &mut self.operands);
 
-        if a.base.is_some() && a.base.unwrap().is_rn() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).b()) }
-        if a.index.is_some() && a.index.unwrap().is_rn() { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).x()) }
+        if matches!(a.base, Some(a) if a.is_rn()) { self.prefix = Some(self.prefix_or_new().b()) }
+        if matches!(a.index, Some(a) if a.is_rn()) { self.prefix = Some(self.prefix_or_new().x()) }
         
-        if matches!(size, Size::Quad) { self.prefix = Some(self.prefix.unwrap_or_else(|| Prefix::new()).w()) }
+        if matches!(size, Size::Quad) { self.prefix = Some(self.prefix_or_new().w()) }
         if matches!(size, Size::Word) { self.operand_size_override = true; }
 
         self

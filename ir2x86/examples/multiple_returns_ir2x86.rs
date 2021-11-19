@@ -18,7 +18,7 @@ fn main() {
         Err(e) => panic!("Validation error: {:#?}", e)
     }
 
-    let func = unit.get_function(func_id);
+    let func = unit.get_function(func_id).unwrap();
     
     // let mut ins = func.build_x86(x86::Mode::X8664, &unit);
     let ctx = ir2x86::TranslationContext::new(x86::Mode::X8664);

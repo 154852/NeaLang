@@ -49,16 +49,6 @@ impl ValuePath {
     pub fn components(&self) -> &Vec<ValuePathComponent> {
         &self.components
     }
-
-    pub fn slice_stack_presence(&self) -> usize {
-        let mut count = 0;
-        for component in &self.components {
-            if matches!(component, ValuePathComponent::Slice(_)) {
-                count += 1;
-            }
-        }
-        count
-    }
 }
 
 #[derive(Debug)]

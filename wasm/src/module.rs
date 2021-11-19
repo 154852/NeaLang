@@ -440,9 +440,8 @@ impl Module {
 		}
 	}
 
-	pub fn imports(&self) -> &Vec<Import> {
-		&self.imports
-	}
+	pub fn imports(&self) -> &Vec<Import> { &self.imports }
+	pub fn import_count(&self) -> usize { self.imports.len() }
 
 	pub fn add_type(&mut self, wtype: FunctionType) -> TypeIdx {
 		self.types.push(wtype);

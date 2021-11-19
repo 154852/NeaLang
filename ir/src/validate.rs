@@ -1,5 +1,52 @@
 use crate::{Function, Ins, StorableType, TranslationUnit, TypeContent, ValuePath, ValuePathComponent, ValuePathOrigin, ValueType};
 
+macro_rules! pop {
+    ($stack:expr, $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => {
+        match $stack.pop()? {
+            $( $pattern )|+ $( if $guard )? => {},
+            _ => return Err(ValidationError::StackIncorrectType)
+        };
+    };
+    ($stack:expr, = $e:expr) => {
+        println!("B");
+        if $stack.pop()? != $e {
+            return Err(ValidationError::StackIncorrectType);
+        }
+    };
+}
+
+macro_rules! pop_path {
+    ($stack:expr, $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => {
+        println!("C");
+        match $stack.pop_path()? {
+            $( $pattern )|+ $( if $guard )? => {},
+            _ => return Err(ValidationError::StackIncorrectType)
+        };
+    };
+    ($stack:expr, = $e:expr) => {
+        println!("D");
+        if $stack.pop_path()? != $e {
+            return Err(ValidationError::StackIncorrectType);
+        }
+    };
+}
+
+macro_rules! peek {
+    ($stack:expr, $idx:expr, $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => {
+        println!("E");
+        match $stack.peek($idx)? {
+            $( $pattern )|+ $( if $guard )? => {},
+            _ => return Err(ValidationError::StackIncorrectType)
+        };
+    };
+    ($stack:expr, $idx:expr, = $e:expr) => {
+        println!("F");
+        if $stack.peek($idx)? != $e {
+            return Err(ValidationError::StackIncorrectType);
+        }
+    };
+}
+
 #[derive(Debug)]
 enum ValueOrPath {
     Value(ValueType),
@@ -21,39 +68,19 @@ impl TypeStack {
         self.types.push(ValueOrPath::Value(value_type));
     }
 
-    fn ensure(&self, value_type: &ValueType, index: usize) -> Result<(), ValidationError> {
-        if let Some(t) = self.types.get(self.types.len() - 1 - index) {
-            if !matches!(t, ValueOrPath::Value(v) if v == value_type) {
-                Err(ValidationError::StackIncorrectType)
-            } else {
-                Ok(())
-            }
-        } else {
-            Err(ValidationError::StackUnderflow)
+    fn peek(&self, index: usize) -> Result<&ValueType, ValidationError> {
+        match self.types.get(self.types.len() - 1 - index) {
+            Some(ValueOrPath::Value(v)) => Ok(v),
+            Some(ValueOrPath::Path(_)) => Err(ValidationError::StackIncorrectType),
+            None => Err(ValidationError::StackUnderflow)
         }
     }
 
-    fn pop_any(&mut self) -> Result<ValueType, ValidationError> {
-        if let Some(t) = self.types.pop() {
-            match t {
-                ValueOrPath::Value(v) => Ok(v),
-                ValueOrPath::Path(_) => Err(ValidationError::StackIncorrectType)
-            }
-        } else {
-            Err(ValidationError::StackUnderflow)
-        }
-    }
-
-    fn pop(&mut self, value_type: &ValueType) -> Result<(), ValidationError> {
-        if let Some(t) = self.types.pop() {
-            if !matches!(&t, ValueOrPath::Value(v) if v == value_type) {
-                println!("{:?} {:?}", value_type, t);
-                Err(ValidationError::StackIncorrectType)
-            } else {
-                Ok(())
-            }
-        } else {
-            Err(ValidationError::StackUnderflow)
+    fn pop(&mut self) -> Result<ValueType, ValidationError> {
+        match self.types.pop() {
+            Some(ValueOrPath::Value(v)) => Ok(v),
+            Some(ValueOrPath::Path(_)) => Err(ValidationError::StackIncorrectType),
+            None => Err(ValidationError::StackUnderflow)
         }
     }
 
@@ -61,15 +88,11 @@ impl TypeStack {
         self.types.push(ValueOrPath::Path(path_value));
     }
 
-    fn pop_path(&mut self, value_type: &ValueType) -> Result<(), ValidationError> {
-        if let Some(t) = self.types.pop() {
-            if !matches!(&t, ValueOrPath::Path(v) if v == value_type) {
-                Err(ValidationError::StackIncorrectType)
-            } else {
-                Ok(())
-            }
-        } else {
-            Err(ValidationError::StackUnderflow)
+    fn pop_path(&mut self) -> Result<ValueType, ValidationError> {
+        match self.types.pop() {
+            Some(ValueOrPath::Path(v)) => Ok(v),
+            Some(ValueOrPath::Value(_)) => Err(ValidationError::StackIncorrectType),
+            None => Err(ValidationError::StackUnderflow)
         }
     }
 
@@ -104,11 +127,17 @@ impl BlockStack {
     }
 
     fn is_breakable(&self, index: usize) -> bool {
-        self.elements.get(self.elements.len() - 1 - index).map_or(false, |x| matches!(x, BlockElement::Loop))
+        match self.elements.get(self.elements.len() - 1 - index) {
+            Some(BlockElement::Loop) => true,
+            _ => false
+        }
     }
 
     fn is_continuable(&self, index: usize) -> bool {
-        self.elements.get(self.elements.len() - 1 - index).map_or(false, |x| matches!(x, BlockElement::Loop))
+        match self.elements.get(self.elements.len() - 1 - index) {
+            Some(BlockElement::Loop) => true,
+            _ => false
+        }
     }
 }
 
@@ -139,71 +168,83 @@ pub enum ValidationError {
 }
 
 impl Ins {
-    fn resolve_path(&self, path: &ValuePath, stack: &mut TypeStack, function: &Function, unit: &TranslationUnit, write: bool) -> Result<ValueType, ValidationError> {
-        let mut st = match path.origin() {
-            ValuePathOrigin::Local(idx, local_type) => match function.get_local(*idx) {
-                None => return Err(ValidationError::LocalDoesNotExist),
-                Some(x) => if x.local_type() != local_type {
-                    return Err(ValidationError::LocalIncorrectType)
-                } else {
-                    local_type.clone()
+    fn resolve_path(path: &ValuePath, stack: &mut TypeStack, function: &Function, unit: &TranslationUnit) -> Result<ValueType, ValidationError> {
+        let mut curr_type = match path.origin() {
+            ValuePathOrigin::Local(local_idx, local_type) =>
+                match function.get_local(*local_idx) {
+                    None => return Err(ValidationError::LocalDoesNotExist),
+                    Some(x) =>
+                        if x.local_type() != local_type {
+                            return Err(ValidationError::LocalIncorrectType)
+                        } else {
+                            local_type.clone()
+                        },
                 },
-            },
-            ValuePathOrigin::Global(idx, global_type) => match unit.get_global(*idx) {
-                None => return Err(ValidationError::GlobalDoesNotExist),
-                Some(x) => if x.global_type() != global_type {
-                    return Err(ValidationError::GlobalIncorrectType)
-                } else {
-                    global_type.clone()
+            ValuePathOrigin::Global(global_idx, global_type) =>
+                match unit.get_global(*global_idx) {
+                    None => return Err(ValidationError::GlobalDoesNotExist),
+                    Some(x) =>
+                        if x.global_type() != global_type {
+                            return Err(ValidationError::GlobalIncorrectType)
+                        } else {
+                            global_type.clone()
+                        },
                 },
-            },
-            ValuePathOrigin::Deref(deref_type) => match stack.pop_any()? {
-                ValueType::Ref(st) => if st.as_ref() != deref_type {
-                    return Err(ValidationError::StackIncorrectType)
-                } else {
-                    deref_type.clone()
+            ValuePathOrigin::Deref(expected_deref_type) =>
+                match stack.pop()? {
+                    ValueType::Ref(deref_type) =>
+                        if deref_type.as_ref() != expected_deref_type {
+                            return Err(ValidationError::StackIncorrectType)
+                        } else {
+                            expected_deref_type.clone()
+                        },
+                    _ => return Err(ValidationError::NotARef)
                 },
-                _ => return Err(ValidationError::NotARef)
-            },
         };
 
         for component in path.components() {
-            st = match component {
-                ValuePathComponent::Slice(slice_type) => match st {
-                    StorableType::Slice(st) => {
-                        if st.as_ref() != slice_type { return Err(ValidationError::PathIncorrectType) }
-                        stack.pop(&ValueType::Index(st.clone()))?;
-                        slice_type.clone()
+            curr_type = match component {
+                ValuePathComponent::Slice(expected_slice_type) =>
+                    match curr_type {
+                        StorableType::Slice(slice_type) =>
+                            if slice_type.as_ref() != expected_slice_type {
+                                return Err(ValidationError::PathIncorrectType)
+                            } else {
+                                pop!(stack, ValueType::Index(s) if s == slice_type);
+                                expected_slice_type.clone()   
+                            }
+                        _ => return Err(ValidationError::PathIncorrectType)
                     },
-                    _ => return Err(ValidationError::PathIncorrectType)
-                },
-                ValuePathComponent::Property(idx, compound_type, prop_type) => match st {
-                    StorableType::Compound(ct) => if &ct != compound_type {
-                        return Err(ValidationError::PathIncorrectType)
-                    } else {
-                        match ct.content() {
-                            TypeContent::Struct(struc) => match struc.prop(*idx) {
-                                Some(x) => if x.prop_type() != prop_type {
-                                    return Err(ValidationError::PropertyIncorrectType)
-                                } else {
-                                    prop_type.clone()
-                                },
-                                None => return Err(ValidationError::PropertyDoesNotExist)
+                ValuePathComponent::Property(prop_idx, expected_compound_type, prop_type) =>
+                    match curr_type {
+                        StorableType::Compound(compound_type) =>
+                            if &compound_type != expected_compound_type {
+                                return Err(ValidationError::PathIncorrectType)
+                            } else {
+                                match compound_type.content() {
+                                    TypeContent::Struct(struc) =>
+                                        match struc.prop(*prop_idx) {
+                                            Some(x) =>
+                                                if x.prop_type() != prop_type {
+                                                    return Err(ValidationError::PropertyIncorrectType)
+                                                } else {
+                                                    prop_type.clone()
+                                                },
+                                            None => return Err(ValidationError::PropertyDoesNotExist)
+                                        },
+                                }
                             },
-                        }
+                        _ => return Err(ValidationError::PathIncorrectType)
                     },
-                    _ => return Err(ValidationError::PathIncorrectType)
-                },
-                ValuePathComponent::Length => if write { return Err(ValidationError::LengthWrite) } else {
-                    match st {
+                ValuePathComponent::Length =>
+                    match curr_type {
                         StorableType::Slice(_) => StorableType::Value(ValueType::UPtr),
                         _ => return Err(ValidationError::PathIncorrectType)
                     }
-                }
             }
         }
 
-        match st {
+        match curr_type {
             StorableType::Value(v) => Ok(v),
             _ => return Err(ValidationError::PathNotValue)
         }
@@ -211,93 +252,83 @@ impl Ins {
     
     fn validate(&self, stack: &mut TypeStack, blocks: &mut BlockStack, function: &Function, unit: &TranslationUnit) -> Result<(), ValidationError> {
         match &self {
-            Ins::Push(expected_vt) => {
-                stack.pop_path(&expected_vt)?;
-
+            Ins::Push(expected_vt) => Ok({
+                pop_path!(stack, = *expected_vt);
                 stack.push(expected_vt.clone());
-                Ok(())
-            },
-            Ins::Pop(expected_vt) => {
-                stack.pop(&expected_vt)?;
-                stack.pop_path(&expected_vt)?;
-
-                Ok(())
-            },
-            Ins::PushPath(path, expected_vt) => {
-                let vt = self.resolve_path(path, stack, function, unit, false)?;
+            }),
+            Ins::Pop(expected_vt) => Ok({
+                pop!(stack, = *expected_vt);
+                pop_path!(stack, = *expected_vt);
+            }),
+            Ins::PushPath(path, expected_vt) => Ok({
+                let vt = Ins::resolve_path(path, stack, function, unit)?;
                 if &vt != expected_vt {
                     return Err(ValidationError::PathIncorrectType)
                 }
                 stack.push_path(vt);
-                Ok(())
-            },
-            Ins::Index(st) => {
-                stack.pop(&ValueType::UPtr)?;
-                stack.push(ValueType::Index(Box::new(st.clone())));
-                Ok(())
-            },
-            Ins::New(st) => {
-                stack.push(ValueType::Ref(Box::new(st.clone())));
-                Ok(())
-            },
-            Ins::NewSlice(st) => {
-                stack.pop(&ValueType::UPtr)?;
-                stack.push(ValueType::Ref(Box::new(StorableType::Slice(Box::new(st.clone())))));
-                Ok(())
-            },
-            Ins::Convert(from, to) => {
+            }),
+            Ins::Index(slice_type) => Ok({
+                pop!(stack, ValueType::UPtr);
+                stack.push(ValueType::Index(Box::new(slice_type.clone())));
+            }),
+            Ins::New(object_type) => Ok({
+                stack.push(ValueType::Ref(Box::new(object_type.clone())));
+            }),
+            Ins::NewSlice(slice_type) => Ok({
+                pop!(stack, ValueType::UPtr);
+                stack.push(ValueType::Ref(Box::new(StorableType::Slice(Box::new(slice_type.clone())))));
+            }),
+            Ins::Convert(from, to) => Ok({
                 if !from.is_num() || !to.is_num() {
                     return Err(ValidationError::StackNotValue)
                 }
                 
-                stack.pop(from)?;
+                pop!(stack, = *from);
                 stack.push(to.clone());
-                Ok(())
-            },
-            Ins::Call(idx) => {
-                if *idx >= unit.functions().len() { Err(ValidationError::FunctionDoesNotExist) }
-                else {
+            }),
+            Ins::Call(idx) => Ok({
+                if *idx >= unit.function_count() {
+                    return Err(ValidationError::FunctionDoesNotExist)
+                } else {
                     let sig = unit.functions()[*idx].signature();
 
                     // Params come off the stack in reverse order
-                    for i in 0..sig.params().len() {
-                        stack.pop(&sig.params()[sig.params().len() - i - 1])?;
+                    for i in 0..sig.param_count() {
+                        pop!(stack, = sig.params()[sig.param_count() - i - 1]);
                     }
 
                     // Returns are pushed onto the stack in order
-                    for i in 0..sig.returns().len() {
+                    for i in 0..sig.return_count() {
                         stack.push(sig.returns()[i].clone());
                     }
+                }
+            }),
+            Ins::Ret => Ok({
+                if stack.depth() < function.signature().return_count() {
+                    return Err(ValidationError::StackUnderflow)
+                } else if stack.depth() > function.signature().return_count() {
+                    return Err(ValidationError::StackDepthNotZero)
+                }
 
-                    Ok(())
+                for i in 0..function.signature().return_count() {
+                    pop!(stack, = function.signature().returns()[function.signature().return_count() - i - 1]);
                 }
-            },
-            Ins::Ret => {
-                if stack.depth() < function.signature().returns().len() {
-                    Err(ValidationError::StackUnderflow)
-                } else if stack.depth() > function.signature().returns().len() {
-                    Err(ValidationError::StackDepthNotZero)
-                } else {
-                    for i in 0..function.signature().returns().len() {
-                        stack.pop(&function.signature().returns()[function.signature().returns().len() - i - 1])?;
-                    }
-                    Ok(())
-                }
-            },
-            Ins::Inc(vt, _) | Ins::Dec(vt, _) => {
+            }),
+            Ins::Inc(vt, _) | Ins::Dec(vt, _) => Ok({
                 if !vt.is_num() { return Err(ValidationError::StackNotNum) }
-                stack.ensure(vt, 0)
-            },
-            Ins::Add(vt) | Ins::Mul(vt) | Ins::Div(vt) | Ins::Sub(vt) => {
+                peek!(stack, 0, = vt);
+            }),
+            Ins::Add(vt) | Ins::Mul(vt) | Ins::Div(vt) | Ins::Sub(vt) => Ok({
                 if !vt.is_num() { return Err(ValidationError::StackNotNum) }
-                stack.pop(vt).and(stack.ensure(vt, 0))
-            },
-            Ins::Eq(vt) | Ins::Ne(vt) | Ins::Lt(vt) | Ins::Le(vt) | Ins::Gt(vt) | Ins::Ge(vt) => {
-                stack.pop(vt).and(stack.pop(vt))?;
+                pop!(stack, = *vt);
+                peek!(stack, 0, = vt);
+            }),
+            Ins::Eq(vt) | Ins::Ne(vt) | Ins::Lt(vt) | Ins::Le(vt) | Ins::Gt(vt) | Ins::Ge(vt) => Ok({
+                pop!(stack, = *vt);
+                pop!(stack, = *vt);
                 stack.push(ValueType::Bool);
-                Ok(())
-            },
-            Ins::Loop(block, condition, inc) => {
+            }),
+            Ins::Loop(block, condition, inc) => Ok({
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::Loop, |blocks| {
                     for el in block { el.validate(stack, blocks, function, unit)?; }
@@ -311,12 +342,10 @@ impl Ins {
                 for el in condition { el.validate(stack, blocks, function, unit)?; }
                 if stack.depth() != 1 { return Err(ValidationError::StackDepthNotOne); }
 
-                stack.pop(&ValueType::Bool)?;
-                
-                Ok(())
-            },
-            Ins::If(block) => {
-                stack.pop(&ValueType::Bool)?;
+                pop!(stack, ValueType::Bool);
+            }),
+            Ins::If(block) => Ok({
+                pop!(stack, ValueType::Bool);
 
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::If, |blocks| {
@@ -324,45 +353,33 @@ impl Ins {
                     Ok(())
                 })?;
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
-                
-                Ok(())
-            },
-            Ins::IfElse(block_a, block_b) => {
-                stack.pop(&ValueType::Bool)?;
+            }),
+            Ins::IfElse(true_then, else_then) => Ok({
+                pop!(stack, ValueType::Bool);
                 
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::IfElse, |blocks| {
-                    for el in block_a { el.validate(stack, blocks, function, unit)?; }
+                    for el in true_then { el.validate(stack, blocks, function, unit)?; }
                     Ok(())
                 })?;
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
 
                 blocks.with(BlockElement::IfElse, |blocks| {
-                    for el in block_b { el.validate(stack, blocks, function, unit)?; }
+                    for el in else_then { el.validate(stack, blocks, function, unit)?; }
                     Ok(())
                 })?;
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
-                
-                Ok(())
-            },
-            Ins::Break(idx) => {
+            }),
+            Ins::Break(idx) => Ok({
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
-                if blocks.is_breakable(*idx) {
-                    Ok(())
-                } else {
-                    Err(ValidationError::NotBreakable)
-                }
-            },
-            Ins::Continue(idx) => {
+                if !blocks.is_breakable(*idx) { return Err(ValidationError::NotBreakable) }
+            }),
+            Ins::Continue(idx) => Ok({
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
-                if blocks.is_continuable(*idx) {
-                    Ok(())
-                } else {
-                    Err(ValidationError::NotContinuable)
-                }
-            },
+                if !blocks.is_continuable(*idx) { return Err(ValidationError::NotContinuable) }
+            }),
             Ins::PushLiteral(vt, _) => Ok(stack.push(vt.clone())),
-            Ins::Drop => stack.pop_any().map(|_| ()),
+            Ins::Drop => Ok({ stack.pop()?; }),
         }
     }
 }
@@ -387,7 +404,7 @@ impl Function {
         let mut type_stack = TypeStack::new();
         let mut block_stack = BlockStack::new();
 
-        if self.signature().params().len() > self.locals().len() {
+        if self.signature().param_count() > self.local_count() {
             return Err(ValidationError::LocalUnderflow);
         }
 
@@ -408,6 +425,8 @@ impl TranslationUnit {
         for function in self.functions() {
             function.validate(self)?;
         }
+
+        // TODO: Validate global defaults
 
         Ok(())
     }

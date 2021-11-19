@@ -62,16 +62,15 @@ impl TranslationUnit {
         self.functions.len() - 1
     }
 
-    pub fn get_function(&self, idx: FunctionIndex) -> &Function {
-        &self.functions[idx]
+    pub fn get_function(&self, idx: FunctionIndex) -> Option<&Function> {
+        self.functions.get(idx)
     }
 
-	pub fn functions(&self) -> &Vec<Function> {
-		&self.functions
-	}
+	pub fn functions(&self) -> &Vec<Function> { &self.functions }
+    pub fn function_count(&self) -> usize { self.functions.len() }
 
-    pub fn get_function_mut(&mut self, idx: FunctionIndex) -> &mut Function {
-        &mut self.functions[idx]
+    pub fn get_function_mut(&mut self, idx: FunctionIndex) -> Option<&mut Function> {
+        self.functions.get_mut(idx)
     }
 
     pub fn find_function_index(&self, name: &str) -> Option<FunctionIndex> {
@@ -165,20 +164,31 @@ pub struct Global {
 impl Global {
     pub fn new<T: Into<String>>(name: Option<T>, global_type: StorableType, writable: bool) -> Global {
         Global {
-            name: name.map(|x| x.into()), global_type, writable,
+            name: match name {
+                Some(x) => Some(x.into()),
+                None => None
+            },
+            global_type, writable,
             default: None
         }
     }
 
     pub fn new_default<T: Into<String>>(name: Option<T>, global_type: StorableType, writable: bool, default: Storable) -> Global {
         Global {
-            name: name.map(|x| x.into()), global_type, writable,
+            name: match name {
+                Some(x) => Some(x.into()),
+                None => None
+            },
+            global_type, writable,
             default: Some(default)
         }
     }
 
     pub fn name(&self) -> Option<&str> {
-        self.name.as_ref().map(|x| x.as_str())
+        match &self.name {
+            Some(x) => Some(x.as_str()),
+            None => None
+        }
     }
 
     pub fn default(&self) -> Option<&Storable> {
@@ -194,9 +204,9 @@ pub type FunctionIndex = usize;
 
 #[derive(Debug)]
 pub struct Signature {
-    // Params are pushed in order, so that the first param is evaluated first, so are popped in reverse order
+    /// Params are pushed in order, so that the first param is evaluated first, so are popped in reverse order
     params: Vec<ValueType>,
-    // Returns are pushed in order, so that the first return is evaluated first, so are popped in reverse order
+    /// Returns are pushed in order, so that the first return is evaluated first, so are popped in reverse order
     returns: Vec<ValueType>
 }
 
@@ -205,13 +215,11 @@ impl Signature {
         Signature { params, returns }
     }
 
-    pub fn params(&self) -> &Vec<ValueType> {
-        &self.params
-    }
+    pub fn params(&self) -> &Vec<ValueType> { &self.params }
+    pub fn param_count(&self) -> usize { self.params.len() }
 
-    pub fn returns(&self) -> &Vec<ValueType> {
-        &self.returns
-    }
+    pub fn returns(&self) -> &Vec<ValueType> { &self.returns }
+    pub fn return_count(&self) -> usize { self.returns.len() }
 }
 
 #[derive(Debug)]
@@ -222,8 +230,11 @@ pub struct Function {
     code: Option<Vec<Ins>>,
     method_of: Option<CompoundTypeRef>,
     
+    /// Marks this function as the entry point. May lead to it having it's name changed.
     entry: bool,
+    /// Marks this function as being the implementation for new
     alloc: bool,
+    /// Marks this function as being the implementation for new slice
     alloc_slice: bool,
 }
 
@@ -317,10 +328,10 @@ impl Function {
         self.code.as_mut().expect("Cannot push to extern function").push(code);
     }
 
-    pub fn locals(&self) -> &Vec<Local> {
-        &self.locals
-    }
+    pub fn locals(&self) -> &Vec<Local> { &self.locals }
+    pub fn local_count(&self) -> usize { self.locals.len() }
 
+    /// Will panic if function is extern, so should only be used when certain it is not
     pub fn code(&self) -> &Vec<Ins> {
         self.code.as_ref().expect("Attempt to get code from extern function")
     }
@@ -329,6 +340,7 @@ impl Function {
         self.code.as_ref()
     }
 
+    /// Will panic if function is extern, so should only be used when certain it is not
     pub fn code_mut(&mut self) -> &mut Vec<Ins> {
         self.code.as_mut().expect("Attempt to get code from extern function")
     }

@@ -24,13 +24,13 @@ pub(crate) fn value_type_to_val_type(vt: &ir::ValueType) -> wasm::ValType {
     wasm::ValType::Num(value_type_to_num_type(vt))
 }
 
-pub(crate) fn size_for_compound(ct: &ir::CompoundType) -> usize {
+pub(crate) fn size_for_compound_type(ct: &ir::CompoundType) -> usize {
 	match ct.content() {
 		ir::TypeContent::Struct(s) => {
 			let mut size = 0;
 
 			for s in s.props() {
-				size += size_for_st(s.prop_type());
+				size += size_for_storable_type(s.prop_type());
 			}
 
 			size
@@ -38,13 +38,13 @@ pub(crate) fn size_for_compound(ct: &ir::CompoundType) -> usize {
 	}
 }
 
-pub(crate) fn size_for_compound_up_to_prop(ct: &ir::CompoundType, prop: usize) -> usize {
+pub(crate) fn size_for_compound_type_up_to_prop(ct: &ir::CompoundType, prop_idx: usize) -> usize {
 	match ct.content() {
 		ir::TypeContent::Struct(s) => {
 			let mut size = 0;
 
-			for s in &s.props()[0..prop] {
-				size += size_for_st(s.prop_type());
+			for s in &s.props()[0..prop_idx] {
+				size += size_for_storable_type(s.prop_type());
 			}
 
 			size
@@ -52,7 +52,7 @@ pub(crate) fn size_for_compound_up_to_prop(ct: &ir::CompoundType, prop: usize) -
 	}
 }
 
-pub(crate) fn size_for_vt(vt: &ir::ValueType) -> usize {
+pub(crate) fn size_for_value_type(vt: &ir::ValueType) -> usize {
 	match vt {
 		ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool => 1,
 		ir::ValueType::U16 | ir::ValueType::I16 => 2,
@@ -62,63 +62,63 @@ pub(crate) fn size_for_vt(vt: &ir::ValueType) -> usize {
 	}
 }
 
-pub(crate) fn size_for_st(st: &ir::StorableType) -> usize {
+pub(crate) fn size_for_storable_type(st: &ir::StorableType) -> usize {
 	match st {
-		ir::StorableType::Compound(ct) => size_for_compound(ct),
-		ir::StorableType::Value(vt) => size_for_vt(vt),
+		ir::StorableType::Compound(ct) => size_for_compound_type(ct),
+		ir::StorableType::Value(vt) => size_for_value_type(vt),
 		ir::StorableType::Slice(_) => 8,
 		ir::StorableType::SliceData(_) => panic!("Cannot compute raw size of SliceData type"),
 	}
 }
 
-pub(crate) fn vts_for_compound(ct: &CompoundTypeRef) -> Vec<ir::ValueType> {
+pub(crate) fn value_types_for_compound_type(ct: &CompoundTypeRef) -> Vec<ir::ValueType> {
     match ct.content() {
-        ir::TypeContent::Struct(s) => {
+        ir::TypeContent::Struct(struc) => {
             let mut values = Vec::new();
-            for prop in s.props() {
-                values.extend(vts_for_st(prop.prop_type()));
+            for prop in struc.props() {
+                values.extend(value_types_for_storable_type(prop.prop_type()));
             }
             values
         },
     }
 }
 
-pub(crate) fn vts_for_st(st: &ir::StorableType) -> Vec<ir::ValueType> {
+pub(crate) fn value_types_for_storable_type(st: &ir::StorableType) -> Vec<ir::ValueType> {
 	match st {
-		ir::StorableType::Compound(ct) => vts_for_compound(ct),
+		ir::StorableType::Compound(ct) => value_types_for_compound_type(ct),
 		ir::StorableType::Value(vt) => vec![vt.clone()],
 		ir::StorableType::Slice(_) => vec![ir::ValueType::UPtr, ir::ValueType::UPtr],
 		ir::StorableType::SliceData(_) => panic!("Cannot store SliceData type as values"),
 	}
 }
 
-pub(crate) fn vts_count_for_compound(ct: &CompoundTypeRef) -> usize {
+pub(crate) fn value_type_count_for_compound(ct: &CompoundTypeRef) -> usize {
     match ct.content() {
-        ir::TypeContent::Struct(s) => {
+        ir::TypeContent::Struct(struc) => {
             let mut count = 0;
-            for prop in s.props() {
-                count += vts_count_for_st(prop.prop_type());
+            for prop in struc.props() {
+                count += value_type_count_for_storable_type(prop.prop_type());
             }
             count
         },
     }
 }
 
-pub(crate) fn vts_count_for_compound_up_to_prop(ct: &CompoundTypeRef, prop: usize) -> usize {
+pub(crate) fn value_type_count_for_compound_up_to_prop(ct: &CompoundTypeRef, prop: usize) -> usize {
     match ct.content() {
-        ir::TypeContent::Struct(s) => {
+        ir::TypeContent::Struct(struc) => {
             let mut count = 0;
-            for prop in &s.props()[0..prop] {
-                count += vts_count_for_st(prop.prop_type());
+            for prop in &struc.props()[0..prop] {
+                count += value_type_count_for_storable_type(prop.prop_type());
             }
             count
         },
     }
 }
 
-pub(crate) fn vts_count_for_st(st: &ir::StorableType) -> usize {
+pub(crate) fn value_type_count_for_storable_type(st: &ir::StorableType) -> usize {
 	match st {
-		ir::StorableType::Compound(ct) => vts_count_for_compound(ct),
+		ir::StorableType::Compound(ct) => value_type_count_for_compound(ct),
 		ir::StorableType::Value(_) => 1,
 		ir::StorableType::Slice(_) => 2,
 		ir::StorableType::SliceData(_) => panic!("Cannot store SliceData type as values"),
@@ -162,13 +162,22 @@ impl<'a> TranslationContext<'a> {
             },
             ir::Storable::Slice(gidx, idx, len) => {
                 raw.extend(
-                    (self.globals.get(*gidx).expect("Out of order global dependency") + *idx as i32).to_le_bytes()
+                    (
+                        self.globals.get(*gidx).expect("Out of order global dependency")
+                        + (
+                            *idx as i32 * size_for_storable_type(match self.unit.get_global(*gidx).unwrap().global_type() {
+                                ir::StorableType::Slice(st) => st,
+                                ir::StorableType::SliceData(st) => st,
+                                _ => panic!()
+                            }) as i32
+                        )
+                    ).to_le_bytes()
                 );
                 raw.extend((*len as u32).to_le_bytes());
             },
             ir::Storable::SliceData(data) => {
-                for el in data {
-                    self.storable_to_memory(el, raw);
+                for element in data {
+                    self.storable_to_memory(element, raw);
                 }
             },
         }
@@ -187,13 +196,14 @@ impl<'a> TranslationContext<'a> {
             globals: Vec::new()
         };
 
+        // TODO: This is very order dependent, which may not always work
         let mut raw = Vec::new();
         for global in unit.globals() {
             ctx.globals.push(raw.len() as i32);
             if let Some(default) = global.default() {
                 ctx.storable_to_memory(default, &mut raw);
             } else {
-                raw.extend(vec![0; size_for_st(global.global_type())]);
+                raw.extend(vec![0; size_for_storable_type(global.global_type())]);
             }
         }
 
@@ -237,8 +247,8 @@ impl<'a> TranslationContext<'a> {
             let mut code = Vec::new();
 
             let mut locals = Vec::new();
-            for param in &func.locals()[func.signature().params().len()..] {
-                for vt in vts_for_st(param.local_type()) {
+            for param in &func.locals()[func.signature().param_count()..] {
+                for vt in value_types_for_storable_type(param.local_type()) {
                     locals.push(value_type_to_val_type(&vt));
                 }
             }
@@ -263,21 +273,21 @@ impl<'a> TranslationContext<'a> {
         Ok(module)
     }
 
-    pub fn function_index(&self, ir_index: FunctionIndex) -> usize {
-        if self.unit.get_function(ir_index).is_extern() {
+    pub fn function_index(&self, ir_index: FunctionIndex) -> Option<usize> {
+        if self.unit.get_function(ir_index)?.is_extern() {
             let mut idx = 0;
             for func in &self.unit.functions()[0..ir_index] {
                 if func.is_extern() { idx += 1; }
             }
 
-            idx
+            Some(idx)
         } else {
             let mut idx = self.extern_count;
             for func in &self.unit.functions()[0..ir_index] {
                 if !func.is_extern() { idx += 1; }
             }
 
-            idx
+            Some(idx)
         }
     }
 

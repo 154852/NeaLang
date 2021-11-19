@@ -1,4 +1,4 @@
-use crate::{TranslationContext, size_for_compound_up_to_prop, size_for_st, value_type_to_num_type, vts_count_for_compound_up_to_prop, vts_count_for_st};
+use crate::{TranslationContext, size_for_compound_type_up_to_prop, size_for_storable_type, value_type_to_num_type, value_type_count_for_compound_up_to_prop, value_type_count_for_storable_type};
 
 pub enum Path {
     Local(usize),
@@ -28,7 +28,7 @@ impl PathStack {
 fn wasm_local_index_from_ir_local_index(local: usize, func: &ir::Function) -> usize {
     let mut index = 0;
     for local in &func.locals()[0..local] {
-        index += vts_count_for_st(local.local_type());
+        index += value_type_count_for_storable_type(local.local_type());
     }
     index
 }
@@ -52,31 +52,34 @@ impl<'a> TranslationContext<'a> {
                 
                 for component in value_path.components() {
                     match component {
-                        ir::ValuePathComponent::Slice(_st) => match path {
-                            Path::Local(idx) => {
-                                insns.push(wasm::Ins::LocalGet(idx));
-                                insns.push(wasm::Ins::Add(wasm::NumType::I32));
-                                path = Path::Addr;
+                        ir::ValuePathComponent::Slice(_st) =>
+                            match path {
+                                Path::Local(idx) => {
+                                    insns.push(wasm::Ins::LocalGet(idx));
+                                    insns.push(wasm::Ins::Add(wasm::NumType::I32));
+                                    path = Path::Addr;
+                                },
+                                Path::Addr => {
+                                    insns.push(wasm::Ins::Load(wasm::NumType::I32, wasm::MemArg::new(0, 0)));
+                                    insns.push(wasm::Ins::Add(wasm::NumType::I32));
+                                }
                             },
-                            Path::Addr => {
-                                insns.push(wasm::Ins::Load(wasm::NumType::I32, wasm::MemArg::new(0, 0)));
-                                insns.push(wasm::Ins::Add(wasm::NumType::I32));
-                            }
-                        },
-                        ir::ValuePathComponent::Property(prop_idx, ctr, _) => match path {
-                            Path::Local(idx) => path = Path::Local(idx + vts_count_for_compound_up_to_prop(ctr, *prop_idx)),
-                            Path::Addr => {
-                                insns.push(wasm::Ins::ConstI32(size_for_compound_up_to_prop(ctr.as_ref(), *prop_idx) as i32));
-                                insns.push(wasm::Ins::Add(wasm::NumType::I32));
+                        ir::ValuePathComponent::Property(prop_idx, ctr, _) =>
+                            match path {
+                                Path::Local(idx) => path = Path::Local(idx + value_type_count_for_compound_up_to_prop(ctr, *prop_idx)),
+                                Path::Addr => {
+                                    insns.push(wasm::Ins::ConstI32(size_for_compound_type_up_to_prop(ctr.as_ref(), *prop_idx) as i32));
+                                    insns.push(wasm::Ins::Add(wasm::NumType::I32));
+                                },
                             },
-                        },
-                        ir::ValuePathComponent::Length => match path {
-                            Path::Local(idx) => path = Path::Local(idx + 1),
-                            Path::Addr => {
-                                insns.push(wasm::Ins::ConstI32(4));
-                                insns.push(wasm::Ins::Add(wasm::NumType::I32));
+                        ir::ValuePathComponent::Length =>
+                            match path {
+                                Path::Local(idx) => path = Path::Local(idx + 1),
+                                Path::Addr => {
+                                    insns.push(wasm::Ins::ConstI32(4));
+                                    insns.push(wasm::Ins::Add(wasm::NumType::I32));
+                                },
                             },
-                        },
                     }
                 }
             
@@ -85,47 +88,49 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::Pop(vt) => {
                 match path_stack.pop() {
                     Path::Local(idx) => insns.push(wasm::Ins::LocalSet(idx)),
-                    Path::Addr => match vt {
-                        ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool =>
-                            insns.push(wasm::Ins::StoreTrunc(wasm::NumType::I32, wasm::NumSize::Bits8, wasm::MemArg::new(0, 0))),
-                        ir::ValueType::U16 | ir::ValueType::I16 => 
-                            insns.push(wasm::Ins::StoreTrunc(wasm::NumType::I32, wasm::NumSize::Bits16, wasm::MemArg::new(0, 0))),
-                        ir::ValueType::U32 | ir::ValueType::I32 | ir::ValueType::U64 | ir::ValueType::I64 | ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::Ref(_) | ir::ValueType::Index(_) => 
-                            insns.push(wasm::Ins::Store(value_type_to_num_type(vt), wasm::MemArg::new(0, 0))),
-                    }
+                    Path::Addr =>
+                        match vt {
+                            ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool =>
+                                insns.push(wasm::Ins::StoreTrunc(wasm::NumType::I32, wasm::NumSize::Bits8, wasm::MemArg::new(0, 0))),
+                            ir::ValueType::U16 | ir::ValueType::I16 => 
+                                insns.push(wasm::Ins::StoreTrunc(wasm::NumType::I32, wasm::NumSize::Bits16, wasm::MemArg::new(0, 0))),
+                            ir::ValueType::U32 | ir::ValueType::I32 | ir::ValueType::U64 | ir::ValueType::I64 | ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::Ref(_) | ir::ValueType::Index(_) => 
+                                insns.push(wasm::Ins::Store(value_type_to_num_type(vt), wasm::MemArg::new(0, 0))),
+                        }
                 }
             },
             ir::Ins::Push(vt) => {
                 match path_stack.pop() {
                     Path::Local(idx) => insns.push(wasm::Ins::LocalGet(idx)),
-                    Path::Addr => match vt {
-                        ir::ValueType::U8 | ir::ValueType::Bool =>
-                            insns.push(wasm::Ins::LoadZX(wasm::NumType::I32, wasm::NumSize::Bits8, wasm::MemArg::new(0, 0))),
-                        ir::ValueType::I8 =>
-                            insns.push(wasm::Ins::LoadSX(wasm::NumType::I32, wasm::NumSize::Bits8, wasm::MemArg::new(0, 0))),
-                        ir::ValueType::U16 =>
-                            insns.push(wasm::Ins::LoadZX(wasm::NumType::I32, wasm::NumSize::Bits16, wasm::MemArg::new(0, 0))),
-                        ir::ValueType::I16 =>
-                            insns.push(wasm::Ins::LoadSX(wasm::NumType::I32, wasm::NumSize::Bits16, wasm::MemArg::new(0, 0))),
-                        ir::ValueType::U32 | ir::ValueType::I32 | ir::ValueType::U64 | ir::ValueType::I64 | ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::Ref(_) | ir::ValueType::Index(_) =>
-                            insns.push(wasm::Ins::Load(value_type_to_num_type(vt), wasm::MemArg::new(0, 0))),
-                    },
+                    Path::Addr =>
+                        match vt {
+                            ir::ValueType::U8 | ir::ValueType::Bool =>
+                                insns.push(wasm::Ins::LoadZX(wasm::NumType::I32, wasm::NumSize::Bits8, wasm::MemArg::new(0, 0))),
+                            ir::ValueType::I8 =>
+                                insns.push(wasm::Ins::LoadSX(wasm::NumType::I32, wasm::NumSize::Bits8, wasm::MemArg::new(0, 0))),
+                            ir::ValueType::U16 =>
+                                insns.push(wasm::Ins::LoadZX(wasm::NumType::I32, wasm::NumSize::Bits16, wasm::MemArg::new(0, 0))),
+                            ir::ValueType::I16 =>
+                                insns.push(wasm::Ins::LoadSX(wasm::NumType::I32, wasm::NumSize::Bits16, wasm::MemArg::new(0, 0))),
+                            ir::ValueType::U32 | ir::ValueType::I32 | ir::ValueType::U64 | ir::ValueType::I64 | ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::Ref(_) | ir::ValueType::Index(_) =>
+                                insns.push(wasm::Ins::Load(value_type_to_num_type(vt), wasm::MemArg::new(0, 0))),
+                        },
                 }
             },
             ir::Ins::Index(st) => {
-                insns.push(wasm::Ins::ConstI32(size_for_st(st) as i32));
+                insns.push(wasm::Ins::ConstI32(size_for_storable_type(st) as i32));
                 insns.push(wasm::Ins::Mul(wasm::NumType::I32));
             },
             ir::Ins::New(st) => {
-                insns.push(wasm::Ins::ConstI32(size_for_st(st) as i32));
+                insns.push(wasm::Ins::ConstI32(size_for_storable_type(st) as i32));
                 insns.push(wasm::Ins::Call(
-                    self.function_index(self.unit().find_alloc().expect("Not linked with std"))
+                    self.function_index(self.unit().find_alloc().expect("Not linked with std")).unwrap()
                 ));
             },
             ir::Ins::NewSlice(st) => {
-                insns.push(wasm::Ins::ConstI32(size_for_st(st) as i32));
+                insns.push(wasm::Ins::ConstI32(size_for_storable_type(st) as i32));
                 insns.push(wasm::Ins::Call(
-                    self.function_index(self.unit().find_alloc_slice().expect("Not linked with std"))
+                    self.function_index(self.unit().find_alloc_slice().expect("Not linked with std")).unwrap()
                 ));
             },
             ir::Ins::PushLiteral(vt, i) => {
@@ -144,27 +149,26 @@ impl<'a> TranslationContext<'a> {
                 insns.push(wasm::Ins::Lt(value_type_to_num_type(vt), vt.signed()));
             },
             ir::Ins::Call(idx) => {
-                insns.push(wasm::Ins::Call(self.function_index(*idx)));
+                insns.push(wasm::Ins::Call(self.function_index(*idx).unwrap()));
             },
             ir::Ins::Loop(code, condition, inc) => {
                 insns.push(wasm::Ins::Block(wasm::BlockType::Empty, vec![wasm::Ins::Loop(wasm::BlockType::Empty, {
-                    let mut inner_ins = Vec::new();
-                    for ins in condition { self.translate_ins(func, path_stack, ins, &mut inner_ins); }
-                    inner_ins.push(wasm::Ins::Eqz(wasm::NumType::I32));
-                    inner_ins.push(wasm::Ins::BrIf(1));
+                    let mut inner_insns = Vec::new();
+                    for ins in condition { self.translate_ins(func, path_stack, ins, &mut inner_insns); }
+                    inner_insns.push(wasm::Ins::Eqz(wasm::NumType::I32));
+                    inner_insns.push(wasm::Ins::BrIf(1));
 
-                    for ins in code { self.translate_ins(func, path_stack, ins, &mut inner_ins); }
-                    for ins in inc { self.translate_ins(func, path_stack, ins, &mut inner_ins); }
+                    // TODO: Embed block to allow for continuing
+                    for ins in code { self.translate_ins(func, path_stack, ins, &mut inner_insns); }
+                    for ins in inc { self.translate_ins(func, path_stack, ins, &mut inner_insns); }
 
-                    inner_ins.push(wasm::Ins::Br(0));
+                    inner_insns.push(wasm::Ins::Br(0));
 
-                    inner_ins
+                    inner_insns
                 })]))
             },
             ir::Ins::Convert(from, to) => {
-                if value_type_to_num_type(from) == value_type_to_num_type(to) {
-                    // Do nothing
-                } else {
+                if value_type_to_num_type(from) != value_type_to_num_type(to) {
                     todo!()
                 }
             },

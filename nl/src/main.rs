@@ -114,7 +114,6 @@ impl BuildContext {
 			_ => unreachable!()
 		};
 
-		// append_imports_of(&unit, build_paths, linked_paths, ir_unit, child_path.as_path(), relocatable);
 		for node in &unit.nodes {
 			match node {
 				ast::TopLevelNode::Import(import_stmt) => {

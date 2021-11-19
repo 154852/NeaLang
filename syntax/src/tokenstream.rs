@@ -83,6 +83,13 @@ impl<'a, T: std::fmt::Debug + TokenKind> TokenStream<'a, T> {
         self.token.as_ref()
     }
 
+    pub fn token_kind(&self) -> Option<&T> {
+        match &self.token {
+            Some(token) => Some(token.kind()),
+            None => None
+        }
+    }
+
     pub fn finished(&self) -> bool {
         self.offset == self.string.len()
     }

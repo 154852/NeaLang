@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use x86::GlobalSymbolID;
 
-use crate::{registerify::{SYS_V_ABI, StackToReg, reg_for_vt}};
+use crate::{registerify::{SYS_V_ABI, StackToReg, reg_for_value_type}};
 
 pub(crate) enum LocalSymbol {
     If,
@@ -81,10 +81,10 @@ impl<'a> FunctionTranslationContext<'a> {
     pub(crate) fn local_addr(&self, idx: ir::LocalIndex) -> u64 {
         let mut addr = 0;
 
-        assert!(self.function.locals().len() > idx);
+        assert!(self.function.local_count() > idx);
 
         for i in self.function.locals().iter().take(idx + 1) {
-            addr += crate::registerify::size_for_st(i.local_type(), self.mode) as u64;
+            addr += crate::registerify::size_for_storable_type(i.local_type(), self.mode) as u64;
         }
 
         addr
@@ -99,8 +99,7 @@ impl<'a> FunctionTranslationContext<'a> {
     }
 
     pub(crate) fn symbol_id_for_global(&self, idx: ir::GlobalIndex) -> GlobalSymbolID {
-        // TODO: This is wrong
-        self.unit.functions().len() + idx
+        self.unit.function_count() + idx
     }
 }
 
@@ -122,7 +121,7 @@ impl<'a> GlobalIDAllocator<'a> {
 	}
 
 	pub fn global_id_of_global(&self, global: usize) -> x86::GlobalSymbolID {
-		self.unit.functions().len() + global
+		self.unit.function_count() + global
 	}
 
 	pub fn push_global_symbol_mapping(&mut self, global: x86::GlobalSymbolID, symbol: usize, addend: i64) {
@@ -130,7 +129,10 @@ impl<'a> GlobalIDAllocator<'a> {
 	}
 
 	pub fn symbol_for_global_id(&self, global: x86::GlobalSymbolID) -> Option<(usize, i64)> {
-		self.symbol_ids.get(&global).map(|x| *x)
+		match self.symbol_ids.get(&global) {
+            Some(x) => Some(*x),
+            _ => None
+        }
 	}
 }
 
@@ -152,22 +154,16 @@ impl TranslationContext {
 
         let mut ftc = FunctionTranslationContext::new(self.mode, func, unit);
 
-        ftc.stack().set_no_params();
-        // if func.signature().params().len() == 0 {
-        // } else {
-        //     ftc.stack().push_many(func.signature().params().len());
-        // }
-
-        if func.locals().len() > 0 {
+        if func.local_count() > 0 {
             x86_ins.push(x86::Ins::PushReg(self.mode.base_ptr()));
             x86_ins.push(x86::Ins::MovRegReg(self.mode.base_ptr(), self.mode.stack_ptr()));
-            x86_ins.push(x86::Ins::SubRegImm(self.mode.stack_ptr(), ftc.local_addr(func.locals().len() - 1)));
+            x86_ins.push(x86::Ins::SubRegImm(self.mode.stack_ptr(), ftc.local_addr(func.local_count() - 1)));
 
             // Put params into locals
             for (p, param) in func.signature().params().iter().enumerate() {
                 x86_ins.push(x86::Ins::MovMemReg(
                     ftc.local_mem(p),
-                    reg_for_vt(param, self.mode, SYS_V_ABI[p])
+                    reg_for_value_type(param, self.mode, SYS_V_ABI[p])
                 ));
             }
         }
@@ -178,7 +174,7 @@ impl TranslationContext {
 
         // Root is always 0
         x86_ins.push(x86::Ins::LocalSymbol(0));
-        if func.locals().len() > 0 {
+        if func.local_count() > 0 {
             x86_ins.push(x86::Ins::MovRegReg(self.mode.stack_ptr(), self.mode.base_ptr()));
             x86_ins.push(x86::Ins::PopReg(self.mode.base_ptr()));
         }
@@ -264,7 +260,7 @@ impl TranslationContext {
         if let Some(default) = global.default() {
             self.translate_storable(default, unit, gid_allocator, relocs, symbol, 0, section_offset, addend)
         } else {
-            vec![0; crate::registerify::size_for_st(global.global_type(), self.mode)]
+            vec![0; crate::registerify::size_for_storable_type(global.global_type(), self.mode)]
         }
     }
 }

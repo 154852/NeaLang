@@ -9,7 +9,7 @@ impl ast::Code {
         }
         
         let start = stream.tell_start();
-        let code = match stream.token().map(|x| x.kind()) {
+        let code = match stream.token_kind() {
             // Safe to unwrap here as the only way these can fail is if the initial keyword is not what is expected, which it is - because we wouldn't go into that parser otherwise
             Some(TokenKind::ReturnKeyword) => ast::Code::ReturnStmt(syntax::parse!(stream, ast::ReturnStmt::parse, terminated).unwrap()),
 			Some(TokenKind::VarKeyword) => ast::Code::VarDeclaration(syntax::parse!(stream, ast::VarDeclaration::parse, terminated).unwrap()),
@@ -160,7 +160,7 @@ impl ast::IfStmt {
 
 impl ast::TopLevelNode {
     fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::TopLevelNode> {
-        match stream.token().map(|x| x.kind()) {
+        match stream.token_kind() {
             Some(TokenKind::FuncKeyword) => syntax::MatchResult::Ok(ast::TopLevelNode::Function(syntax::parse!(stream, ast::Function::parse).unwrap())),
             Some(TokenKind::StructKeyword) => syntax::MatchResult::Ok(ast::TopLevelNode::StructDeclaration(syntax::parse!(stream, ast::StructDeclaration::parse).unwrap())),
             Some(TokenKind::ImportKeyword) => syntax::MatchResult::Ok(ast::TopLevelNode::Import(syntax::parse!(stream, ast::ImportStmt::parse).unwrap())),
@@ -194,7 +194,7 @@ impl ast::Expr {
     fn parse_primary<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ast::Expr> {
         let start = stream.tell_start();
 
-        let mut expr = match stream.token().map(|x| x.kind()) {
+        let mut expr = match stream.token_kind() {
             Some(TokenKind::OpenParen) => {
                 stream.step();
                 let expr = Box::new(syntax::ex!(syntax::parse!(stream, ast::Expr::parse), stream.error("Expected expression inside of parenthesis")));
@@ -243,7 +243,7 @@ impl ast::Expr {
         };
 
         loop {
-            match stream.token().map(|x| x.kind()) {
+            match stream.token_kind() {
                 Some(TokenKind::OpenParen) => {
                     stream.step();
                     
@@ -314,11 +314,11 @@ impl ast::Expr {
         let start = stream.tell_start();
 
         loop {
-            match stream.token().map(|x| x.kind()) {
+            match stream.token_kind() {
                 Some(TokenKind::Add) | Some(TokenKind::Mul) | Some(TokenKind::Div) | Some(TokenKind::Sub) |
                 Some(TokenKind::DblEq) | Some(TokenKind::NotEq) | 
                 Some(TokenKind::Lt) | Some(TokenKind::Le) | Some(TokenKind::Gt) | Some(TokenKind::Ge) => {
-                    let op = match stream.token().map(|x| x.kind()).unwrap() {
+                    let op = match stream.token_kind().unwrap() {
                         TokenKind::Add => ast::BinaryOp::Add,
                         TokenKind::Mul => ast::BinaryOp::Mul,
                         TokenKind::Sub => ast::BinaryOp::Sub,
