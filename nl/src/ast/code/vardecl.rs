@@ -6,10 +6,10 @@ use crate::ast::{Expr, TypeExpr};
 
 #[derive(Debug)]
 pub struct VarDeclaration {
-	pub span: Span,
-	pub name: String,
-	pub expr: Option<Expr>,
-	pub var_type: Option<TypeExpr>
+    pub span: Span,
+    pub name: String,
+    pub expr: Option<Expr>,
+    pub var_type: Option<TypeExpr>
 }
 
 impl VarDeclaration {
@@ -18,7 +18,7 @@ impl VarDeclaration {
 
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::VarKeyword));
 
-		let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident), stream.error("Expected a name")).to_owned();
+        let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident), stream.error("Expected a name")).to_owned();
         stream.step();
 
         let mut var_type = None;
@@ -26,10 +26,10 @@ impl VarDeclaration {
             var_type = Some(syntax::ex!(syntax::parse!(stream, TypeExpr::parse), stream.error("Expected type")));
         }
 
-		let mut expr = None;
+        let mut expr = None;
         if syntax::tk_iss!(stream, TokenKind::Eq) {
-			expr = Some(syntax::ex!(syntax::parse!(stream, Expr::parse), stream.error("Expected expression")));
-		}
+            expr = Some(syntax::ex!(syntax::parse!(stream, Expr::parse), stream.error("Expected expression")));
+        }
 
         if terminated {
             syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'"));

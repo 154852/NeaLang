@@ -3,23 +3,23 @@ use std::fmt::Write;
 use crate::{Function, Ins, StorableType, ValuePath, ValuePathComponent, ValuePathOrigin, ValueType};
 
 impl std::fmt::Display for ValueType {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			ValueType::U8 => f.write_str("u8"),
-			ValueType::I8 => f.write_str("i8"),
-			ValueType::U16 => f.write_str("u16"),
-			ValueType::I16 => f.write_str("i16"),
-			ValueType::U32 => f.write_str("u32"),
-			ValueType::I32 => f.write_str("i32"),
-			ValueType::U64 => f.write_str("u64"),
-			ValueType::I64 => f.write_str("i64"),
-			ValueType::UPtr => f.write_str("uptr"),
-			ValueType::IPtr => f.write_str("iptr"),
-			ValueType::Bool => f.write_str("bool"),
-			ValueType::Ref(st) => f.write_fmt(format_args!("ref({})", st)),
-			ValueType::Index(st) => f.write_fmt(format_args!("idx({})", st)),
-		}
-	}
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ValueType::U8 => f.write_str("u8"),
+            ValueType::I8 => f.write_str("i8"),
+            ValueType::U16 => f.write_str("u16"),
+            ValueType::I16 => f.write_str("i16"),
+            ValueType::U32 => f.write_str("u32"),
+            ValueType::I32 => f.write_str("i32"),
+            ValueType::U64 => f.write_str("u64"),
+            ValueType::I64 => f.write_str("i64"),
+            ValueType::UPtr => f.write_str("uptr"),
+            ValueType::IPtr => f.write_str("iptr"),
+            ValueType::Bool => f.write_str("bool"),
+            ValueType::Ref(st) => f.write_fmt(format_args!("ref({})", st)),
+            ValueType::Index(st) => f.write_fmt(format_args!("idx({})", st)),
+        }
+    }
 }
 
 impl std::fmt::Display for StorableType {
@@ -34,34 +34,34 @@ impl std::fmt::Display for StorableType {
 }
 
 impl std::fmt::Display for ValuePathOrigin {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			ValuePathOrigin::Local(local_index, _) => f.write_fmt(format_args!("#lcl({})", local_index)),
-			ValuePathOrigin::Global(global_index, _) => f.write_fmt(format_args!("#glbl({})", global_index)),
-			ValuePathOrigin::Deref(_) => f.write_str("deref"),
-		}
-	}
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ValuePathOrigin::Local(local_index, _) => f.write_fmt(format_args!("#lcl({})", local_index)),
+            ValuePathOrigin::Global(global_index, _) => f.write_fmt(format_args!("#glbl({})", global_index)),
+            ValuePathOrigin::Deref(_) => f.write_str("deref"),
+        }
+    }
 }
 
 impl std::fmt::Display for ValuePathComponent {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			ValuePathComponent::Slice(_) => f.write_str("slice"),
-			ValuePathComponent::Property(idx, _, _) => f.write_fmt(format_args!("prop({})", idx)),
-			ValuePathComponent::Length => f.write_str("length"),
-		}
-	}
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ValuePathComponent::Slice(_) => f.write_str("slice"),
+            ValuePathComponent::Property(idx, _, _) => f.write_fmt(format_args!("prop({})", idx)),
+            ValuePathComponent::Length => f.write_str("length"),
+        }
+    }
 }
 
 impl std::fmt::Display for ValuePath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		self.origin().fmt(f)?;
-		for component in self.components() {
-			f.write_char('/')?;
-			component.fmt(f)?;
-		}
+        self.origin().fmt(f)?;
+        for component in self.components() {
+            f.write_char('/')?;
+            component.fmt(f)?;
+        }
 
-		Ok(())
+        Ok(())
     }
 }
 
@@ -90,47 +90,47 @@ impl std::fmt::Display for Ins {
             Ins::Gt(_) => f.write_str("gt"),
             Ins::Ge(_) => f.write_str("ge"),
             Ins::Loop(code, cond, inc) => {
-				f.write_str("loop\n\tcode {")?;
-				for ins in code {
-					f.write_str("\n\t\t")?;
-					ins.fmt(f)?;
-				}
-				f.write_str("\n\t}\n\tcond {")?;
-				for ins in cond {
-					f.write_str("\n\t\t")?;
-					ins.fmt(f)?;
-				}
-				f.write_str("\n\t}\n\tinc {")?;
-				for ins in inc {
-					f.write_str("\n\t\t")?;
-					ins.fmt(f)?;
-				}
-				f.write_str("\n\t}")?;
-				Ok(())
-			},
+                f.write_str("loop\n\tcode {")?;
+                for ins in code {
+                    f.write_str("\n\t\t")?;
+                    ins.fmt(f)?;
+                }
+                f.write_str("\n\t}\n\tcond {")?;
+                for ins in cond {
+                    f.write_str("\n\t\t")?;
+                    ins.fmt(f)?;
+                }
+                f.write_str("\n\t}\n\tinc {")?;
+                for ins in inc {
+                    f.write_str("\n\t\t")?;
+                    ins.fmt(f)?;
+                }
+                f.write_str("\n\t}")?;
+                Ok(())
+            },
             Ins::If(true_then) => {
-				f.write_str("if\n\tthen {")?;
-				for ins in true_then {
-					f.write_str("\n\t\t")?;
-					ins.fmt(f)?;
-				}
-				f.write_str("\n\t}")?;
-				Ok(())
-			},
+                f.write_str("if\n\tthen {")?;
+                for ins in true_then {
+                    f.write_str("\n\t\t")?;
+                    ins.fmt(f)?;
+                }
+                f.write_str("\n\t}")?;
+                Ok(())
+            },
             Ins::IfElse(true_then, false_then) => {
-				f.write_str("if\n\tthen {")?;
-				for ins in true_then {
-					f.write_str("\n\t\t")?;
-					f.write_str(&format!("{}", ins).replace('\n', "\n\t\t"))?;
-				}
-				f.write_str("\n\t}\n\telse {")?;
-				for ins in false_then {
-					f.write_str("\n\t\t")?;
-					f.write_str(&format!("{}", ins).replace('\n', "\n\t\t"))?;
-				}
-				f.write_str("\n\t}")?;
-				Ok(())
-			},
+                f.write_str("if\n\tthen {")?;
+                for ins in true_then {
+                    f.write_str("\n\t\t")?;
+                    f.write_str(&format!("{}", ins).replace('\n', "\n\t\t"))?;
+                }
+                f.write_str("\n\t}\n\telse {")?;
+                for ins in false_then {
+                    f.write_str("\n\t\t")?;
+                    f.write_str(&format!("{}", ins).replace('\n', "\n\t\t"))?;
+                }
+                f.write_str("\n\t}")?;
+                Ok(())
+            },
             Ins::Break(depth) => f.write_fmt(format_args!("break {}", depth)),
             Ins::Continue(depth) => f.write_fmt(format_args!("break {}", depth)),
             Ins::PushLiteral(_, val) => f.write_fmt(format_args!("pushlit {}", val)),
@@ -142,16 +142,16 @@ impl std::fmt::Display for Ins {
 impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(code) = self.code_opt() {
-			f.write_char('{')?;
-			for ins in code {
-				f.write_str("\n\t")?;
-				f.write_str(&format!("{}", ins).replace('\n', "\n\t"))?;
-			}
-			f.write_str("\n}")?;
-		} else {
-			f.write_str("extern")?;
-		}
+            f.write_char('{')?;
+            for ins in code {
+                f.write_str("\n\t")?;
+                f.write_str(&format!("{}", ins).replace('\n', "\n\t"))?;
+            }
+            f.write_str("\n}")?;
+        } else {
+            f.write_str("extern")?;
+        }
 
-		Ok(())
+        Ok(())
     }
 }

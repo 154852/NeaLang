@@ -104,8 +104,8 @@ impl<'a> FunctionTranslationContext<'a> {
 }
 
 pub struct GlobalIDAllocator<'a> {
-	unit: &'a ir::TranslationUnit,
-	symbol_ids: HashMap<x86::GlobalSymbolID, (usize, i64)>
+    unit: &'a ir::TranslationUnit,
+    symbol_ids: HashMap<x86::GlobalSymbolID, (usize, i64)>
 }
 
 impl<'a> GlobalIDAllocator<'a> {
@@ -116,24 +116,24 @@ impl<'a> GlobalIDAllocator<'a> {
         }
     }
 
-	pub fn global_id_of_function(&self, func: usize) -> x86::GlobalSymbolID {
-		func
-	}
+    pub fn global_id_of_function(&self, func: usize) -> x86::GlobalSymbolID {
+        func
+    }
 
-	pub fn global_id_of_global(&self, global: usize) -> x86::GlobalSymbolID {
-		self.unit.function_count() + global
-	}
+    pub fn global_id_of_global(&self, global: usize) -> x86::GlobalSymbolID {
+        self.unit.function_count() + global
+    }
 
-	pub fn push_global_symbol_mapping(&mut self, global: x86::GlobalSymbolID, symbol: usize, addend: i64) {
-		self.symbol_ids.insert(global, (symbol, addend));
-	}
+    pub fn push_global_symbol_mapping(&mut self, global: x86::GlobalSymbolID, symbol: usize, addend: i64) {
+        self.symbol_ids.insert(global, (symbol, addend));
+    }
 
-	pub fn symbol_for_global_id(&self, global: x86::GlobalSymbolID) -> Option<(usize, i64)> {
-		match self.symbol_ids.get(&global) {
+    pub fn symbol_for_global_id(&self, global: x86::GlobalSymbolID) -> Option<(usize, i64)> {
+        match self.symbol_ids.get(&global) {
             Some(x) => Some(*x),
             _ => None
         }
-	}
+    }
 }
 
 pub struct TranslationContext {

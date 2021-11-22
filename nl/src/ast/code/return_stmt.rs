@@ -6,8 +6,8 @@ use crate::irgen::{IrGenCodeTarget, IrGenError, IrGenFunctionContext};
 
 #[derive(Debug)]
 pub struct ReturnStmt {
-	pub span: Span,
-	pub expr: Option<Expr>
+    pub span: Span,
+    pub expr: Option<Expr>
 }
 
 impl ReturnStmt {
@@ -28,13 +28,13 @@ impl ReturnStmt {
         })
     }
 
-	pub fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
-		if let Some(expr) = &self.expr {
-			expr.append_ir_value(ctx, target, None)?;
-		}
+    pub fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
+        if let Some(expr) = &self.expr {
+            expr.append_ir_value(ctx, target, None)?;
+        }
 
-		target.push(ir::Ins::Ret);
+        target.push(ir::Ins::Ret);
 
-		Ok(())
-	}
+        Ok(())
+    }
 }

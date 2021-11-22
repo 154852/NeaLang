@@ -5,9 +5,9 @@ use super::{ImportStmt, StructDeclaration};
 
 #[derive(Debug)]
 pub enum TopLevelNode {
-	Function(Function),
-	StructDeclaration(StructDeclaration),
-	Import(ImportStmt)
+    Function(Function),
+    StructDeclaration(StructDeclaration),
+    Import(ImportStmt)
 }
 
 impl TopLevelNode {

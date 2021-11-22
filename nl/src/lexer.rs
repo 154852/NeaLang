@@ -46,7 +46,7 @@ impl syntax::TokenMatcher<TokenKind> for Matcher {
             '*' => TokenKind::Mul,
             '/' => TokenKind::Div,
             '-' => TokenKind::Sub,
-			'=' => TokenKind::Eq,
+            '=' => TokenKind::Eq,
             '<' => TokenKind::Lt,
             '>' => TokenKind::Gt
         );
@@ -54,7 +54,7 @@ impl syntax::TokenMatcher<TokenKind> for Matcher {
         syntax::keywords!(string, offset,
             "func" => TokenKind::FuncKeyword,
             "return" => TokenKind::ReturnKeyword,
-			"var" => TokenKind::VarKeyword,
+            "var" => TokenKind::VarKeyword,
             "if" => TokenKind::IfKeyword,
             "else" => TokenKind::ElseKeyword,
             "for" => TokenKind::ForKeyword,

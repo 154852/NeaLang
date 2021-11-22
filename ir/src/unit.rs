@@ -66,7 +66,7 @@ impl TranslationUnit {
         self.functions.get(idx)
     }
 
-	pub fn functions(&self) -> &Vec<Function> { &self.functions }
+    pub fn functions(&self) -> &Vec<Function> { &self.functions }
     pub fn function_count(&self) -> usize { self.functions.len() }
 
     pub fn get_function_mut(&mut self, idx: FunctionIndex) -> Option<&mut Function> {
@@ -311,9 +311,9 @@ impl Function {
         self.method_of.clone()
     }
 
-	pub fn name(&self) -> &str {
-		&self.name
-	}
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 
     pub fn push_local(&mut self, local: Local) -> LocalIndex {
         self.locals.push(local);

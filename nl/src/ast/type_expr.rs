@@ -7,9 +7,9 @@ use super::Expr;
 
 #[derive(Debug)]
 pub struct TypeExpr {
-	pub span: Span,
-	pub path: Vec<String>,
-	pub slice_lengths: Vec<Option<Expr>>
+    pub span: Span,
+    pub path: Vec<String>,
+    pub slice_lengths: Vec<Option<Expr>>
 }
 
 impl TypeExpr {
@@ -39,44 +39,44 @@ impl TypeExpr {
         })
     }
 
-	pub fn to_ir_base_storable_type(&self, ir_unit: &ir::TranslationUnit) -> Result<ir::StorableType, IrGenError> {
-		// There must be a first item, or else this shouldn't have parsed
-		match self.path.get(0).unwrap().as_str() {
-			"i32" => return Ok(ir::StorableType::Value(ir::ValueType::I32)),
-			"u32" => return Ok(ir::StorableType::Value(ir::ValueType::U32)),
-			"i64" => return Ok(ir::StorableType::Value(ir::ValueType::I64)),
-			"u64" => return Ok(ir::StorableType::Value(ir::ValueType::U64)),
-			"uptr" => return Ok(ir::StorableType::Value(ir::ValueType::UPtr)),
-			"iptr" => return Ok(ir::StorableType::Value(ir::ValueType::IPtr)),
-			"u8" => return Ok(ir::StorableType::Value(ir::ValueType::U8)),
-			_ => {}
-		}
+    pub fn to_ir_base_storable_type(&self, ir_unit: &ir::TranslationUnit) -> Result<ir::StorableType, IrGenError> {
+        // There must be a first item, or else this shouldn't have parsed
+        match self.path.get(0).unwrap().as_str() {
+            "i32" => return Ok(ir::StorableType::Value(ir::ValueType::I32)),
+            "u32" => return Ok(ir::StorableType::Value(ir::ValueType::U32)),
+            "i64" => return Ok(ir::StorableType::Value(ir::ValueType::I64)),
+            "u64" => return Ok(ir::StorableType::Value(ir::ValueType::U64)),
+            "uptr" => return Ok(ir::StorableType::Value(ir::ValueType::UPtr)),
+            "iptr" => return Ok(ir::StorableType::Value(ir::ValueType::IPtr)),
+            "u8" => return Ok(ir::StorableType::Value(ir::ValueType::U8)),
+            _ => {}
+        }
 
-		if let Some(ct) = ir_unit.find_type(&self.path.get(0).unwrap()) {
-			return Ok(ir::StorableType::Compound(ct));
-		}
+        if let Some(ct) = ir_unit.find_type(&self.path.get(0).unwrap()) {
+            return Ok(ir::StorableType::Compound(ct));
+        }
 
-		Err(IrGenError::new(self.span.clone(), IrGenErrorKind::UnknownType))
-	}
+        Err(IrGenError::new(self.span.clone(), IrGenErrorKind::UnknownType))
+    }
 
-	pub fn to_ir_storable_type(&self, ir_unit: &ir::TranslationUnit) -> Result<ir::StorableType, IrGenError> {
-		let mut st = self.to_ir_base_storable_type(ir_unit)?;
+    pub fn to_ir_storable_type(&self, ir_unit: &ir::TranslationUnit) -> Result<ir::StorableType, IrGenError> {
+        let mut st = self.to_ir_base_storable_type(ir_unit)?;
 
-		for _ in 0..self.slice_lengths.len() {
-			st = ir::StorableType::Slice(Box::new(st));
-		}
+        for _ in 0..self.slice_lengths.len() {
+            st = ir::StorableType::Slice(Box::new(st));
+        }
 
-		Ok(st)
-	}
+        Ok(st)
+    }
 
-	pub fn to_ir_value_type(&self, ir_unit: &ir::TranslationUnit) -> Result<ir::ValueType, IrGenError> {
-		match self.to_ir_storable_type(ir_unit)? {
-			ir::StorableType::Compound(ct) => Ok(ir::ValueType::Ref(Box::new(ir::StorableType::Compound(ct)))),
-			ir::StorableType::Slice(st) => Ok(ir::ValueType::Ref(Box::new(ir::StorableType::Slice(st)))),
-			ir::StorableType::Value(v) => Ok(v),
-			ir::StorableType::SliceData(_) => unreachable!()
-		}
-	}
+    pub fn to_ir_value_type(&self, ir_unit: &ir::TranslationUnit) -> Result<ir::ValueType, IrGenError> {
+        match self.to_ir_storable_type(ir_unit)? {
+            ir::StorableType::Compound(ct) => Ok(ir::ValueType::Ref(Box::new(ir::StorableType::Compound(ct)))),
+            ir::StorableType::Slice(st) => Ok(ir::ValueType::Ref(Box::new(ir::StorableType::Slice(st)))),
+            ir::StorableType::Value(v) => Ok(v),
+            ir::StorableType::SliceData(_) => unreachable!()
+        }
+    }
 }
 
 impl PartialEq for TypeExpr {

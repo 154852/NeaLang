@@ -8,10 +8,10 @@ use super::Code;
 
 #[derive(Debug)]
 pub struct IfStmt {
-	pub span: Span,
-	pub condition: Expr,
-	pub code: Vec<Code>,
-	pub else_code: Option<Vec<Code>>
+    pub span: Span,
+    pub condition: Expr,
+    pub code: Vec<Code>,
+    pub else_code: Option<Vec<Code>>
 }
 
 impl IfStmt {
@@ -68,30 +68,30 @@ impl IfStmt {
         })
     }
 
-	pub fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
-		self.condition.append_ir_value(ctx, target, Some(&ir::ValueType::Bool))?;
+    pub fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
+        self.condition.append_ir_value(ctx, target, Some(&ir::ValueType::Bool))?;
 
-		let mut true_then = IrGenCodeTarget::new();
-		for code in &self.code {
-			code.append_ir(ctx, &mut true_then)?;
-		}
+        let mut true_then = IrGenCodeTarget::new();
+        for code in &self.code {
+            code.append_ir(ctx, &mut true_then)?;
+        }
 
-		if let Some(else_code) = &self.else_code {
-			let mut false_then = IrGenCodeTarget::new();
-			for code in else_code {
-				code.append_ir(ctx, &mut false_then)?;
-			}
+        if let Some(else_code) = &self.else_code {
+            let mut false_then = IrGenCodeTarget::new();
+            for code in else_code {
+                code.append_ir(ctx, &mut false_then)?;
+            }
 
-			target.push(ir::Ins::IfElse(
-				true_then.take(),
-				false_then.take()
-			));
-		} else {
-			target.push(ir::Ins::If(
-				true_then.take()
-			));
-		}
+            target.push(ir::Ins::IfElse(
+                true_then.take(),
+                false_then.take()
+            ));
+        } else {
+            target.push(ir::Ins::If(
+                true_then.take()
+            ));
+        }
 
-		Ok(())
-	}
+        Ok(())
+    }
 }

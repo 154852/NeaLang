@@ -25,50 +25,50 @@ pub(crate) fn value_type_to_val_type(vt: &ir::ValueType) -> wasm::ValType {
 }
 
 pub(crate) fn size_for_compound_type(ct: &ir::CompoundType) -> usize {
-	match ct.content() {
-		ir::TypeContent::Struct(s) => {
-			let mut size = 0;
+    match ct.content() {
+        ir::TypeContent::Struct(s) => {
+            let mut size = 0;
 
-			for s in s.props() {
-				size += size_for_storable_type(s.prop_type());
-			}
+            for s in s.props() {
+                size += size_for_storable_type(s.prop_type());
+            }
 
-			size
-		},
-	}
+            size
+        },
+    }
 }
 
 pub(crate) fn size_for_compound_type_up_to_prop(ct: &ir::CompoundType, prop_idx: usize) -> usize {
-	match ct.content() {
-		ir::TypeContent::Struct(s) => {
-			let mut size = 0;
+    match ct.content() {
+        ir::TypeContent::Struct(s) => {
+            let mut size = 0;
 
-			for s in &s.props()[0..prop_idx] {
-				size += size_for_storable_type(s.prop_type());
-			}
+            for s in &s.props()[0..prop_idx] {
+                size += size_for_storable_type(s.prop_type());
+            }
 
-			size
-		},
-	}
+            size
+        },
+    }
 }
 
 pub(crate) fn size_for_value_type(vt: &ir::ValueType) -> usize {
-	match vt {
-		ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool => 1,
-		ir::ValueType::U16 | ir::ValueType::I16 => 2,
-		ir::ValueType::U32 | ir::ValueType::I32 => 4,
-		ir::ValueType::U64 | ir::ValueType::I64 => 8,
-		ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::Ref(_) | ir::ValueType::Index(_) => 4,
-	}
+    match vt {
+        ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool => 1,
+        ir::ValueType::U16 | ir::ValueType::I16 => 2,
+        ir::ValueType::U32 | ir::ValueType::I32 => 4,
+        ir::ValueType::U64 | ir::ValueType::I64 => 8,
+        ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::Ref(_) | ir::ValueType::Index(_) => 4,
+    }
 }
 
 pub(crate) fn size_for_storable_type(st: &ir::StorableType) -> usize {
-	match st {
-		ir::StorableType::Compound(ct) => size_for_compound_type(ct),
-		ir::StorableType::Value(vt) => size_for_value_type(vt),
-		ir::StorableType::Slice(_) => 8,
-		ir::StorableType::SliceData(_) => panic!("Cannot compute raw size of SliceData type"),
-	}
+    match st {
+        ir::StorableType::Compound(ct) => size_for_compound_type(ct),
+        ir::StorableType::Value(vt) => size_for_value_type(vt),
+        ir::StorableType::Slice(_) => 8,
+        ir::StorableType::SliceData(_) => panic!("Cannot compute raw size of SliceData type"),
+    }
 }
 
 pub(crate) fn value_types_for_compound_type(ct: &CompoundTypeRef) -> Vec<ir::ValueType> {
@@ -84,12 +84,12 @@ pub(crate) fn value_types_for_compound_type(ct: &CompoundTypeRef) -> Vec<ir::Val
 }
 
 pub(crate) fn value_types_for_storable_type(st: &ir::StorableType) -> Vec<ir::ValueType> {
-	match st {
-		ir::StorableType::Compound(ct) => value_types_for_compound_type(ct),
-		ir::StorableType::Value(vt) => vec![vt.clone()],
-		ir::StorableType::Slice(_) => vec![ir::ValueType::UPtr, ir::ValueType::UPtr],
-		ir::StorableType::SliceData(_) => panic!("Cannot store SliceData type as values"),
-	}
+    match st {
+        ir::StorableType::Compound(ct) => value_types_for_compound_type(ct),
+        ir::StorableType::Value(vt) => vec![vt.clone()],
+        ir::StorableType::Slice(_) => vec![ir::ValueType::UPtr, ir::ValueType::UPtr],
+        ir::StorableType::SliceData(_) => panic!("Cannot store SliceData type as values"),
+    }
 }
 
 pub(crate) fn value_type_count_for_compound(ct: &CompoundTypeRef) -> usize {
@@ -117,12 +117,12 @@ pub(crate) fn value_type_count_for_compound_up_to_prop(ct: &CompoundTypeRef, pro
 }
 
 pub(crate) fn value_type_count_for_storable_type(st: &ir::StorableType) -> usize {
-	match st {
-		ir::StorableType::Compound(ct) => value_type_count_for_compound(ct),
-		ir::StorableType::Value(_) => 1,
-		ir::StorableType::Slice(_) => 2,
-		ir::StorableType::SliceData(_) => panic!("Cannot store SliceData type as values"),
-	}
+    match st {
+        ir::StorableType::Compound(ct) => value_type_count_for_compound(ct),
+        ir::StorableType::Value(_) => 1,
+        ir::StorableType::Slice(_) => 2,
+        ir::StorableType::SliceData(_) => panic!("Cannot store SliceData type as values"),
+    }
 }
 
 

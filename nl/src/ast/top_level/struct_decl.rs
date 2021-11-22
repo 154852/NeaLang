@@ -4,16 +4,16 @@ use crate::{ast::{TranslationUnit, TypeExpr}, irgen::IrGenError, lexer::{TokenKi
 
 #[derive(Debug)]
 pub struct StructDeclaration {
-	pub span: Span,
-	pub name: String,
-	pub fields: Vec<StructFieldDeclaration>,
+    pub span: Span,
+    pub name: String,
+    pub fields: Vec<StructFieldDeclaration>,
 }
 
 #[derive(Debug)]
 pub struct StructFieldDeclaration {
-	pub span: Span,
-	pub name: String,
-	pub field_type: TypeExpr,
+    pub span: Span,
+    pub name: String,
+    pub field_type: TypeExpr,
 }
 
 impl StructFieldDeclaration {
@@ -29,7 +29,7 @@ impl StructFieldDeclaration {
         syntax::MatchResult::Ok(StructFieldDeclaration {
             span: syntax::Span::new(start, stream.tell_start()),
             name,
-			field_type
+            field_type
         })
     }
 }
@@ -63,14 +63,14 @@ impl StructDeclaration {
     }
 
     pub fn to_ir(&self, ir_unit: &ir::TranslationUnit, _unit: &TranslationUnit) -> Result<ir::CompoundTypeRef, IrGenError> {
-		let mut ir_struct = ir::StructContent::new();
-		for field in &self.fields {
-			ir_struct.push_prop(ir::StructProperty::new(
-				&field.name,
-				ir::StorableType::Value(field.field_type.to_ir_value_type(ir_unit)?)
-			));
-		}
+        let mut ir_struct = ir::StructContent::new();
+        for field in &self.fields {
+            ir_struct.push_prop(ir::StructProperty::new(
+                &field.name,
+                ir::StorableType::Value(field.field_type.to_ir_value_type(ir_unit)?)
+            ));
+        }
 
-		Ok(ir::CompoundType::new(&self.name, ir::TypeContent::Struct(ir_struct)))
-	}
+        Ok(ir::CompoundType::new(&self.name, ir::TypeContent::Struct(ir_struct)))
+    }
 }

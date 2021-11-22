@@ -4,8 +4,8 @@ use crate::lexer::{TokenKind, TokenStream};
 
 #[derive(Debug)]
 pub struct ImportStmt {
-	pub span: Span,
-	pub path: Vec<String>
+    pub span: Span,
+    pub path: Vec<String>
 }
 
 impl ImportStmt {

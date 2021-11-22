@@ -8,82 +8,82 @@ use super::*;
 
 #[derive(Debug)]
 pub enum Expr {
-	BinaryExpr(BinaryExpr),
-	Name(NameExpr),
-	Closed(ClosedExpr),
-	NumberLit(NumberLitExpr),
-	Call(CallExpr),
-	MemberAccess(MemberAccessExpr),
-	Index(IndexExpr),
-	As(AsExpr),
-	StringLit(StringLitExpr),
-	NewExpr(NewExpr)
+    BinaryExpr(BinaryExpr),
+    Name(NameExpr),
+    Closed(ClosedExpr),
+    NumberLit(NumberLitExpr),
+    Call(CallExpr),
+    MemberAccess(MemberAccessExpr),
+    Index(IndexExpr),
+    As(AsExpr),
+    StringLit(StringLitExpr),
+    NewExpr(NewExpr)
 }
 
 impl Expr {
-	pub fn span(&self) -> &Span {
-		match self {
-			Expr::BinaryExpr(be) => &be.span,
-			Expr::Name(name) => &name.span,
-			Expr::Closed(closed) => &closed.span,
-			Expr::NumberLit(num) => &num.span,
-			Expr::Call(call) => &call.span,
-			Expr::MemberAccess(mem_acc) => &mem_acc.span,
-			Expr::Index(index) => &index.span,
-			Expr::As(a) => &a.span,
-			Expr::StringLit(str) => &str.span,
-			Expr::NewExpr(expr) => &expr.span,
-		}
-	}
+    pub fn span(&self) -> &Span {
+        match self {
+            Expr::BinaryExpr(be) => &be.span,
+            Expr::Name(name) => &name.span,
+            Expr::Closed(closed) => &closed.span,
+            Expr::NumberLit(num) => &num.span,
+            Expr::Call(call) => &call.span,
+            Expr::MemberAccess(mem_acc) => &mem_acc.span,
+            Expr::Index(index) => &index.span,
+            Expr::As(a) => &a.span,
+            Expr::StringLit(str) => &str.span,
+            Expr::NewExpr(expr) => &expr.span,
+        }
+    }
 }
 
 impl Expr {
-	pub fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
-		match self {
-			Expr::BinaryExpr(binary_expr) => binary_expr.append_ir(ctx, target, prefered),
-			Expr::Name(name_expr) => name_expr.append_ir_value(ctx, target, prefered),
-			Expr::Closed(closed_expr) => closed_expr.expr.append_ir_value(ctx, target, prefered),
-			Expr::NumberLit(number_lit) => number_lit.append_ir(ctx, target, prefered),
-			Expr::Call(call_expr) => call_expr.append_ir_in_expr(ctx, target, prefered),
-			Expr::MemberAccess(member_access) => member_access.append_ir_value(ctx, target, prefered),
-			Expr::Index(index_expr) => index_expr.append_ir_value(ctx, target, prefered),
-			Expr::As(as_expr) => as_expr.append_ir(ctx, target, prefered),
-			Expr::StringLit(string_expr) => string_expr.append_ir_value(ctx, target, prefered),
-			Expr::NewExpr(new_expr) => new_expr.append_ir_value(ctx, target, prefered),
-		}
-	}
+    pub fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+        match self {
+            Expr::BinaryExpr(binary_expr) => binary_expr.append_ir(ctx, target, prefered),
+            Expr::Name(name_expr) => name_expr.append_ir_value(ctx, target, prefered),
+            Expr::Closed(closed_expr) => closed_expr.expr.append_ir_value(ctx, target, prefered),
+            Expr::NumberLit(number_lit) => number_lit.append_ir(ctx, target, prefered),
+            Expr::Call(call_expr) => call_expr.append_ir_in_expr(ctx, target, prefered),
+            Expr::MemberAccess(member_access) => member_access.append_ir_value(ctx, target, prefered),
+            Expr::Index(index_expr) => index_expr.append_ir_value(ctx, target, prefered),
+            Expr::As(as_expr) => as_expr.append_ir(ctx, target, prefered),
+            Expr::StringLit(string_expr) => string_expr.append_ir_value(ctx, target, prefered),
+            Expr::NewExpr(new_expr) => new_expr.append_ir_value(ctx, target, prefered),
+        }
+    }
 
-	pub fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
-		match self {
-			Expr::BinaryExpr(binary_expr) => binary_expr.resultant_type(ctx, prefered),
-			Expr::Name(name_expr) => name_expr.resultant_type(ctx, prefered),
-			Expr::Closed(closed_expr) => closed_expr.expr.resultant_type(ctx, prefered),
-			Expr::NumberLit(number_lit) => number_lit.resultant_type(ctx, prefered),
-			Expr::Call(call_expr) => call_expr.resultant_type(ctx, prefered),
-			Expr::MemberAccess(member_access) => member_access.resultant_type(ctx, prefered),
-			Expr::Index(index_expr) => index_expr.resultant_type(ctx, prefered),
-			Expr::As(as_expr) => as_expr.resultant_type(ctx, prefered),
-			Expr::StringLit(string_expr) => string_expr.resultant_type(ctx, prefered),
-			Expr::NewExpr(new_expr) => new_expr.resultant_type(ctx, prefered),
-		}
-	}
+    pub fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+        match self {
+            Expr::BinaryExpr(binary_expr) => binary_expr.resultant_type(ctx, prefered),
+            Expr::Name(name_expr) => name_expr.resultant_type(ctx, prefered),
+            Expr::Closed(closed_expr) => closed_expr.expr.resultant_type(ctx, prefered),
+            Expr::NumberLit(number_lit) => number_lit.resultant_type(ctx, prefered),
+            Expr::Call(call_expr) => call_expr.resultant_type(ctx, prefered),
+            Expr::MemberAccess(member_access) => member_access.resultant_type(ctx, prefered),
+            Expr::Index(index_expr) => index_expr.resultant_type(ctx, prefered),
+            Expr::As(as_expr) => as_expr.resultant_type(ctx, prefered),
+            Expr::StringLit(string_expr) => string_expr.resultant_type(ctx, prefered),
+            Expr::NewExpr(new_expr) => new_expr.resultant_type(ctx, prefered),
+        }
+    }
 
-	pub fn construct_path_to<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, prefered: Option<&ir::ValueType>) -> Result<(ir::StorableType, ir::ValuePath), IrGenError> {
-		match self {
-			Expr::BinaryExpr(binary_expr) => return Err(IrGenError::new(binary_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
-			Expr::Name(name_expr) => name_expr.construct_path_to(ctx, target, prefered),
-			Expr::Closed(closed_expr) => closed_expr.expr.construct_path_to(ctx, target, prefered),
-			Expr::NumberLit(number_lit) => return Err(IrGenError::new(number_lit.span.clone(), IrGenErrorKind::InvalidLHS)),
-			Expr::Call(call_expr) => return Err(IrGenError::new(call_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
-			Expr::MemberAccess(member_access) => member_access.construct_path_to(ctx, target, prefered),
-			Expr::Index(index_expr) => index_expr.construct_path_to(ctx, target, prefered),
-			Expr::As(as_expr) => return Err(IrGenError::new(as_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
-			Expr::StringLit(string_expr) => return Err(IrGenError::new(string_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
-			Expr::NewExpr(new_expr) => return Err(IrGenError::new(new_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
-		}
-	}
+    pub fn construct_path_to<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, prefered: Option<&ir::ValueType>) -> Result<(ir::StorableType, ir::ValuePath), IrGenError> {
+        match self {
+            Expr::BinaryExpr(binary_expr) => return Err(IrGenError::new(binary_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
+            Expr::Name(name_expr) => name_expr.construct_path_to(ctx, target, prefered),
+            Expr::Closed(closed_expr) => closed_expr.expr.construct_path_to(ctx, target, prefered),
+            Expr::NumberLit(number_lit) => return Err(IrGenError::new(number_lit.span.clone(), IrGenErrorKind::InvalidLHS)),
+            Expr::Call(call_expr) => return Err(IrGenError::new(call_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
+            Expr::MemberAccess(member_access) => member_access.construct_path_to(ctx, target, prefered),
+            Expr::Index(index_expr) => index_expr.construct_path_to(ctx, target, prefered),
+            Expr::As(as_expr) => return Err(IrGenError::new(as_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
+            Expr::StringLit(string_expr) => return Err(IrGenError::new(string_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
+            Expr::NewExpr(new_expr) => return Err(IrGenError::new(new_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
+        }
+    }
 
-	fn parse_primary<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
+    fn parse_primary<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
         let start = stream.tell_start();
 
         let mut expr = match stream.token_kind() {
@@ -199,7 +199,7 @@ impl Expr {
         syntax::MatchResult::Ok(expr)
     }
 
-	pub fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
+    pub fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
         let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_primary));
         let start = stream.tell_start();
 
