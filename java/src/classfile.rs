@@ -1,4 +1,4 @@
-use crate::{attribute::{self, Attribute}, constantpool::{self, Constant}, io::BinaryWriter};
+use crate::{Class, FieldRef, MethodRef, NameAndType, Utf8, attribute::{self, Attribute}, constantpool::{self, Constant}, io::BinaryWriter};
 
 pub struct ClassAccessFlags(u16);
 
@@ -59,6 +59,17 @@ impl ClassFile {
         cf.add_constant(Constant::Utf8(constantpool::Utf8::new("Code"))); // Add for later use
 
         cf
+    }
+
+    pub fn name(&self) -> &str {
+        match self.constant_pool.get(self.this_index) {
+            Some(Constant::Class(cl)) =>
+                match self.constant_pool.get(cl.name()) {
+                    Some(Constant::Utf8(u)) => u.get_str(),
+                    _ => panic!("Invalid class reference")
+                },
+            _ => panic!("Invalid class reference")
+        }
     }
 
     pub fn this_index(&self) -> usize {
@@ -122,6 +133,72 @@ impl ClassFile {
         }
 
         None
+    }
+
+    pub fn const_matches_str(&self, idx: usize, utf8: &str) -> bool {
+        return matches!(self.constant_pool.get(idx), Some(Constant::Utf8(u)) if u.get_str() == utf8);
+    }
+
+    pub fn const_name_and_type(&mut self, name: &str, desc: &str) -> usize {
+        for (c, constant) in self.constant_pool.iter().enumerate() {
+            if matches!(constant, Constant::NameAndType(nt) if self.const_matches_str(nt.name(), name) && self.const_matches_str(nt.desc(), desc)) {
+                return c;
+            }
+        }
+
+        let name = self.const_str(name);
+        let desc = self.const_str(desc);
+        self.constant_pool.push(Constant::NameAndType(NameAndType::new(name, desc)));
+        self.constant_pool.len() - 1
+    }
+
+    pub fn const_class(&mut self, name: &str) -> usize {
+        for (c, constant) in self.constant_pool.iter().enumerate() {
+            if matches!(constant, Constant::Class(c) if self.const_matches_str(c.name(), name)) {
+                return c;
+            }
+        }
+
+        let name = self.const_str(name);
+        self.constant_pool.push(Constant::Class(Class::new(name)));
+        self.constant_pool.len() - 1
+    }
+
+    pub fn const_field(&mut self, class: &str, name: &str, desc: &str) -> usize {
+        let name_and_type = self.const_name_and_type(name, desc);
+        let class = self.const_class(class);
+
+        for (c, constant) in self.constant_pool.iter().enumerate() {
+            if matches!(constant, Constant::FieldRef(c) if c.class() == class && c.name_and_type() == name_and_type) {
+                return c;
+            }
+        }
+
+        self.constant_pool.push(Constant::FieldRef(FieldRef::new(class, name_and_type)));
+        self.constant_pool.len() - 1
+    }
+
+    pub fn const_method(&mut self, class: &str, name: &str, desc: &str) -> usize {
+        let name_and_type = self.const_name_and_type(name, desc);
+        let class = self.const_class(class);
+
+        for (c, constant) in self.constant_pool.iter().enumerate() {
+            if matches!(constant, Constant::MethodRef(c) if c.class() == class && c.name_and_type() == name_and_type) {
+                return c;
+            }
+        }
+
+        self.constant_pool.push(Constant::MethodRef(MethodRef::new(class, name_and_type)));
+        self.constant_pool.len() - 1
+    }
+
+    pub fn const_str(&mut self, s: &str) -> usize {
+        if let Some(idx) = self.consant_pool_index_of_str(s) {
+            return idx;
+        }
+
+        self.constant_pool.push(Constant::Utf8(Utf8::new(s)));
+        self.constant_pool.len() - 1
     }
 
     pub fn constant_pool_index_to_encodable_index(&self, idx: usize) -> u16 {

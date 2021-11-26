@@ -115,6 +115,10 @@ impl Class {
             name_index
         }
     }
+
+    pub fn name(&self) -> usize {
+        self.name_index
+    }
     
     fn encode(&self, writer: &mut BinaryWriter, class: &ClassFile) {
         writer.u16(class.constant_pool_index_to_encodable_index(self.name_index));
@@ -132,6 +136,14 @@ impl FieldRef {
         FieldRef {
             class_index, name_and_type_index
         }
+    }
+
+    pub fn class(&self) -> usize {
+        self.class_index
+    }
+
+    pub fn name_and_type(&self) -> usize {
+        self.name_and_type_index
     }
     
     fn encode(&self, writer: &mut BinaryWriter, class: &ClassFile) {
@@ -151,6 +163,14 @@ impl MethodRef {
         MethodRef {
             class_index, name_and_type_index
         }
+    }
+
+    pub fn class(&self) -> usize {
+        self.class_index
+    }
+
+    pub fn name_and_type(&self) -> usize {
+        self.name_and_type_index
     }
 
     fn encode(&self, writer: &mut BinaryWriter, class: &ClassFile) {
@@ -244,6 +264,14 @@ impl NameAndType {
         NameAndType {
             name_index, descriptor_index
         }
+    }
+
+    pub fn name(&self) -> usize {
+        self.name_index
+    }
+
+    pub fn desc(&self) -> usize {
+        self.descriptor_index
     }
 
     fn encode(&self, writer: &mut BinaryWriter, class: &ClassFile) {

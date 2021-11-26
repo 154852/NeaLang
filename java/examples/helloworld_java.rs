@@ -13,35 +13,8 @@ fn main() {
 		))
 	};
 
-	let system_out = {
-		let system_utf8 = classfile.add_constant(java::Constant::Utf8(java::Utf8::new("java/lang/System")));
-		let system = classfile.add_constant(java::Constant::Class(java::Class::new(system_utf8)));
-		
-		let out_utf8 = classfile.add_constant(java::Constant::Utf8(java::Utf8::new("out")));
-		let out_desc_utf8 = classfile.add_constant(java::Constant::Utf8(java::Utf8::new("Ljava/io/PrintStream;")));
-		let out = classfile.add_constant(java::Constant::NameAndType(java::NameAndType::new(
-			out_utf8, out_desc_utf8
-		)));
-		
-		classfile.add_constant(java::Constant::FieldRef(java::FieldRef::new(
-			system, out
-		)))
-	};
-
-	let printstream_println = {
-		let printstream_utf8 = classfile.add_constant(java::Constant::Utf8(java::Utf8::new("java/io/PrintStream")));
-		let printstream = classfile.add_constant(java::Constant::Class(java::Class::new(printstream_utf8)));
-		
-		let println_utf8 = classfile.add_constant(java::Constant::Utf8(java::Utf8::new("println")));
-		let println_desc_utf8 = classfile.add_constant(java::Constant::Utf8(java::Utf8::new("(Ljava/lang/String;)V")));
-		let println = classfile.add_constant(java::Constant::NameAndType(java::NameAndType::new(
-			println_utf8, println_desc_utf8
-		)));
-		
-		classfile.add_constant(java::Constant::MethodRef(java::MethodRef::new(
-			printstream, println
-		)))
-	};
+	let system_out = classfile.const_field("java/lang/System", "out", "Ljava/io/PrintStream;");
+	let printstream_println = classfile.const_method("java/io/PrintStream", "println", "(Ljava/lang/String;)V");
 
 	let main = java::Method::new_on("main", "([Ljava/lang/String;)V", &mut classfile);
 	main.set_access(java::MethodAccessFlags::from_bits(

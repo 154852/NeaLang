@@ -227,21 +227,10 @@ impl<'a> TranslationContext<'a> {
                         ir::ValuePathComponent::Property(prop_idx, ctr, _) => {
                             match ctr.content() {
                                 ir::TypeContent::Struct(struc) => {
-                                    let name_idx = class.add_constant(java::Constant::Utf8(java::Utf8::new(ctr.name())));
-                                    let class_idx = class.add_constant(java::Constant::Class(java::Class::new(name_idx)));
-                                    
                                     let prop = struc.prop(*prop_idx).unwrap();
                                     let desc = storable_type_to_jtype(prop.prop_type());
-                                    let name_idx = class.add_constant(java::Constant::Utf8(java::Utf8::new(prop.name())));
-                                    let desc_idx = class.add_constant(java::Constant::Utf8(java::Utf8::new(
-                                        desc.to_string()
-                                    )));
-                                    
-                                    let name_and_type_idx = class.add_constant(java::Constant::NameAndType(
-                                        java::NameAndType::new(name_idx, desc_idx)
-                                    ));
 
-                                    let field_ref_idx = class.add_constant(java::Constant::FieldRef(java::FieldRef::new(class_idx, name_and_type_idx)));
+                                    let field_ref_idx = class.const_field(ctr.name(), prop.name(), &desc.to_string());
 
                                     path = Path::Prop(field_ref_idx, desc);
                                 },
@@ -267,8 +256,7 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::New(st) => {
                 let idx = match st {
                     ir::StorableType::Compound(ctr) => {
-                        let name_idx = class.add_constant(java::Constant::Utf8(java::Utf8::new(ctr.name())));
-                        class.add_constant(java::Constant::Class(java::Class::new(name_idx)))
+                        class.const_class(ctr.name())
                     },
                     ir::StorableType::Value(_) => panic!("Cannot currently create reference to value"),
                     ir::StorableType::Slice(_) => todo!(),
@@ -280,8 +268,7 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::NewSlice(st) => {
                 match st {
                     ir::StorableType::Compound(ctr) => {
-                        let name_idx = class.add_constant(java::Constant::Utf8(java::Utf8::new(ctr.name())));
-                        let class_idx = class.add_constant(java::Constant::Class(java::Class::new(name_idx)));
+                        let class_idx = class.const_class(ctr.name());
 
                         insns.push(java::Ins::ANewArray { index: class_idx });
                     },
@@ -329,10 +316,9 @@ impl<'a> TranslationContext<'a> {
             },
             ir::Ins::Call(idx) => {
                 let call_func = self.unit().get_function(*idx).unwrap();
-                let name_idx = class.add_constant(java::Constant::Utf8(java::Utf8::new(call_func.name())));
-                let desc_idx = class.add_constant(java::Constant::Utf8(java::Utf8::new(TranslationContext::signature_as_descriptor(call_func.signature()))));
-                let name_and_type = class.add_constant(java::Constant::NameAndType(java::NameAndType::new(name_idx, desc_idx)));
-                let method_ref = class.add_constant(java::Constant::MethodRef(java::MethodRef::new(class.this_index(), name_and_type)));
+
+                let name = class.name().to_string();
+                let method_ref = class.const_method(&name, call_func.name(), &TranslationContext::signature_as_descriptor(call_func.signature()));
 
                 insns.push(java::Ins::InvokeStatic { index: method_ref });
             },
