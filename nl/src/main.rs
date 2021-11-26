@@ -167,7 +167,19 @@ fn build(build_opts: &BuildOpts) {
 
     if build_opts.emit_ir {
         for (idx, func) in ir_unit.functions().iter().enumerate() {
-            println!("func {}:{:?} {}", idx, func.name(), func);
+            print!("func {}:{:?}", idx, func.name());
+            if func.attr_count() != 0 {
+                for attr in func.attrs() {
+                    print!(" ");
+                    match attr {
+                        ir::FunctionAttr::Entry => print!("@entry"),
+                        ir::FunctionAttr::Alloc => print!("@alloc"),
+                        ir::FunctionAttr::AllocSlice => print!("@alloc_slice"),
+                        ir::FunctionAttr::ExternLocation(location) => print!("@extern({:?})", location),
+                    }
+                }
+            }
+            println!(" {}", func);
         }
     }
 

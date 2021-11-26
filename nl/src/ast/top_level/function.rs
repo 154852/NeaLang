@@ -2,12 +2,15 @@ use std::collections::HashMap;
 
 use syntax::Span;
 
-use crate::{ast::{Code, TranslationUnit, TypeExpr}, irgen::{IrGenCodeTarget, IrGenError, IrGenErrorKind, IrGenFunctionContext}, lexer::{TokenKind, TokenStream}};
+use crate::ast::{Code, Expr, TranslationUnit, TypeExpr};
+use crate::lexer::{TokenKind, TokenStream};
+use crate::irgen::{IrGenCodeTarget, IrGenError, IrGenErrorKind, IrGenFunctionContext};
 
 #[derive(Debug)]
 pub struct FunctionAnnotation {
     pub span: Span,
-    pub name: String
+    pub name: String,
+    pub value: Option<Expr>
 }
 
 #[derive(Debug)]
@@ -62,9 +65,16 @@ impl Function {
 
         for annotation in &self.annotations {
             match annotation.name.as_str() {
-                "entry" => func.set_entry(),
-                "alloc" => func.set_alloc(),
-                "alloc_slice" => func.set_alloc_slice(),
+                "entry" => func.push_attr(ir::FunctionAttr::Entry),
+                "alloc" => func.push_attr(ir::FunctionAttr::Alloc),
+                "alloc_slice" => func.push_attr(ir::FunctionAttr::AllocSlice),
+                "location" =>
+                    match &annotation.value {
+                        Some(Expr::StringLit(string)) => {
+                            func.push_attr(ir::FunctionAttr::ExternLocation(string.value.clone()))
+                        },
+                        _ => return Err(IrGenError::new(annotation.span.clone(), IrGenErrorKind::InvalidAnnotationExpression("string".to_string())))
+                    },
                 _ => return Err(IrGenError::new(annotation.span.clone(), IrGenErrorKind::UnknownAnnotation(annotation.name.clone())))
             }
         }
@@ -214,9 +224,16 @@ impl FunctionAnnotation {
         let name = syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident)).to_owned();
         stream.step();
 
+        let value = if syntax::tk_iss!(stream, TokenKind::Eq) {
+            Some(syntax::ex!(syntax::parse!(stream, Expr::parse), stream.error("Expected expression")))
+        } else {
+            None
+        };
+
         syntax::MatchResult::Ok(FunctionAnnotation {
             span: syntax::Span::new(start, stream.tell_start()),
             name,
+            value
         })
     }
 }

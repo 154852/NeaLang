@@ -22,7 +22,8 @@ pub enum IrGenErrorKind {
     IllegalIndexValue,
     NonValueCast,
     StdLinkError,
-    UnknownAnnotation(String)
+    UnknownAnnotation(String),
+    InvalidAnnotationExpression(String)
 }
 
 pub struct IrGenError {
@@ -66,6 +67,7 @@ impl IrGenError {
             IrGenErrorKind::NonValueCast => format!("Cannot cast to non-value type"),
             IrGenErrorKind::StdLinkError => format!("Not linked with std, try importing std"),
             IrGenErrorKind::UnknownAnnotation(name) => format!("Unknown annotation '{}'", name),
+            IrGenErrorKind::InvalidAnnotationExpression(name) => format!("Invalid annotation, expected {}", name),
         }
     }
 }

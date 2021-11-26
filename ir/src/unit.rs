@@ -231,7 +231,10 @@ pub enum FunctionAttr {
     Alloc,
 
     /// Marks function as being the implementation for new slice
-    AllocSlice
+    AllocSlice,
+
+    /// Specifies the location for an extern function - used for example to specify module in wasm and class in java
+    ExternLocation(String)
 }
 
 #[derive(Debug)]
@@ -297,34 +300,52 @@ impl Function {
     pub fn set_extern(&mut self) { self.code = None; }
     pub fn set_non_extern(&mut self) { self.code = Some(Vec::new()); }
 
-    pub fn set_entry(&mut self) { self.attrs.push(FunctionAttr::Entry); }
+    pub fn attrs(&self) -> &Vec<FunctionAttr> {
+        &self.attrs
+    }
+
+    pub fn attr_count(&self) -> usize {
+        self.attrs.len()
+    }
+
     pub fn is_entry(&self) -> bool {
         for attr in &self.attrs {
             if matches!(attr, FunctionAttr::Entry) {
                 return true;
             }
         }
-        return false;
+        false
     }
 
-    pub fn set_alloc(&mut self) { self.attrs.push(FunctionAttr::Alloc); }
     pub fn is_alloc(&self) -> bool {
         for attr in &self.attrs {
             if matches!(attr, FunctionAttr::Alloc) {
                 return true;
             }
         }
-        return false;
+        false
     }
 
-    pub fn set_alloc_slice(&mut self) { self.attrs.push(FunctionAttr::AllocSlice); }
     pub fn is_alloc_slice(&self) -> bool {
         for attr in &self.attrs {
             if matches!(attr, FunctionAttr::AllocSlice) {
                 return true;
             }
         }
-        return false;
+        false
+    }
+    
+    pub fn location(&self) -> Option<&str> {
+        for attr in &self.attrs {
+            if let FunctionAttr::ExternLocation(name) = attr {
+                return Some(name);
+            }
+        }
+        None
+    }
+
+    pub fn push_attr(&mut self, attr: FunctionAttr) {
+        self.attrs.push(attr);
     }
 
     pub fn method_of(&self) -> Option<CompoundTypeRef> {

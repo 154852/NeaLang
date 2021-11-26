@@ -317,7 +317,10 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::Call(idx) => {
                 let call_func = self.unit().get_function(*idx).unwrap();
 
-                let name = class.name().to_string();
+                let name = match call_func.location() {
+                    Some(loc) => loc.to_string(),
+                    None => class.name().to_string()
+                };
                 let method_ref = class.const_method(&name, call_func.name(), &TranslationContext::signature_as_descriptor(call_func.signature()));
 
                 insns.push(java::Ins::InvokeStatic { index: method_ref });
