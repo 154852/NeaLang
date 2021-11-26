@@ -192,6 +192,15 @@ fn build(build_opts: &BuildOpts) {
                 }
             }
         },
+        "java" => {
+            match ir2triple::java::encode(&ir_unit, &build_opts.output, build_opts.relocatable) {
+                Ok(_) => (),
+                Err(e) => {
+                    eprintln!("EncodeError: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        },
         "none" => {
             // Do nothing
         },

@@ -12,3 +12,5 @@ ofile = { path = "../ofile" }
 ir2x86 = { path = "../ir2x86" }
 x86 = { path = "../x86" }
 ir2wasm = { path = "../ir2wasm" }
+java = { path = "../java" }
+ir2java = { path = "../ir2java" }

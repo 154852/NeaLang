@@ -95,12 +95,22 @@ name = "ir"
 version = "0.1.0"
 
 [[package]]
+name = "ir2java"
+version = "0.1.0"
+dependencies = [
+ "ir",
+ "java",
+]
+
+[[package]]
 name = "ir2triple"
 version = "0.1.0"
 dependencies = [
  "ir",
+ "ir2java",
  "ir2wasm",
  "ir2x86",
+ "java",
  "ofile",
  "x86",
 ]
@@ -119,6 +129,13 @@ version = "0.1.0"
 dependencies = [
  "ir",
  "x86",
+]
+
+[[package]]
+name = "java"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
 ]
 
 [[package]]
