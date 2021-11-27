@@ -273,7 +273,7 @@ impl<'a> StackMapBuilder<'a> {
                 ir::ValueType::U64 | ir::ValueType::I64 => java::VerificationTypeInfo::Long,
                 ir::ValueType::Ref(c) => StackMapBuilder::verification_type_for_storable(c, class)
             },
-            ir::StorableType::Slice(_) => todo!(),
+            ir::StorableType::Slice(st) => java::VerificationTypeInfo::Object(class.const_class(&format!("[{}", storable_type_to_jtype(st, class).to_string()))),
             ir::StorableType::SliceData(_) => todo!(),
         }
     }
