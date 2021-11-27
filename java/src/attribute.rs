@@ -9,7 +9,7 @@ pub enum Attribute {
     Code(Code),
     LocalVariableTable(LocalVariableTable),
     InnerClasses(InnerClasses),
-    // NestMembers(NestMembers)
+    StackMapTable(StackMapTable)
 }
 
 impl Attribute {
@@ -18,7 +18,7 @@ impl Attribute {
             Attribute::Code(code) => ("Code", code.encode(class)),
             Attribute::LocalVariableTable(table) => ("LocalVariableTable", table.encode(class)),
             Attribute::InnerClasses(classes) => ("InnerClasses", classes.encode(class)),
-            // Attribute::NestMembers(members) => ("NestMembers", members.encode(class)),
+            Attribute::StackMapTable(table) => ("StackMapTable", table.encode(class)),
         };
 
         writer.u16(class.constant_pool_index_to_encodable_index(
@@ -123,6 +123,10 @@ impl Code {
     pub fn instructions(&self) -> &Vec<Ins> {
         &self.code
     }
+
+    pub fn add_map(&mut self, map: StackMapTable) {
+        self.attributes.push(Attribute::StackMapTable(map));
+    }
 }
 
 #[derive(Debug)]
@@ -218,21 +222,97 @@ impl InnerClasses {
     }
 }
 
-// #[derive(Debug)]
-// pub struct NestMembers {
+#[derive(Debug)]
+pub struct StackMapTable {
+    frames: Vec<StackMapFrame>
+}
 
-// }
+impl StackMapTable {
+    pub fn new() -> StackMapTable {
+        StackMapTable {
+            frames: Vec::new()
+        }
+    }
 
-// impl NestMembers {
-//     pub fn encode(&self, class: &ClassFile) -> Vec<u8> {
-//         let mut writer = BinaryWriter::new();
+    pub fn encode(&self, class: &ClassFile) -> Vec<u8> {
+        let mut writer = BinaryWriter::new();
 
-//         writer.u16(self.entries.len() as u16);
+        writer.u16(self.frames.len() as u16);
 
-//         for entry in &self.entries {
-//             entry.encode(&mut writer, class);
-//         }
+        for entry in &self.frames {
+            entry.encode(&mut writer, class);
+        }
 
-//         writer.take()
-//     }
-// }
+        writer.take()
+    }
+
+    pub fn add_entry(&mut self, class: StackMapFrame) {
+        self.frames.push(class);
+    }
+}
+
+#[derive(Debug)]
+pub enum VerificationTypeInfo {
+    Top,
+    Integer,
+    Float,
+    Long,
+    Double,
+    Null,
+    Object(usize)
+}
+
+impl VerificationTypeInfo {
+    pub fn encode(&self, writer: &mut BinaryWriter, class: &ClassFile) {
+        match self {
+            VerificationTypeInfo::Top => writer.u8(0),
+            VerificationTypeInfo::Integer => writer.u8(1),
+            VerificationTypeInfo::Float => writer.u8(2),
+            VerificationTypeInfo::Long => writer.u8(4),
+            VerificationTypeInfo::Double => writer.u8(3),
+            VerificationTypeInfo::Null => writer.u8(5),
+            VerificationTypeInfo::Object(idx) => {
+                writer.u8(7);
+                writer.u16(class.constant_pool_index_to_encodable_index(*idx));
+            },
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum StackMapFrame {
+    SameFrameExtended { offset: u16 },
+    SameLocalsOneStackExtended { offset: u16, stack: VerificationTypeInfo },
+    AppendFrame { offset: u16, locals: Vec<VerificationTypeInfo> },
+    FullFrame { offset: u16, locals: Vec<VerificationTypeInfo>, stack: Vec<VerificationTypeInfo> }
+}
+
+impl StackMapFrame {
+    pub fn encode(&self, writer: &mut BinaryWriter, class: &ClassFile) {
+        match self {
+            StackMapFrame::SameFrameExtended { offset } => {
+                writer.u8(251);
+                writer.u16(*offset);
+            },
+            StackMapFrame::SameLocalsOneStackExtended { offset, stack } => {
+                writer.u8(247);
+                writer.u16(*offset);
+                stack.encode(writer, class);
+            },
+            StackMapFrame::AppendFrame { offset, locals } => {
+                assert!(locals.len() <= 3);
+                writer.u8(251 + locals.len() as u8);
+                writer.u16(*offset);
+                for local in locals { local.encode(writer, class); }
+            },
+            StackMapFrame::FullFrame { offset, locals, stack } => {
+                writer.u8(255);
+                writer.u16(*offset);
+                writer.u16(locals.len() as u16);
+                for local in locals { local.encode(writer, class); }
+                writer.u16(stack.len() as u16);
+                for stack_el in stack { stack_el.encode(writer, class); }
+            }
+        }
+    }
+}

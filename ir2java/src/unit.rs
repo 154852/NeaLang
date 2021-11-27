@@ -1,19 +1,17 @@
-use crate::PathStack;
+use java::ClassFile;
 
-pub(crate) fn compound_name_to_java_string(name: &str) -> String {
-    name.to_string()
-}
+use crate::{InstructionTarget, PathStack, StackMapBuilder};
 
-pub(crate) fn storable_type_to_jtype(st: &ir::StorableType) -> java::Descriptor {
+pub(crate) fn storable_type_to_jtype(st: &ir::StorableType, class: &ClassFile) -> java::Descriptor {
     match st {
         ir::StorableType::Compound(_) => todo!(),
-        ir::StorableType::Value(v) => value_type_to_jtype(v),
-        ir::StorableType::Slice(st) => java::Descriptor::Array(1, Box::new(storable_type_to_jtype(st))),
+        ir::StorableType::Value(v) => value_type_to_jtype(v, class),
+        ir::StorableType::Slice(st) => java::Descriptor::Array(1, Box::new(storable_type_to_jtype(st, class))),
         ir::StorableType::SliceData(_) => panic!("Cannot get jtype for slice data"),
     }
 }
 
-pub(crate) fn value_type_to_jtype(vt: &ir::ValueType) -> java::Descriptor {
+pub(crate) fn value_type_to_jtype(vt: &ir::ValueType, class: &ClassFile) -> java::Descriptor {
     match vt {
         ir::ValueType::U8 => java::Descriptor::Byte,
         ir::ValueType::I8 => java::Descriptor::Byte,
@@ -28,9 +26,9 @@ pub(crate) fn value_type_to_jtype(vt: &ir::ValueType) -> java::Descriptor {
         ir::ValueType::Bool => java::Descriptor::Boolean,
         ir::ValueType::Ref(vt) =>
             match vt.as_ref() {
-                ir::StorableType::Compound(c) => java::Descriptor::Reference(compound_name_to_java_string(c.name())),
+                ir::StorableType::Compound(c) => java::Descriptor::Reference(format!("{}${}", class.name(), c.name())),
                 ir::StorableType::Value(_) => todo!(),
-                ir::StorableType::Slice(st) => java::Descriptor::Array(1, Box::new(storable_type_to_jtype(st))),
+                ir::StorableType::Slice(st) => java::Descriptor::Array(1, Box::new(storable_type_to_jtype(st, class))),
                 ir::StorableType::SliceData(_) => panic!("Cannot get jtype for slice data"),
             },
         ir::ValueType::Index(_) => java::Descriptor::Int,
@@ -42,10 +40,10 @@ pub struct TranslationContext<'a> {
 }
 
 impl<'a> TranslationContext<'a> {
-    pub fn signature_as_descriptor(signature: &ir::Signature) -> String {
+    pub fn signature_as_descriptor(signature: &ir::Signature, class: &ClassFile) -> String {
         let mut params = Vec::new();
             for param in signature.params() {
-                params.push(value_type_to_jtype(param));
+                params.push(value_type_to_jtype(param, class));
             }
 
             java::Descriptor::function_to_string(
@@ -53,7 +51,7 @@ impl<'a> TranslationContext<'a> {
                 &if signature.return_count() == 0 {
                     java::Descriptor::Void
                 } else if signature.return_count() == 1 {
-                    value_type_to_jtype(signature.returns().get(0).unwrap())
+                    value_type_to_jtype(signature.returns().get(0).unwrap(), class)
                 } else {
                     todo!("Multiple returns")
                 }
@@ -69,7 +67,7 @@ impl<'a> TranslationContext<'a> {
             match compound_type.content() {
                 ir::TypeContent::Struct(struc) => {
                     for prop in struc.props() {
-                        let field = java::Field::new_on(prop.name(), storable_type_to_jtype(prop.prop_type()).to_string(), &mut classfile);
+                        let field = java::Field::new_on(prop.name(), storable_type_to_jtype(prop.prop_type(), &classfile).to_string(), &mut classfile);
                         field.set_access(java::FieldAccessFlags::from_bits(java::FieldAccessFlags::ACC_PUBLIC));
                     }
                 },
@@ -109,16 +107,19 @@ impl<'a> TranslationContext<'a> {
         for func in unit.functions() {
             if func.is_extern() { continue; }
 
-            let mut insns = Vec::new();
+            let mut insns = InstructionTarget::new(0);
             let mut path_stack = PathStack::new();
+            let mut stack_map = StackMapBuilder::new(func);
             for ins in func.code() {
-                ctx.translate_ins(func, ins, &mut path_stack, &mut insns, &mut classfile);
+                ctx.translate_ins(func, ins, &mut path_stack, &mut insns, &mut stack_map, &mut classfile);
             }
 
-            let method = java::Method::new_on(func.name(), TranslationContext::signature_as_descriptor(func.signature()), &mut classfile);
+            let method = java::Method::new_on(func.name(), TranslationContext::signature_as_descriptor(func.signature(), &classfile), &mut classfile);
 
             // TODO: Find correct max size
-            method.add_code(java::Code::new(10, func.local_count() as u16, insns));
+            let mut code = java::Code::new(10, func.local_count() as u16, insns.take());
+            code.add_map(stack_map.take());
+            method.add_code(code);
             method.set_access(java::MethodAccessFlags::from_bits(
                 java::MethodAccessFlags::ACC_PUBLIC | java::MethodAccessFlags::ACC_STATIC
             ));

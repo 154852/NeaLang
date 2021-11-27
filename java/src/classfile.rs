@@ -65,6 +65,7 @@ impl ClassFile {
         cf.super_index = Some(super_);
 
         cf.add_constant(Constant::Utf8(constantpool::Utf8::new("Code"))); // Add for later use
+        cf.add_constant(Constant::Utf8(constantpool::Utf8::new("StackMapTable")));
 
         cf
     }
