@@ -4,6 +4,7 @@ use crate::{TranslationContext, storable_type_to_jtype, value_type_to_jtype};
 
 enum Path {
     Local(usize, java::Descriptor),
+    Global(usize),
     /// Assumes an index followed by a slice
     Slice(java::Descriptor),
     /// Assumes a reference
@@ -51,6 +52,9 @@ impl Path {
                     },
                     java::Descriptor::Void => panic!(),
                 }
+            },
+            Path::Global(idx) => {
+                insns.push(java::Ins::GetStatic { index: *idx })
             },
             Path::Slice(desc) => {
                 match desc {
@@ -137,6 +141,9 @@ impl Path {
                     },
                     java::Descriptor::Void => panic!(),
                 }
+            },
+            Path::Global(idx) => {
+                insns.push(java::Ins::PutStatic { index: *idx })
             },
             Path::Slice(desc) => {
                 match desc {
@@ -347,8 +354,16 @@ impl<'a> TranslationContext<'a> {
                         stack_map.accessed_local(*idx);
                         Path::Local(*idx, storable_type_to_jtype(st, &class))
                     },
-                    ir::ValuePathOrigin::Global(_, _) => {
-                        todo!()
+                    ir::ValuePathOrigin::Global(idx, st) => {
+                        let field_idx = class.const_field(
+                            &class.name().to_string(),
+                            &match self.unit().get_global(*idx).unwrap().name() {
+                                Some(n) => n.to_string(),
+                                None => format!("_global${}", idx)
+                            },
+                            &storable_type_to_jtype(st, class).to_string()
+                        );
+                        Path::Global(field_idx)
                     },
                     ir::ValuePathOrigin::Deref(_) => {
                         Path::Ref

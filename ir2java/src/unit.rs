@@ -4,10 +4,10 @@ use crate::{InstructionTarget, PathStack, StackMapBuilder};
 
 pub(crate) fn storable_type_to_jtype(st: &ir::StorableType, class: &ClassFile) -> java::Descriptor {
     match st {
-        ir::StorableType::Compound(_) => todo!(),
+        ir::StorableType::Compound(ctr) => java::Descriptor::Reference(format!("{}${}", class.name(), ctr.name())),
         ir::StorableType::Value(v) => value_type_to_jtype(v, class),
         ir::StorableType::Slice(st) => java::Descriptor::Array(1, Box::new(storable_type_to_jtype(st, class))),
-        ir::StorableType::SliceData(_) => panic!("Cannot get jtype for slice data"),
+        ir::StorableType::SliceData(st) => java::Descriptor::Array(1, Box::new(storable_type_to_jtype(st, class))),
     }
 }
 
@@ -130,16 +130,17 @@ impl<'a> TranslationContext<'a> {
         }
 
         if let Some(main_name) = main_name {
-            let name_index = classfile.consant_pool_index_of_str(&main_name).unwrap();
-            let desc_index = classfile.consant_pool_index_of_str("()V").unwrap();
-            let name_and_type = classfile.add_constant(java::Constant::NameAndType(java::NameAndType::new(name_index, desc_index)));
-            let method_ref = classfile.add_constant(java::Constant::MethodRef(java::MethodRef::new(classfile.this_index(), name_and_type)));
+            // let name_index = classfile.consant_pool_index_of_str(&main_name).unwrap();
+            // let desc_index = classfile.consant_pool_index_of_str("()V").unwrap();
+            // let name_and_type = classfile.add_constant(java::Constant::NameAndType(java::NameAndType::new(name_index, desc_index)));
+            // let method_ref = classfile.add_constant(java::Constant::MethodRef(java::MethodRef::new(classfile.this_index(), name_and_type)));
 
+            let target = classfile.const_method(&classfile.name().to_string(), main_name, "()V");
+            
             let method = java::Method::new_on("main", "([Ljava/lang/String;)V", &mut classfile);
-
             method.add_code(java::Code::new(0, 1, vec![
                 java::Ins::InvokeStatic {
-                    index: method_ref
+                    index: target
                 },
                 java::Ins::Return
             ]));
@@ -152,6 +153,36 @@ impl<'a> TranslationContext<'a> {
             classfile.add_inner_class(java::InnerClass::new(
                 inner_class, classfile.this_index(), inner_class_name
             ));
+        }
+
+        let mut clinit = Vec::new();
+
+        for (idx, global) in unit.globals().iter().enumerate() {
+            let name = match global.name() {
+                Some(x) => x.to_string(),
+                None => format!("_global${}", idx)
+            };
+            let desc = storable_type_to_jtype(global.global_type(), &classfile).to_string();
+            let field = java::Field::new_on(
+                &name,
+                &desc,
+                &mut classfile
+            );
+
+            field.set_access(java::FieldAccessFlags::from_bits(java::FieldAccessFlags::ACC_PRIVATE | java::FieldAccessFlags::ACC_STATIC));
+
+            if let Some(default) = global.default() {
+                ctx.translate_storable(default, global.global_type(), &mut classfile, &mut clinit);
+                clinit.push(java::Ins::PutStatic { index: classfile.const_field(&classfile.name().to_string(), &name, &desc) })
+            }
+        }
+
+        if clinit.len() != 0 {
+            clinit.push(java::Ins::Return);
+            
+            let method = java::Method::new_on("<clinit>", "()V", &mut classfile);
+            method.add_code(java::Code::new(10, 0, clinit));
+            method.set_access(java::MethodAccessFlags::from_bits(java::MethodAccessFlags::ACC_STATIC));
         }
 
         Ok(classfile)

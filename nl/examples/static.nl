@@ -24,6 +24,8 @@ func [entry] main() {
 	putchar(10);
 
 	print(s);
+
+	print("Hello World!\n");
 }
 
 func print(string: String) {
