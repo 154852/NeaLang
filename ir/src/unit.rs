@@ -20,6 +20,10 @@ impl TranslationUnit {
         self.compound_types.push(compound_type);
     }
 
+    pub fn compound_types(&self) -> &Vec<CompoundTypeRef> {
+        &self.compound_types
+    }
+
     pub fn find_type(&self, name: &str) -> Option<CompoundTypeRef> {
         for ct in self.compound_types.iter() {
             if ct.name() == name {

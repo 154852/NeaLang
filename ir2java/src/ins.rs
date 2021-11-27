@@ -9,7 +9,9 @@ enum Path {
     /// Assumes a reference
     Prop(usize, java::Descriptor),
     /// Assumes a slice
-    Length
+    Length,
+    // Reference already on stack
+    Ref
 }
 
 impl Path {
@@ -90,7 +92,8 @@ impl Path {
             },
             Path::Length => {
                 insns.push(java::Ins::ArrayLength);
-            }
+            },
+            Path::Ref => {}
         }
     }
 
@@ -175,7 +178,8 @@ impl Path {
             },
             Path::Length => {
                 panic!("Attempt to write slice length")
-            }
+            },
+            Path::Ref => panic!("Attempt to write to reference")
         }
     }
 }
@@ -212,7 +216,7 @@ impl<'a> TranslationContext<'a> {
                         todo!()
                     },
                     ir::ValuePathOrigin::Deref(_) => {
-                        panic!("Pass by reference")
+                        Path::Ref
                     },
                 };
                 
@@ -230,7 +234,7 @@ impl<'a> TranslationContext<'a> {
                                     let prop = struc.prop(*prop_idx).unwrap();
                                     let desc = storable_type_to_jtype(prop.prop_type());
 
-                                    let field_ref_idx = class.const_field(ctr.name(), prop.name(), &desc.to_string());
+                                    let field_ref_idx = class.const_field(&format!("{}${}", class.name(), ctr.name()), prop.name(), &desc.to_string());
 
                                     path = Path::Prop(field_ref_idx, desc);
                                 },
@@ -254,21 +258,24 @@ impl<'a> TranslationContext<'a> {
                 // Do nothing
             },
             ir::Ins::New(st) => {
-                let idx = match st {
+                let name = match st {
                     ir::StorableType::Compound(ctr) => {
-                        class.const_class(ctr.name())
+                        format!("{}${}", class.name(), ctr.name())
                     },
                     ir::StorableType::Value(_) => panic!("Cannot currently create reference to value"),
                     ir::StorableType::Slice(_) => todo!(),
                     ir::StorableType::SliceData(_) => panic!(),
                 };
 
-                insns.push(java::Ins::New { index: idx });
+                insns.push(java::Ins::New { index: class.const_class(&name) });
+                insns.push(java::Ins::Dup);
+                let method = class.const_method(&name, "<init>", "()V");
+                insns.push(java::Ins::InvokeSpecial { index: method });
             },
             ir::Ins::NewSlice(st) => {
                 match st {
                     ir::StorableType::Compound(ctr) => {
-                        let class_idx = class.const_class(ctr.name());
+                        let class_idx = class.const_class(&format!("{}${}", class.name(), ctr.name()));
 
                         insns.push(java::Ins::ANewArray { index: class_idx });
                     },

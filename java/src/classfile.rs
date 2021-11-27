@@ -1,9 +1,13 @@
-use crate::{Class, FieldRef, MethodRef, NameAndType, Utf8, attribute::{self, Attribute}, constantpool::{self, Constant}, io::BinaryWriter};
+use crate::{Class, FieldRef, InnerClass, InnerClasses, MethodRef, NameAndType, Utf8, attribute::{self, Attribute}, constantpool::{self, Constant}, io::BinaryWriter};
 
+#[derive(Debug)]
 pub struct ClassAccessFlags(u16);
 
 impl ClassAccessFlags {
     pub const ACC_PUBLIC: u16 = 0x0001;
+    pub const ACC_PRIVATE: u16 = 0x0002;
+    pub const ACC_PROTECTED: u16 = 0x0004;
+    pub const ACC_STATIC: u16 = 0x0008;
     pub const ACC_FINAL: u16 = 0x0010;
     pub const ACC_SUPER: u16 = 0x0020;
     pub const ACC_INTERFACE: u16 = 0x0200;
@@ -14,6 +18,10 @@ impl ClassAccessFlags {
     
     pub fn from_bits(bits: u16) -> ClassAccessFlags {
         ClassAccessFlags(bits)
+    }
+
+    pub fn bits(&self) -> u16 {
+        self.0
     }
 }
 
@@ -79,6 +87,20 @@ impl ClassFile {
     pub fn add_constant(&mut self, constant: Constant) -> usize {
         self.constant_pool.push(constant);
         self.constant_pool.len() - 1
+    }
+
+    pub fn add_inner_class(&mut self, class: InnerClass) {
+        for attr in &mut self.attributes {
+            if let Attribute::InnerClasses(inner) = attr {
+                inner.add_entry(class);
+                return;
+            }
+        }
+
+        let mut inner_classes = InnerClasses::new();
+        inner_classes.add_entry(class);
+        self.attributes.push(Attribute::InnerClasses(inner_classes));
+        self.add_constant(Constant::Utf8(constantpool::Utf8::new("InnerClasses")));
     }
 
     pub fn encode(&self) -> Vec<u8> {
@@ -220,6 +242,22 @@ impl ClassFile {
 
 pub struct FieldAccessFlags(u16);
 
+impl FieldAccessFlags {
+    pub const ACC_PUBLIC: u16 = 0x0001;
+    pub const ACC_PRIVATE: u16 = 0x0002;
+    pub const ACC_PROTECTED: u16 = 0x0004;
+    pub const ACC_STATIC: u16 = 0x0008;
+    pub const ACC_FINAL: u16 = 0x0010;
+    pub const ACC_VOLATILE: u16 = 0x0040;
+    pub const ACC_TRANSIENT: u16 = 0x0080;
+    pub const ACC_SYNTHETIC: u16 = 0x1000;
+    pub const ACC_ENUM: u16 = 0x4000;
+    
+    pub fn from_bits(bits: u16) -> FieldAccessFlags {
+        FieldAccessFlags(bits)
+    }
+}
+
 pub struct Field {
     access_flags: FieldAccessFlags,
     name_index: usize,
@@ -228,6 +266,25 @@ pub struct Field {
 }
 
 impl Field {
+    pub fn new_on<T: Into<String>, U: Into<String>>(name: T, descriptor: U, class: &mut ClassFile) -> &mut Field {
+        let name_index = class.add_constant(Constant::Utf8(constantpool::Utf8::new(name)));
+        let descriptor_index = class.add_constant(Constant::Utf8(constantpool::Utf8::new(descriptor)));
+
+        let field = Field {
+            name_index, descriptor_index,
+            access_flags: FieldAccessFlags::from_bits(FieldAccessFlags::ACC_PUBLIC),
+            attributes: Vec::new()
+        };
+
+        class.fields.push(field);
+
+        class.fields.last_mut().unwrap()
+    }
+
+    pub fn set_access(&mut self, flags: FieldAccessFlags) {
+        self.access_flags = flags;
+    }
+
     fn encode(&self, writer: &mut BinaryWriter, class: &ClassFile) {
         writer.u16(self.access_flags.0);
         writer.u16(class.constant_pool_index_to_encodable_index(self.name_index));

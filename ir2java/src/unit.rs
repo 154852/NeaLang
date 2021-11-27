@@ -60,6 +60,43 @@ impl<'a> TranslationContext<'a> {
             )
     }
 
+    pub fn translate_unit_types(unit: &ir::TranslationUnit, name: &str) -> Result<Vec<(String, java::ClassFile)>, String> {
+        let mut classes = Vec::new();
+
+        for compound_type in unit.compound_types() {
+            let mut classfile = java::ClassFile::new(&format!("{}${}", name, compound_type.name()));
+
+            match compound_type.content() {
+                ir::TypeContent::Struct(struc) => {
+                    for prop in struc.props() {
+                        let field = java::Field::new_on(prop.name(), storable_type_to_jtype(prop.prop_type()).to_string(), &mut classfile);
+                        field.set_access(java::FieldAccessFlags::from_bits(java::FieldAccessFlags::ACC_PUBLIC));
+                    }
+                },
+            }
+            
+            let super_init = classfile.const_method("java/lang/Object", "<init>", "()V");
+
+            let init = java::Method::new_on("<init>", "()V", &mut classfile);
+            init.set_access(java::MethodAccessFlags::from_bits(java::MethodAccessFlags::ACC_PUBLIC));
+            init.add_code(java::Code::new(1, 1, vec![
+                java::Ins::ALoad0,
+                java::Ins::InvokeSpecial { index: super_init },
+                java::Ins::Return,
+            ]));
+
+            let outer_class = classfile.const_class(name);
+            let inner_class_name = classfile.const_str(compound_type.name());
+            classfile.add_inner_class(java::InnerClass::new(
+                classfile.this_index(),outer_class, inner_class_name
+            ));
+
+            classes.push((format!("{}${}", name, compound_type.name()), classfile));
+        }
+
+        Ok(classes)
+    }
+
     pub fn translate_unit(unit: &ir::TranslationUnit, name: &str) -> Result<java::ClassFile, String> {
         let mut classfile = java::ClassFile::new(name);
 
@@ -106,6 +143,14 @@ impl<'a> TranslationContext<'a> {
                 java::Ins::Return
             ]));
             method.set_access(java::MethodAccessFlags::from_bits(java::MethodAccessFlags::ACC_PUBLIC | java::MethodAccessFlags::ACC_STATIC));
+        }
+
+        for compound_type in unit.compound_types() {
+            let inner_class = classfile.const_class(&format!("{}${}", name, compound_type.name()));
+            let inner_class_name = classfile.const_str(compound_type.name());
+            classfile.add_inner_class(java::InnerClass::new(
+                inner_class, classfile.this_index(), inner_class_name
+            ));
         }
 
         Ok(classfile)

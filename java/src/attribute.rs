@@ -1,3 +1,4 @@
+use crate::ClassAccessFlags;
 use crate::io::BinaryWriter;
 use crate::classfile::ClassFile;
 use crate::instructions::Ins;
@@ -7,6 +8,8 @@ use crate::instructions::Ins;
 pub enum Attribute {
     Code(Code),
     LocalVariableTable(LocalVariableTable),
+    InnerClasses(InnerClasses),
+    // NestMembers(NestMembers)
 }
 
 impl Attribute {
@@ -14,6 +17,8 @@ impl Attribute {
         let (name, data) = match self {
             Attribute::Code(code) => ("Code", code.encode(class)),
             Attribute::LocalVariableTable(table) => ("LocalVariableTable", table.encode(class)),
+            Attribute::InnerClasses(classes) => ("InnerClasses", classes.encode(class)),
+            // Attribute::NestMembers(members) => ("NestMembers", members.encode(class)),
         };
 
         writer.u16(class.constant_pool_index_to_encodable_index(
@@ -157,3 +162,77 @@ impl LocalVariableTable {
         writer.take()
     }
 }
+
+#[derive(Debug)]
+pub struct InnerClass {
+    inner_class_index: usize,
+    outer_class_index: usize,
+    inner_name_index: usize,
+    access_flags: ClassAccessFlags
+}
+
+impl InnerClass {
+    pub fn new(inner_class_index: usize, outer_class_index: usize, inner_name_index: usize) -> InnerClass {
+        InnerClass {
+            inner_class_index,
+            outer_class_index,
+            inner_name_index,
+            access_flags: ClassAccessFlags::from_bits(ClassAccessFlags::ACC_PUBLIC | ClassAccessFlags::ACC_STATIC)
+        }
+    }
+    
+    pub fn encode(&self, writer: &mut BinaryWriter, class: &ClassFile) {
+        writer.u16(class.constant_pool_index_to_encodable_index(self.inner_class_index));
+        writer.u16(class.constant_pool_index_to_encodable_index(self.outer_class_index));
+        writer.u16(class.constant_pool_index_to_encodable_index(self.inner_name_index));
+        writer.u16(self.access_flags.bits());
+    }
+}
+
+#[derive(Debug)]
+pub struct InnerClasses {
+    entries: Vec<InnerClass>
+}
+
+impl InnerClasses {
+    pub fn new() -> InnerClasses {
+        InnerClasses {
+            entries: Vec::new()
+        }
+    }
+
+    pub fn encode(&self, class: &ClassFile) -> Vec<u8> {
+        let mut writer = BinaryWriter::new();
+
+        writer.u16(self.entries.len() as u16);
+
+        for entry in &self.entries {
+            entry.encode(&mut writer, class);
+        }
+
+        writer.take()
+    }
+
+    pub fn add_entry(&mut self, class: InnerClass) {
+        self.entries.push(class);
+    }
+}
+
+// #[derive(Debug)]
+// pub struct NestMembers {
+
+// }
+
+// impl NestMembers {
+//     pub fn encode(&self, class: &ClassFile) -> Vec<u8> {
+//         let mut writer = BinaryWriter::new();
+
+//         writer.u16(self.entries.len() as u16);
+
+//         for entry in &self.entries {
+//             entry.encode(&mut writer, class);
+//         }
+
+//         writer.take()
+//     }
+// }
