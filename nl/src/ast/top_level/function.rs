@@ -32,6 +32,25 @@ pub struct Function {
 }
 
 impl Function {
+    pub fn arch_matches(&self, target_arch: &str) -> Result<bool, IrGenError> {
+        for annotation in &self.annotations {
+            if annotation.name == "arch" {
+                let archs = match &annotation.value {
+                    Some(Expr::StringLit(string)) => string.value.split(','),
+                    _ => return Err(IrGenError::new(annotation.span.clone(), IrGenErrorKind::InvalidAnnotationExpression("string".to_string())))
+                };
+
+                for arch in archs {
+                    if arch == target_arch { return Ok(true) }
+                }
+
+                return Ok(false);
+            }
+        }
+
+        return Ok(true);
+    }
+
     pub fn to_ir_base(&self, ir_unit: &ir::TranslationUnit, _unit: &TranslationUnit) -> Result<ir::Function, IrGenError> {
         let mut params = Vec::with_capacity(self.params.len());
         for param in &self.params {
@@ -75,6 +94,7 @@ impl Function {
                         },
                         _ => return Err(IrGenError::new(annotation.span.clone(), IrGenErrorKind::InvalidAnnotationExpression("string".to_string())))
                     },
+                "arch" => {},
                 _ => return Err(IrGenError::new(annotation.span.clone(), IrGenErrorKind::UnknownAnnotation(annotation.name.clone())))
             }
         }

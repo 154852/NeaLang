@@ -22,7 +22,7 @@ impl TranslationUnit {
 }
 
 impl TranslationUnit {
-    pub fn to_extern_ir_on(&self, unit: &mut ir::TranslationUnit) -> Result<(), IrGenError> {
+    pub fn to_extern_ir_on(&self, unit: &mut ir::TranslationUnit, target_arch_name: &str) -> Result<(), IrGenError> {
         for node in &self.nodes {
             match node {
                 TopLevelNode::StructDeclaration(decl) => {
@@ -36,6 +36,8 @@ impl TranslationUnit {
         for node in &self.nodes {
             match node {
                 TopLevelNode::Function(func) => {
+                    if !func.arch_matches(target_arch_name)? { continue; }
+                    
                     let mut func = func.to_ir_base(unit, self)?;
                     func.set_extern();
                     unit.add_function(func);
@@ -47,7 +49,7 @@ impl TranslationUnit {
         Ok(())
     }
 
-    pub fn to_ir_on(&self, unit: &mut ir::TranslationUnit) -> Result<(), IrGenError> {
+    pub fn to_ir_on(&self, unit: &mut ir::TranslationUnit, target_arch_name: &str) -> Result<(), IrGenError> {
         for node in &self.nodes {
             match node {
                 TopLevelNode::StructDeclaration(decl) => {
@@ -62,6 +64,8 @@ impl TranslationUnit {
         for node in &self.nodes {
             match node {
                 TopLevelNode::Function(func) => {
+                    if !func.arch_matches(target_arch_name)? { continue; }
+
                     let func = func.to_ir_base(unit, self)?;
                     let idx = unit.add_function(func);
                     if first_index.is_none() {
@@ -76,6 +80,8 @@ impl TranslationUnit {
         for node in &self.nodes {
             match node {
                 TopLevelNode::Function(func) => {
+                    if !func.arch_matches(target_arch_name)? { continue; }
+
                     if func.code.is_some() {
                         // Safe to unwrap as this wouldn't be running otherwise
                         func.append_ir(unit, id + first_index.unwrap())?;

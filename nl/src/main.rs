@@ -74,12 +74,14 @@ fn print_error_range(mut start: usize, mut end: usize, source: &str, path: &Path
 
 pub struct BuildContext {
     linked_paths: Vec<PathBuf>,
+    target_arch_name: &'static str,
 }
 
 impl BuildContext {
-    pub fn new(linked_paths: &Vec<String>) -> BuildContext {
+    pub fn new(linked_paths: &Vec<String>, target_arch_name: &'static str) -> BuildContext {
         BuildContext {
             linked_paths: linked_paths.iter().map(|x| Path::new(x).canonicalize().expect("Invalid path")).collect(),
+            target_arch_name
         }
     }
 
@@ -130,7 +132,7 @@ impl BuildContext {
         }
 
         if self.linked_paths.iter().position(|x| x == &path).is_some() {
-            match unit.to_ir_on(ir_unit) {
+            match unit.to_ir_on(ir_unit, self.target_arch_name) {
                 Ok(_) => {},
                 Err(e) => {
                     eprintln!("SemanticError: {}: {}", path.display(), e.message());
@@ -139,7 +141,7 @@ impl BuildContext {
                 }
             }
         } else {
-            match unit.to_extern_ir_on(ir_unit) {
+            match unit.to_extern_ir_on(ir_unit, self.target_arch_name) {
                 Ok(_) => {},
                 Err(e) => {
                     eprintln!("SemanticError: {}: {}", path.display(), e.message());
@@ -162,8 +164,52 @@ impl BuildContext {
     }
 }
 
+enum Arch {
+    X86,
+    Wasm,
+    Java,
+    None
+}
+
+impl Arch {
+    pub fn parse_triple(triple: &str) -> Option<Arch> {
+        match triple {
+            "linux-elf-x86_64" => Some(Arch::X86),
+            "wasm" => Some(Arch::Wasm),
+            "java" => Some(Arch::Java),
+            "none" => Some(Arch::None),
+            _ => None
+        }
+    }
+
+    pub fn short_name(&self) -> &'static str {
+        match self {
+            Arch::X86 => "x86",
+            Arch::Wasm => "wasm",
+            Arch::Java => "java",
+            Arch::None => "none",
+        }
+    }
+
+    pub fn encode(&self, ir_unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Result<(), String> {
+        match self {
+            Arch::X86 => ir2triple::linux_elf::encode(&ir_unit, path, relocatable) ,
+            Arch::Wasm => ir2triple::wasm::encode(&ir_unit, path, relocatable),
+            Arch::Java => ir2triple::java::encode(&ir_unit, path, relocatable),
+            Arch::None => Ok(()) // Do nothing
+        }
+    }
+}
+
 fn build(build_opts: &BuildOpts) {
-    let ir_unit = BuildContext::new(&build_opts.path).build();
+    let arch = match Arch::parse_triple(&build_opts.triple) {
+        Some(a) => a,
+        None => {
+            println!("Unknown triple: {}", build_opts.triple);
+            std::process::exit(1);
+        }
+    };
+    let ir_unit = BuildContext::new(&build_opts.path, arch.short_name()).build();
 
     if build_opts.emit_ir {
         for (idx, func) in ir_unit.functions().iter().enumerate() {
@@ -185,39 +231,10 @@ fn build(build_opts: &BuildOpts) {
 
     ir_unit.validate().expect("Could not validate IR");
 
-    match build_opts.triple.as_str() {
-        "linux-elf-x86_64" => {
-            match ir2triple::linux_elf::encode(&ir_unit, &build_opts.output, build_opts.relocatable) {
-                Ok(_) => (),
-                Err(e) => {
-                    eprintln!("EncodeError: {}", e);
-                    std::process::exit(1);
-                }
-            }
-        },
-        "wasm" => {
-            match ir2triple::wasm::encode(&ir_unit, &build_opts.output, build_opts.relocatable) {
-                Ok(_) => (),
-                Err(e) => {
-                    eprintln!("EncodeError: {}", e);
-                    std::process::exit(1);
-                }
-            }
-        },
-        "java" => {
-            match ir2triple::java::encode(&ir_unit, &build_opts.output, build_opts.relocatable) {
-                Ok(_) => (),
-                Err(e) => {
-                    eprintln!("EncodeError: {}", e);
-                    std::process::exit(1);
-                }
-            }
-        },
-        "none" => {
-            // Do nothing
-        },
-        _ => {
-            println!("Unknown triple: {}", build_opts.triple);
+    match arch.encode(&ir_unit, &build_opts.output, build_opts.relocatable) {
+        Ok(_) => (),
+        Err(e) => {
+            eprintln!("EncodeError: {}", e);
             std::process::exit(1);
         }
     }
