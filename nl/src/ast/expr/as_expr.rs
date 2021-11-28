@@ -21,15 +21,18 @@ impl AsExpr {
     }
 
     pub fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
-        let curr_type = self.expr.append_ir_value(ctx, target, None)?;
         let desired_type = match self.new_type.to_ir_storable_type(ctx.ir_unit)? {
             ir::StorableType::Value(v) => v,
             _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::NonValueCast)),
         };
 
+        let curr_type = self.expr.append_ir_value(ctx, target, Some(&desired_type))?;
+
         if !curr_type.is_num() || !desired_type.is_num() {
             return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::NonValueCast));
         }
+
+        if curr_type == desired_type { return Ok(desired_type); }
 
         target.push(ir::Ins::Convert(curr_type, desired_type.clone()));
 

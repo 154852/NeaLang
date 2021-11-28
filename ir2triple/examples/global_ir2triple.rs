@@ -10,8 +10,8 @@ fn main() {
         Some("object"),
         ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::I32))),
         false,
-        ir::Storable::SliceData(vec![
-            ir::Storable::Value(ir::Value::I32(10))
+        ir::StorableValue::SliceData(vec![
+            ir::StorableValue::Value(ir::Value::I32(10))
         ])
     ));
 
@@ -19,7 +19,7 @@ fn main() {
         Some("object"),
         ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::I32))),
         false,
-        ir::Storable::Slice(raw_data, 0, 1)
+        ir::StorableValue::Slice(raw_data, 0, 1)
     ));
 
     let func_a = unit.get_function_mut(func_a_id);

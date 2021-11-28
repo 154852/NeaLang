@@ -6,7 +6,7 @@ fn main() {
 
     let mut func = ir::Function::new("ret", ir::Signature::new(vec![ ir::ValueType::I32 ], vec![ ir::ValueType::I32 ]));
     func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32)));
-    func.push(ir::Ins::PushPath(ir::ValuePath::new_origin_only(ir::ValuePathOrigin::Local(0, ir::StorableType::Value(ir::ValueType::I32))), ir::ValueType::I32));
+    func.push(ir::Ins::PushPath(ir::ValuePath::new_origin_only(ir::ValuePathOrigin::Local(ir::LocalIndex::new(0), ir::StorableType::Value(ir::ValueType::I32))), ir::ValueType::I32));
     func.push(ir::Ins::Push(ir::ValueType::I32));
     func.push(ir::Ins::Ret);
 

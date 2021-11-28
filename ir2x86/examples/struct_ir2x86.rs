@@ -8,7 +8,7 @@ fn main() {
     example_struct.push_prop(ir::StructProperty::new("first_field", ir::StorableType::Value(ir::ValueType::I32)));
     example_struct.push_prop(ir::StructProperty::new("second_field", ir::StorableType::Value(ir::ValueType::I32)));
 
-    let example_struct = ir::CompoundType::new("example_struct", ir::TypeContent::Struct(example_struct));
+    let example_struct = ir::CompoundType::new("example_struct", ir::CompoundContent::Struct(example_struct));
     unit.add_type(example_struct.clone());
 
     let mut func = ir::Function::new("structs", ir::Signature::new(vec![ ], vec![ ]));

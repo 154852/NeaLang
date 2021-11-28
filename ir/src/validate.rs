@@ -1,4 +1,4 @@
-use crate::{Function, Ins, StorableType, TranslationUnit, TypeContent, ValuePath, ValuePathComponent, ValuePathOrigin, ValueType};
+use crate::{Function, Ins, StorableType, TranslationUnit, CompoundContent, ValuePath, ValuePathComponent, ValuePathOrigin, ValueType};
 
 macro_rules! pop {
     ($stack:expr, $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => {
@@ -217,7 +217,7 @@ impl Ins {
                                 return Err(ValidationError::PathIncorrectType)
                             } else {
                                 match compound_type.content() {
-                                    TypeContent::Struct(struc) =>
+                                    CompoundContent::Struct(struc) =>
                                         match struc.prop(*prop_idx) {
                                             Some(x) =>
                                                 if x.prop_type() != prop_type {
@@ -256,11 +256,11 @@ impl Ins {
                 pop_path!(stack, = *expected_vt);
             }),
             Ins::PushPath(path, expected_vt) => Ok({
-                let vt = Ins::resolve_path(path, stack, function, unit)?;
-                if &vt != expected_vt {
+                let resolved_vt = Ins::resolve_path(path, stack, function, unit)?;
+                if &resolved_vt != expected_vt {
                     return Err(ValidationError::PathIncorrectType)
                 }
-                stack.push_path(vt);
+                stack.push_path(resolved_vt);
             }),
             Ins::Index(slice_type) => Ok({
                 pop!(stack, ValueType::UPtr);
@@ -282,10 +282,8 @@ impl Ins {
                 stack.push(to.clone());
             }),
             Ins::Call(idx) => Ok({
-                if *idx >= unit.function_count() {
-                    return Err(ValidationError::FunctionDoesNotExist)
-                } else {
-                    let sig = unit.functions()[*idx].signature();
+                if let Some(func) = unit.get_function(*idx) {
+                    let sig = func.signature();
 
                     // Params come off the stack in reverse order
                     for i in 0..sig.param_count() {
@@ -296,6 +294,8 @@ impl Ins {
                     for i in 0..sig.return_count() {
                         stack.push(sig.returns()[i].clone());
                     }
+                } else {
+                    return Err(ValidationError::FunctionDoesNotExist);
                 }
             }),
             Ins::Ret => Ok({
@@ -313,14 +313,14 @@ impl Ins {
                 if !vt.is_num() { return Err(ValidationError::StackNotNum) }
                 peek!(stack, 0, = vt);
             }),
-            Ins::Add(vt) | Ins::Mul(vt) | Ins::Div(vt) | Ins::Sub(vt) => Ok({
-                if !vt.is_num() { return Err(ValidationError::StackNotNum) }
-                pop!(stack, = *vt);
-                peek!(stack, 0, = vt);
+            Ins::Add(operand_type) | Ins::Mul(operand_type) | Ins::Div(operand_type) | Ins::Sub(operand_type) => Ok({
+                if !operand_type.is_num() { return Err(ValidationError::StackNotNum) }
+                pop!(stack, = *operand_type);
+                peek!(stack, 0, = operand_type);
             }),
-            Ins::Eq(vt) | Ins::Ne(vt) | Ins::Lt(vt) | Ins::Le(vt) | Ins::Gt(vt) | Ins::Ge(vt) => Ok({
-                pop!(stack, = *vt);
-                pop!(stack, = *vt);
+            Ins::Eq(operand_type) | Ins::Ne(operand_type) | Ins::Lt(operand_type) | Ins::Le(operand_type) | Ins::Gt(operand_type) | Ins::Ge(operand_type) => Ok({
+                pop!(stack, = *operand_type);
+                pop!(stack, = *operand_type);
                 stack.push(ValueType::Bool);
             }),
             Ins::Loop(block, condition, inc) => Ok({

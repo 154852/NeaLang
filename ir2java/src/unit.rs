@@ -1,68 +1,14 @@
-use java::ClassFile;
-
-use crate::{InstructionTarget, PathStack, StackMapBuilder};
-
-pub(crate) fn storable_type_to_jtype(st: &ir::StorableType, class: &ClassFile) -> java::Descriptor {
-    match st {
-        ir::StorableType::Compound(ctr) => java::Descriptor::Reference(name_for_compound(class, ctr)),
-        ir::StorableType::Value(v) => value_type_to_jtype(v, class),
-        ir::StorableType::Slice(st) => java::Descriptor::Array(1, Box::new(storable_type_to_jtype(st, class))),
-        ir::StorableType::SliceData(st) => java::Descriptor::Array(1, Box::new(storable_type_to_jtype(st, class))),
-    }
-}
-
-pub(crate) fn value_type_to_jtype(vt: &ir::ValueType, class: &ClassFile) -> java::Descriptor {
-    match vt {
-        ir::ValueType::U8 => java::Descriptor::Byte,
-        ir::ValueType::I8 => java::Descriptor::Byte,
-        ir::ValueType::U16 => java::Descriptor::Short,
-        ir::ValueType::I16 => java::Descriptor::Short,
-        ir::ValueType::U32 => java::Descriptor::Int,
-        ir::ValueType::I32 => java::Descriptor::Int,
-        ir::ValueType::U64 => java::Descriptor::Long,
-        ir::ValueType::I64 => java::Descriptor::Long,
-        ir::ValueType::UPtr => java::Descriptor::Int,
-        ir::ValueType::IPtr => java::Descriptor::Int,
-        ir::ValueType::Bool => java::Descriptor::Boolean,
-        ir::ValueType::Ref(vt) =>
-            match vt.as_ref() {
-                ir::StorableType::Compound(compound) => java::Descriptor::Reference(name_for_compound(class, compound)),
-                ir::StorableType::Value(_) => todo!(),
-                ir::StorableType::Slice(st) => java::Descriptor::Array(1, Box::new(storable_type_to_jtype(st, class))),
-                ir::StorableType::SliceData(_) => panic!("Cannot get jtype for slice data"),
-            },
-        ir::ValueType::Index(_) => java::Descriptor::Int,
-    }
-}
-
-pub fn name_for_global(global: &ir::Global, index: ir::GlobalIndex) -> String {
-    match global.name() {
-        Some(x) => x.to_string(),
-        None => format!("_global${}", index)
-    }
-}
-
-pub fn name_for_compound(class: &ClassFile, compound: &ir::CompoundType) -> String {
-    format!("{}${}", class.name(), compound.name())
-}
-
-pub fn name_for_function(func: &ir::Function) -> String {
-    if let Some(method_of) = func.method_of() {
-        format!("{}${}", method_of.name(), func.name())
-    } else {
-        func.name().to_string()
-    }
-}
+use crate::ins::{InstructionTarget, PathStack, StackMapBuilder};
 
 pub struct TranslationContext<'a> {
     unit: &'a ir::TranslationUnit,
 }
 
 impl<'a> TranslationContext<'a> {
-    pub fn signature_as_descriptor(signature: &ir::Signature, class: &ClassFile) -> String {
+    pub(crate) fn signature_as_descriptor(signature: &ir::Signature, class: &java::ClassFile) -> String {
         let mut params = Vec::new();
             for param in signature.params() {
-                params.push(value_type_to_jtype(param, class));
+                params.push(crate::util::value_type_to_descriptor(param, class));
             }
 
             java::Descriptor::function_to_string(
@@ -70,7 +16,7 @@ impl<'a> TranslationContext<'a> {
                 &if signature.return_count() == 0 {
                     java::Descriptor::Void
                 } else if signature.return_count() == 1 {
-                    value_type_to_jtype(signature.returns().get(0).unwrap(), class)
+                    crate::util::value_type_to_descriptor(signature.returns().get(0).unwrap(), class)
                 } else {
                     todo!("Multiple returns")
                 }
@@ -84,9 +30,9 @@ impl<'a> TranslationContext<'a> {
             let mut classfile = java::ClassFile::new(&format!("{}${}", name, compound_type.name()));
 
             match compound_type.content() {
-                ir::TypeContent::Struct(struc) => {
+                ir::CompoundContent::Struct(struc) => {
                     for prop in struc.props() {
-                        let field = java::Field::new_on(prop.name(), storable_type_to_jtype(prop.prop_type(), &classfile).to_string(), &mut classfile);
+                        let field = java::Field::new_on(prop.name(), crate::util::storable_type_to_descriptor(prop.prop_type(), &classfile).to_string(), &mut classfile);
                         field.set_access(java::FieldAccessFlags::from_bits(java::FieldAccessFlags::ACC_PUBLIC));
                     }
                 },
@@ -105,7 +51,7 @@ impl<'a> TranslationContext<'a> {
             let outer_class = classfile.const_class(name);
             let inner_class_name = classfile.const_str(compound_type.name());
             classfile.add_inner_class(java::InnerClass::new(
-                classfile.this_index(),outer_class, inner_class_name
+                classfile.this_index(), outer_class, inner_class_name
             ));
 
             classes.push((format!("{}${}", name, compound_type.name()), classfile));
@@ -133,7 +79,7 @@ impl<'a> TranslationContext<'a> {
                 ctx.translate_ins(func, ins, &mut path_stack, &mut insns, &mut stack_map, &mut classfile);
             }
 
-            let method = java::Method::new_on(name_for_function(func), TranslationContext::signature_as_descriptor(func.signature(), &classfile), &mut classfile);
+            let method = java::Method::new_on(crate::util::name_for_function(func), TranslationContext::signature_as_descriptor(func.signature(), &classfile), &mut classfile);
 
             // TODO: Find correct max size
             let mut code = java::Code::new(10, func.local_count() as u16, insns.take());
@@ -144,7 +90,7 @@ impl<'a> TranslationContext<'a> {
             ));
 
             if func.is_entry() {
-                main_name = Some(name_for_function(func));
+                main_name = Some(crate::util::name_for_function(func));
             }
         }
 
@@ -172,13 +118,9 @@ impl<'a> TranslationContext<'a> {
         let mut clinit = Vec::new();
 
         for (idx, global) in unit.globals().iter().enumerate() {
-            let name = name_for_global(global, idx);
-            let desc = storable_type_to_jtype(global.global_type(), &classfile).to_string();
-            let field = java::Field::new_on(
-                &name,
-                &desc,
-                &mut classfile
-            );
+            let name = crate::util::field_name_for_global(global, ir::GlobalIndex::new(idx));
+            let desc = crate::util::storable_type_to_descriptor(global.global_type(), &classfile).to_string();
+            let field = java::Field::new_on(&name, &desc, &mut classfile);
 
             field.set_access(java::FieldAccessFlags::from_bits(java::FieldAccessFlags::ACC_PRIVATE | java::FieldAccessFlags::ACC_STATIC));
 

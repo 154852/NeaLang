@@ -1,6 +1,7 @@
 use syntax::Span;
 
-use crate::{ast::Expr, irgen::{IrGenCodeTarget, IrGenError, IrGenErrorKind, IrGenFunctionContext}};
+use crate::ast::Expr;
+use crate::irgen::{IrGenCodeTarget, IrGenError, IrGenErrorKind, IrGenFunctionContext};
 
 #[derive(Debug)]
 pub struct Assignment {
@@ -14,9 +15,8 @@ impl Assignment {
         match &self.left {
             Expr::Name(name) => {
                 if let Some(local_idx) = ctx.local_map.get(name.name.as_str()) {
-                    let local_idx = *local_idx;
-                    // Only valid local indices go in the local_map
-                    let local = ctx.func().get_local(local_idx).unwrap();
+                    // Only valid local indices go in the local_map, so safe to unwrap
+                    let local = ctx.func().get_local(*local_idx).unwrap();
 
                     let expected = match local.local_type() {
                         ir::StorableType::Value(t) => t.clone(),
@@ -24,7 +24,7 @@ impl Assignment {
                     };
 
                     target.push(ir::Ins::PushPath(ir::ValuePath::new_origin_only(
-                        ir::ValuePathOrigin::Local(local_idx, ir::StorableType::Value(expected.clone())),
+                        ir::ValuePathOrigin::Local(*local_idx, ir::StorableType::Value(expected.clone())),
                     ), expected.clone()));
 
                     let vt = self.right.append_ir_value(ctx, target, Some(&expected))?;

@@ -1,4 +1,4 @@
-use crate::{CompoundTypeRef, Ins, Storable, StorableType};
+use crate::{CompoundTypeRef, Global, GlobalIndex, Ins, StorableType, ValueType};
 
 #[derive(Debug)]
 pub struct TranslationUnit {
@@ -36,19 +36,19 @@ impl TranslationUnit {
 
     pub fn add_global(&mut self, global: Global) -> GlobalIndex {
         self.globals.push(global);
-        self.globals.len() - 1
+        GlobalIndex::new(self.globals.len() - 1)
     }
 
     pub fn find_alloc(&self) -> Option<FunctionIndex> {
         for (f, function) in self.functions.iter().enumerate() {
-            if function.is_alloc() { return Some(f); }
+            if function.is_alloc() { return Some(FunctionIndex::new(f)); }
         }
         None
     }
 
     pub fn find_alloc_slice(&self) -> Option<FunctionIndex> {
         for (f, function) in self.functions.iter().enumerate() {
-            if function.is_alloc_slice() { return Some(f); }
+            if function.is_alloc_slice() { return Some(FunctionIndex::new(f)); }
         }
         None
     }
@@ -58,29 +58,29 @@ impl TranslationUnit {
     }
 
     pub fn get_global(&self, idx: GlobalIndex) -> Option<&Global> {
-        self.globals.get(idx)
+        self.globals.get(idx.idx())
     }
 
     pub fn add_function(&mut self, function: Function) -> FunctionIndex {
         self.functions.push(function);
-        self.functions.len() - 1
+        FunctionIndex::new(self.functions.len() - 1)
     }
 
     pub fn get_function(&self, idx: FunctionIndex) -> Option<&Function> {
-        self.functions.get(idx)
+        self.functions.get(idx.idx())
     }
 
     pub fn functions(&self) -> &Vec<Function> { &self.functions }
     pub fn function_count(&self) -> usize { self.functions.len() }
 
     pub fn get_function_mut(&mut self, idx: FunctionIndex) -> Option<&mut Function> {
-        self.functions.get_mut(idx)
+        self.functions.get_mut(idx.idx())
     }
 
     pub fn find_function_index(&self, name: &str) -> Option<FunctionIndex> {
         for (c, ct) in self.functions.iter().enumerate() {
             if ct.method_of().is_none() && ct.name() == name {
-                return Some(c);
+                return Some(FunctionIndex::new(c));
             }
         }
 
@@ -91,7 +91,7 @@ impl TranslationUnit {
         for (c, func) in self.functions.iter().enumerate() {
             if let Some(ct) = func.method_of() {
                 if ct == ctr && func.name() == name {
-                    return Some(c);
+                    return Some(FunctionIndex::new(c));
                 }
             }
         }
@@ -110,35 +110,24 @@ impl TranslationUnit {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum ValueType {
-    U8, I8,
-    U16, I16,
-    U32, I32,
-    U64, I64,
-    UPtr, IPtr,
-    Bool,
-    Ref(Box<StorableType>),
-    Index(Box<StorableType>)
-}
+#[derive(Debug, Clone, Copy)]
+pub struct LocalIndex(usize);
 
-impl ValueType {
-    pub fn signed(&self) -> bool {
-        match &self {
-            ValueType::U8 | ValueType::U16 | ValueType::U32 | ValueType::U64 | ValueType::UPtr | ValueType::Bool | ValueType::Ref(_) | ValueType::Index(_) => false,
-            ValueType::I8 | ValueType::I16 | ValueType::I32 | ValueType::I64 | ValueType::IPtr => true,
-        }
+impl LocalIndex {
+    pub fn new(value: usize) -> LocalIndex {
+        LocalIndex(value)
     }
 
-    pub fn is_num(&self) -> bool {
-        match &self {
-            ValueType::Ref(_) | ValueType::Index(_) => false,
-            _ => true,
-        }
+    pub fn idx(&self) -> usize {
+        self.0
     }
 }
 
-pub type LocalIndex = usize;
+impl std::fmt::Display for LocalIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}", self.0))
+    }
+}
 
 #[derive(Debug)]
 pub struct Local {
@@ -155,56 +144,24 @@ impl Local {
     }
 }
 
-pub type GlobalIndex = usize;
+#[derive(Debug, Clone, Copy)]
+pub struct FunctionIndex(usize);
 
-#[derive(Debug)]
-pub struct Global {
-    name: Option<String>,
-    global_type: StorableType,
-    writable: bool,
-    default: Option<Storable>
-}
-
-impl Global {
-    pub fn new<T: Into<String>>(name: Option<T>, global_type: StorableType, writable: bool) -> Global {
-        Global {
-            name: match name {
-                Some(x) => Some(x.into()),
-                None => None
-            },
-            global_type, writable,
-            default: None
-        }
+impl FunctionIndex {
+    pub fn new(value: usize) -> FunctionIndex {
+        FunctionIndex(value)
     }
 
-    pub fn new_default<T: Into<String>>(name: Option<T>, global_type: StorableType, writable: bool, default: Storable) -> Global {
-        Global {
-            name: match name {
-                Some(x) => Some(x.into()),
-                None => None
-            },
-            global_type, writable,
-            default: Some(default)
-        }
-    }
-
-    pub fn name(&self) -> Option<&str> {
-        match &self.name {
-            Some(x) => Some(x.as_str()),
-            None => None
-        }
-    }
-
-    pub fn default(&self) -> Option<&Storable> {
-        self.default.as_ref()
-    }
-
-    pub fn global_type(&self) -> &StorableType {
-        &self.global_type
+    pub fn idx(&self) -> usize {
+        self.0
     }
 }
 
-pub type FunctionIndex = usize;
+impl std::fmt::Display for FunctionIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}", self.0))
+    }
+}
 
 #[derive(Debug)]
 pub struct Signature {
@@ -362,11 +319,11 @@ impl Function {
 
     pub fn push_local(&mut self, local: Local) -> LocalIndex {
         self.locals.push(local);
-        self.locals.len() - 1
+        LocalIndex::new(self.locals.len() - 1)
     }
 
     pub fn get_local(&self, idx: LocalIndex) -> Option<&Local> {
-        self.locals.get(idx)
+        self.locals.get(idx.idx())
     }
 
     pub fn push(&mut self, code: Ins) {
@@ -375,6 +332,8 @@ impl Function {
 
     pub fn locals(&self) -> &Vec<Local> { &self.locals }
     pub fn local_count(&self) -> usize { self.locals.len() }
+
+    pub fn last_local_index(&self) -> LocalIndex { LocalIndex::new(self.locals.len() - 1) }
 
     /// Will panic if function is extern, so should only be used when certain it is not
     pub fn code(&self) -> &Vec<Ins> {

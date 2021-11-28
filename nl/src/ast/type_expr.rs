@@ -42,13 +42,16 @@ impl TypeExpr {
     pub fn to_ir_base_storable_type(&self, ir_unit: &ir::TranslationUnit) -> Result<ir::StorableType, IrGenError> {
         // There must be a first item, or else this shouldn't have parsed
         match self.path.get(0).unwrap().as_str() {
-            "i32" => return Ok(ir::StorableType::Value(ir::ValueType::I32)),
+            "u8" => return Ok(ir::StorableType::Value(ir::ValueType::U8)),
+            "i8" => return Ok(ir::StorableType::Value(ir::ValueType::I8)),
+            "u16" => return Ok(ir::StorableType::Value(ir::ValueType::U16)),
+            "i16" => return Ok(ir::StorableType::Value(ir::ValueType::I16)),
             "u32" => return Ok(ir::StorableType::Value(ir::ValueType::U32)),
-            "i64" => return Ok(ir::StorableType::Value(ir::ValueType::I64)),
+            "i32" => return Ok(ir::StorableType::Value(ir::ValueType::I32)),
             "u64" => return Ok(ir::StorableType::Value(ir::ValueType::U64)),
+            "i64" => return Ok(ir::StorableType::Value(ir::ValueType::I64)),
             "uptr" => return Ok(ir::StorableType::Value(ir::ValueType::UPtr)),
             "iptr" => return Ok(ir::StorableType::Value(ir::ValueType::IPtr)),
-            "u8" => return Ok(ir::StorableType::Value(ir::ValueType::U8)),
             _ => {}
         }
 

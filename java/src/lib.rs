@@ -6,6 +6,7 @@ mod constantpool;
 mod descriptor;
 mod instructions;
 mod io;
+pub mod opt;
 
 pub use classfile::*;
 pub use descriptor::*;

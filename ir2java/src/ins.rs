@@ -1,6 +1,4 @@
-use java::ClassFile;
-
-use crate::{TranslationContext, name_for_compound, name_for_function, name_for_global, storable_type_to_jtype, value_type_to_jtype};
+use crate::{TranslationContext};
 
 enum Path {
     Local(usize, java::Descriptor),
@@ -19,77 +17,13 @@ impl Path {
     fn push(&self, insns: &mut InstructionTarget)  {
         match self {
             Path::Local(idx, desc) => {
-                match desc {
-                    java::Descriptor::Byte => {
-                        insns.push(java::Ins::ILoad { local: *idx as u8 });
-                    },
-                    java::Descriptor::Char => {
-                        insns.push(java::Ins::ILoad { local: *idx as u8 });
-                    },
-                    java::Descriptor::Double => {
-                        insns.push(java::Ins::DLoad { local: *idx as u8 });
-                    },
-                    java::Descriptor::Float => {
-                        insns.push(java::Ins::FLoad { local: *idx as u8 });
-                    },
-                    java::Descriptor::Int => {
-                        insns.push(java::Ins::ILoad { local: *idx as u8 });
-                    },
-                    java::Descriptor::Long => {
-                        insns.push(java::Ins::LLoad { local: *idx as u8 });
-                    },
-                    java::Descriptor::Reference(_) => {
-                        insns.push(java::Ins::ALoad { local: *idx as u8 });
-                    },
-                    java::Descriptor::Short => {
-                        insns.push(java::Ins::ILoad { local: *idx as u8 });
-                    },
-                    java::Descriptor::Boolean => {
-                        insns.push(java::Ins::ILoad { local: *idx as u8 });
-                    },
-                    java::Descriptor::Array(_, _) => {
-                        insns.push(java::Ins::ALoad { local: *idx as u8 });
-                    },
-                    java::Descriptor::Void => panic!(),
-                }
+                insns.push(java::opt::ins::load(*idx, desc));
             },
             Path::Global(idx) => {
                 insns.push(java::Ins::GetStatic { index: *idx })
             },
             Path::Slice(desc) => {
-                match desc {
-                    java::Descriptor::Byte => {
-                        insns.push(java::Ins::BALoad);
-                    },
-                    java::Descriptor::Char => {
-                        insns.push(java::Ins::CALoad);
-                    },
-                    java::Descriptor::Double => {
-                        insns.push(java::Ins::DALoad);
-                    },
-                    java::Descriptor::Float => {
-                        insns.push(java::Ins::FALoad);
-                    },
-                    java::Descriptor::Int => {
-                        insns.push(java::Ins::IALoad);
-                    },
-                    java::Descriptor::Long => {
-                        insns.push(java::Ins::LALoad);
-                    },
-                    java::Descriptor::Reference(_) => {
-                        insns.push(java::Ins::AALoad);
-                    },
-                    java::Descriptor::Short => {
-                        insns.push(java::Ins::SALoad);
-                    },
-                    java::Descriptor::Boolean => {
-                        insns.push(java::Ins::BALoad);
-                    },
-                    java::Descriptor::Array(_, _) => {
-                        insns.push(java::Ins::AALoad);
-                    },
-                    java::Descriptor::Void => panic!(),
-                }
+                insns.push(java::opt::ins::aload(desc));
             },
             Path::Prop(idx, _desc) => {
                 insns.push(java::Ins::GetField { index: *idx });
@@ -104,81 +38,13 @@ impl Path {
     fn pop(&self, insns: &mut InstructionTarget)  {
         match self {
             Path::Local(idx, desc) => {
-                match desc {
-                    java::Descriptor::Byte => {
-                        insns.push(java::Ins::I2B);
-                        insns.push(java::Ins::IStore { local: *idx as u8 });
-                    },
-                    java::Descriptor::Char => {
-                        insns.push(java::Ins::I2C);
-                        insns.push(java::Ins::IStore { local: *idx as u8 });
-                    },
-                    java::Descriptor::Double => {
-                        insns.push(java::Ins::DStore { local: *idx as u8 });
-                    },
-                    java::Descriptor::Float => {
-                        insns.push(java::Ins::FStore { local: *idx as u8 });
-                    },
-                    java::Descriptor::Int => {
-                        insns.push(java::Ins::IStore { local: *idx as u8 });
-                    },
-                    java::Descriptor::Long => {
-                        insns.push(java::Ins::LStore { local: *idx as u8 });
-                    },
-                    java::Descriptor::Reference(_) => {
-                        insns.push(java::Ins::AStore { local: *idx as u8 });
-                    },
-                    java::Descriptor::Short => {
-                        insns.push(java::Ins::I2S);
-                        insns.push(java::Ins::IStore { local: *idx as u8 });
-                    },
-                    java::Descriptor::Boolean => {
-                        insns.push(java::Ins::I2B);
-                        insns.push(java::Ins::IStore { local: *idx as u8 });
-                    },
-                    java::Descriptor::Array(_, _) => {
-                        insns.push(java::Ins::AStore { local: *idx as u8 });
-                    },
-                    java::Descriptor::Void => panic!(),
-                }
+                insns.push(java::opt::ins::store(*idx, desc));
             },
             Path::Global(idx) => {
                 insns.push(java::Ins::PutStatic { index: *idx })
             },
             Path::Slice(desc) => {
-                match desc {
-                    java::Descriptor::Byte => {
-                        insns.push(java::Ins::BAStore);
-                    },
-                    java::Descriptor::Char => {
-                        insns.push(java::Ins::CAStore);
-                    },
-                    java::Descriptor::Double => {
-                        insns.push(java::Ins::DAStore);
-                    },
-                    java::Descriptor::Float => {
-                        insns.push(java::Ins::FAStore);
-                    },
-                    java::Descriptor::Int => {
-                        insns.push(java::Ins::IAStore);
-                    },
-                    java::Descriptor::Long => {
-                        insns.push(java::Ins::LAStore);
-                    },
-                    java::Descriptor::Reference(_) => {
-                        insns.push(java::Ins::AAStore);
-                    },
-                    java::Descriptor::Short => {
-                        insns.push(java::Ins::SAStore);
-                    },
-                    java::Descriptor::Boolean => {
-                        insns.push(java::Ins::BAStore);
-                    },
-                    java::Descriptor::Array(_, _) => {
-                        insns.push(java::Ins::AAStore);
-                    },
-                    java::Descriptor::Void => panic!(),
-                }
+                insns.push(java::opt::ins::astore(desc));
             },
             Path::Prop(idx, _desc) => {
                 insns.push(java::Ins::PutField { index: *idx });
@@ -191,12 +57,12 @@ impl Path {
     }
 }
 
-pub struct PathStack {
+pub(crate) struct PathStack {
     paths: Vec<Path>
 }
 
 impl PathStack {
-    pub fn new() -> PathStack {
+    pub(crate) fn new() -> PathStack {
         PathStack {
             paths: Vec::new()
         }
@@ -211,16 +77,16 @@ impl PathStack {
     }
 }
 
-pub struct InstructionTarget {
+pub(crate) struct InstructionTarget {
     insns: Vec<java::Ins>,
     size: usize
 }
 
 impl InstructionTarget {
-    pub fn new(size: usize) -> InstructionTarget {
+    pub(crate) fn new(size: usize) -> InstructionTarget {
         InstructionTarget {
             insns: Vec::new(),
-            size: size
+            size
         }
     }
 
@@ -243,7 +109,7 @@ impl InstructionTarget {
     }
 }
 
-pub struct StackMapBuilder<'a> {
+pub(crate) struct StackMapBuilder<'a> {
     func: &'a ir::Function,
     map: java::StackMapTable,
     offset: usize,
@@ -252,7 +118,7 @@ pub struct StackMapBuilder<'a> {
 }
 
 impl<'a> StackMapBuilder<'a> {
-    pub fn new(func: &'a ir::Function) -> StackMapBuilder<'a> {
+    pub(crate) fn new(func: &'a ir::Function) -> StackMapBuilder<'a> {
         StackMapBuilder {
             func,
             map: java::StackMapTable::new(),
@@ -262,34 +128,17 @@ impl<'a> StackMapBuilder<'a> {
         }
     }
 
-    pub fn accessed_local(&mut self, local: usize) {
-        if local >= self.first_unused_local {
-            self.first_unused_local = local + 1;
+    fn accessed_local(&mut self, local: ir::LocalIndex) {
+        if local.idx() >= self.first_unused_local {
+            self.first_unused_local = local.idx() + 1;
         }
     }
 
-    fn verification_type_for_storable(storable: &ir::StorableType, class: &mut ClassFile) -> java::VerificationTypeInfo {
-        match storable {
-            ir::StorableType::Compound(ctr) => {
-                java::VerificationTypeInfo::Object(class.const_class(&name_for_compound(class, ctr)))
-            },
-            ir::StorableType::Value(vt) => match vt {
-                ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool |
-                ir::ValueType::U16 | ir::ValueType::I16 |
-                ir::ValueType::U32 | ir::ValueType::I32 | ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::Index(_) => java::VerificationTypeInfo::Integer,
-                ir::ValueType::U64 | ir::ValueType::I64 => java::VerificationTypeInfo::Long,
-                ir::ValueType::Ref(c) => StackMapBuilder::verification_type_for_storable(c, class)
-            },
-            ir::StorableType::Slice(st) => java::VerificationTypeInfo::Object(class.const_class(&format!("[{}", storable_type_to_jtype(st, class).to_string()))),
-            ir::StorableType::SliceData(_) => todo!(),
-        }
-    }
-
-    pub fn empty_stack_target(&mut self, addr: usize, class: &mut ClassFile) {
+    fn empty_stack_target(&mut self, addr: usize, class: &mut java::ClassFile) {
         if self.first_unused_local != self.previous_first_unused_local {
             let mut locals = Vec::new();
             for i in self.previous_first_unused_local..self.first_unused_local {
-                locals.push(StackMapBuilder::verification_type_for_storable(self.func.locals()[i].local_type(), class));
+                locals.push(crate::util::verification_type_for_storable(self.func.locals()[i].local_type(), class));
             }
 
             self.push_at(addr, java::StackMapFrame::AppendFrame {
@@ -305,11 +154,11 @@ impl<'a> StackMapBuilder<'a> {
         }
     }
 
-    pub fn single_stack_target(&mut self, addr: usize, el: java::VerificationTypeInfo, class: &mut ClassFile) {
+    fn single_stack_target(&mut self, addr: usize, el: java::VerificationTypeInfo, class: &mut java::ClassFile) {
         if self.first_unused_local != self.previous_first_unused_local {
             let mut locals = Vec::new();
             for i in self.previous_first_unused_local..self.first_unused_local {
-                locals.push(StackMapBuilder::verification_type_for_storable(self.func.locals()[i].local_type(), class));
+                locals.push(crate::util::verification_type_for_storable(self.func.locals()[i].local_type(), class));
             }
 
             self.push_at(addr, java::StackMapFrame::FullFrame {
@@ -327,12 +176,12 @@ impl<'a> StackMapBuilder<'a> {
         }
     }
 
-    pub fn push_at(&mut self, offset: usize, frame: java::StackMapFrame) {
+    fn push_at(&mut self, offset: usize, frame: java::StackMapFrame) {
         self.map.add_entry(frame);
         self.offset = offset;
     }
 
-    pub fn delta_to(&self, offset: usize) -> u16 {
+    fn delta_to(&self, offset: usize) -> u16 {
         if self.offset == 0 {
             offset as u16
         } else {
@@ -340,25 +189,25 @@ impl<'a> StackMapBuilder<'a> {
         }
     }
 
-    pub fn take(self) -> java::StackMapTable {
+    pub(crate) fn take(self) -> java::StackMapTable {
         self.map
     }
 }
 
 impl<'a> TranslationContext<'a> {
-    pub(crate) fn translate_ins(&self, func: &ir::Function, ins: &ir::Ins, path_stack: &mut PathStack, insns: &mut InstructionTarget, stack_map: &mut StackMapBuilder, class: &mut ClassFile) {
+    pub(crate) fn translate_ins(&self, func: &ir::Function, ins: &ir::Ins, path_stack: &mut PathStack, insns: &mut InstructionTarget, stack_map: &mut StackMapBuilder, class: &mut java::ClassFile) {
         match ins {
             ir::Ins::PushPath(value_path, _) => {
                 let mut path = match value_path.origin() {
                     ir::ValuePathOrigin::Local(idx, st) => {
                         stack_map.accessed_local(*idx);
-                        Path::Local(*idx, storable_type_to_jtype(st, &class))
+                        Path::Local(idx.idx(), crate::util::storable_type_to_descriptor(st, &class))
                     },
                     ir::ValuePathOrigin::Global(idx, st) => {
                         let field_idx = class.const_field(
                             &class.name().to_string(),
-                            &name_for_global(self.unit().get_global(*idx).unwrap(), *idx),
-                            &storable_type_to_jtype(st, class).to_string()
+                            &crate::util::field_name_for_global(self.unit().get_global(*idx).unwrap(), *idx),
+                            &crate::util::storable_type_to_descriptor(st, class).to_string()
                         );
                         Path::Global(field_idx)
                     },
@@ -373,15 +222,15 @@ impl<'a> TranslationContext<'a> {
                     match component {
                         ir::ValuePathComponent::Slice(st) => {
                             insns.push(java::Ins::Swap);
-                            path = Path::Slice(storable_type_to_jtype(st, &class));
+                            path = Path::Slice(crate::util::storable_type_to_descriptor(st, &class));
                         },
                         ir::ValuePathComponent::Property(prop_idx, ctr, _) => {
                             match ctr.content() {
-                                ir::TypeContent::Struct(struc) => {
+                                ir::CompoundContent::Struct(struc) => {
                                     let prop = struc.prop(*prop_idx).unwrap();
-                                    let desc = storable_type_to_jtype(prop.prop_type(), &class);
+                                    let desc = crate::util::storable_type_to_descriptor(prop.prop_type(), &class);
 
-                                    let field_ref_idx = class.const_field(&name_for_compound(class, ctr), prop.name(), &desc.to_string());
+                                    let field_ref_idx = class.const_field(&crate::util::class_name_for_compound(class, ctr), prop.name(), &desc.to_string());
 
                                     path = Path::Prop(field_ref_idx, desc);
                                 },
@@ -407,7 +256,7 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::New(st) => {
                 let name = match st {
                     ir::StorableType::Compound(ctr) => {
-                        name_for_compound(class, ctr)
+                        crate::util::class_name_for_compound(class, ctr)
                     },
                     ir::StorableType::Value(_) => panic!("Cannot currently create reference to value"),
                     ir::StorableType::Slice(_) => todo!(),
@@ -422,50 +271,20 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::NewSlice(st) => {
                 match st {
                     ir::StorableType::Compound(ctr) => {
-                        let class_idx = class.const_class(&name_for_compound(class, ctr));
+                        let class_idx = class.const_class(&crate::util::class_name_for_compound(class, ctr));
 
                         insns.push(java::Ins::ANewArray { index: class_idx });
                     },
                     ir::StorableType::Value(v) => {
-                        insns.push(java::Ins::NewArray { atype: value_type_to_jtype(v, &class) });
+                        insns.push(java::Ins::NewArray { atype: crate::util::value_type_to_descriptor(v, &class) });
                     },
                     ir::StorableType::Slice(_) => todo!(),
                     ir::StorableType::SliceData(_) => panic!(),
                 }
             },
             ir::Ins::Convert(from, to) => {
-                match from {
-                    ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool => {},
-                    ir::ValueType::U16 | ir::ValueType::I16 => match to {
-                        ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool => insns.push(java::Ins::I2B),
-                        ir::ValueType::U64 | ir::ValueType::I64 => insns.push(java::Ins::I2L),
-                        _ => {}
-                    },
-                    ir::ValueType::U32 | ir::ValueType::I32 | ir::ValueType::UPtr | ir::ValueType::IPtr =>
-                        match to {
-                            ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool => insns.push(java::Ins::I2B),
-                            ir::ValueType::U16 | ir::ValueType::I16 => insns.push(java::Ins::I2S),
-                            ir::ValueType::U64 | ir::ValueType::I64 => insns.push(java::Ins::I2L),
-                            ir::ValueType::U32 | ir::ValueType::I32 | ir::ValueType::UPtr | ir::ValueType::IPtr => {},
-                            _ => panic!(),
-                        },
-                    ir::ValueType::U64 | ir::ValueType::I64 =>
-                        match to {
-                            ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool => {
-                                insns.push(java::Ins::L2I);
-                                insns.push(java::Ins::I2B);
-                            },
-                            ir::ValueType::U16 | ir::ValueType::I16 => {
-                                insns.push(java::Ins::L2I);
-                                insns.push(java::Ins::I2S);
-                            },
-                            ir::ValueType::U64 | ir::ValueType::I64 => {},
-                            ir::ValueType::U32 | ir::ValueType::I32 | ir::ValueType::UPtr | ir::ValueType::IPtr => {
-                                insns.push(java::Ins::L2D);
-                            },
-                            _ => panic!(),
-                        },
-                    _ => panic!(),
+                if let Some(ins) = java::opt::ins::conv(&crate::util::value_type_to_descriptor(from, class), &crate::util::value_type_to_descriptor(to, class)) {
+                    insns.push(ins);
                 }
             },
             ir::Ins::Call(idx) => {
@@ -475,19 +294,13 @@ impl<'a> TranslationContext<'a> {
                     Some(loc) => loc.to_string(),
                     None => class.name().to_string()
                 };
-                let method_ref = class.const_method(&name, &name_for_function(call_func), &TranslationContext::signature_as_descriptor(call_func.signature(), &class));
+                let method_ref = class.const_method(&name, &crate::util::name_for_function(call_func), &TranslationContext::signature_as_descriptor(call_func.signature(), &class));
 
                 insns.push(java::Ins::InvokeStatic { index: method_ref });
             },
             ir::Ins::Ret => {
                 if let Some(ret_type) = func.signature().returns().get(0) {
-                    match ret_type {
-                        ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool |
-                        ir::ValueType::U16 | ir::ValueType::I16 |
-                        ir::ValueType::U32 | ir::ValueType::I32 | ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::Index(_) => insns.push(java::Ins::IReturn),
-                        ir::ValueType::U64 | ir::ValueType::I64 => insns.push(java::Ins::LReturn),
-                        ir::ValueType::Ref(_) => insns.push(java::Ins::AReturn),
-                    }
+                    insns.push(java::opt::ins::ret(&crate::util::value_type_to_descriptor(ret_type, class)));
                 } else {
                     insns.push(java::Ins::Return);
                 }
@@ -495,11 +308,7 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::Inc(_, _) => todo!(),
             ir::Ins::Dec(_, _) => todo!(),
             ir::Ins::Add(vt) =>
-                match vt {
-                    ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::U16 | ir::ValueType::I16 | ir::ValueType::U32 | ir::ValueType::I32 => insns.push(java::Ins::IAdd),
-                    ir::ValueType::U64 | ir::ValueType::I64 => insns.push(java::Ins::LAdd),
-                    _ => panic!(),
-                },
+                insns.push(java::opt::ins::add(&crate::util::value_type_to_descriptor(vt, class))),
             ir::Ins::Mul(_) => todo!(),
             ir::Ins::Div(_) => todo!(),
             ir::Ins::Sub(_) => todo!(),
@@ -558,7 +367,7 @@ impl<'a> TranslationContext<'a> {
                     ir::ValueType::U64 | ir::ValueType::I64 => todo!(),
                     _ => panic!(),
                 },
-            ir::Ins::Drop => todo!(),
+            ir::Ins::Drop => insns.push(java::Ins::Pop),
         }
     }
 }

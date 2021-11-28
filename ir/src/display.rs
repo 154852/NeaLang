@@ -25,7 +25,7 @@ impl std::fmt::Display for ValueType {
 impl std::fmt::Display for StorableType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            StorableType::Compound(ctr) => f.write_fmt(format_args!("#comp({:?})", ctr.name())),
+            StorableType::Compound(compound) => f.write_fmt(format_args!("#comp({:?})", compound.name())),
             StorableType::Value(vt) => vt.fmt(f),
             StorableType::Slice(st) => f.write_fmt(format_args!("#slice({})", st)),
             StorableType::SliceData(st) => f.write_fmt(format_args!("#slicedata({})", st)),

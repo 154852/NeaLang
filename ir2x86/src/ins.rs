@@ -15,7 +15,7 @@ impl TranslationContext {
         // Move param values to new places on stack
         for (i, param) in ftc.unit().get_function(idx).unwrap().signature().params().iter().enumerate() {
             insns.push(x86::Ins::MovRegReg(
-                crate::registerify::reg_for_value_type(param, self.mode, crate::registerify::SYS_V_ABI[i]),
+                crate::util::reg_for_value_type(param, self.mode, crate::registerify::SYS_V_ABI[i]),
                 ftc.stack_ref().at_vt(ftc.stack_ref().size() + i, param),
             ));
         }
@@ -26,7 +26,7 @@ impl TranslationContext {
         for (i, ret) in ftc.unit().get_function(idx).unwrap().signature().returns().iter().enumerate() {
             insns.push(x86::Ins::MovRegReg(
                 ftc.stack_ref().at_vt(ftc.stack_ref().size() + i, ret),
-                crate::registerify::reg_for_value_type(ret, self.mode, crate::registerify::SYS_V_ABI_RET[i]),
+                crate::util::reg_for_value_type(ret, self.mode, crate::registerify::SYS_V_ABI_RET[i]),
             ));
         }
 
@@ -72,7 +72,7 @@ impl TranslationContext {
     
                     insns.push(x86::Ins::LeaRegMem(
                         addr,
-                        x86::Mem::new().base(slice.class()).index(index.class()).scale(match crate::registerify::size_for_storable_type(slice_type, self.mode) {
+                        x86::Mem::new().base(slice.class()).index(index.class()).scale(match crate::util::size_for_storable_type(slice_type, self.mode) {
                             1 => 0,
                             2 => 1,
                             4 => 2,
@@ -85,7 +85,7 @@ impl TranslationContext {
                     insns.push(x86::Ins::LeaRegMem(
                         ftc.stack().peek_ptr(),
                         x86::Mem::new().base(ftc.stack().peek()).disp(
-                            crate::registerify::offset_of_prop(compound_type, *idx, ftc.mode()) as i64,
+                            crate::util::offset_of_compound_property(compound_type, *idx, ftc.mode()) as i64,
                         ),
                     ));
                 },
@@ -131,7 +131,7 @@ impl TranslationContext {
             ir::Ins::New(st) => {
                 ins.push(x86::Ins::MovRegImm(
                     ftc.stack().push_vt(&ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(st.clone()))))),
-                    crate::registerify::size_for_storable_type(st, self.mode) as u64
+                    crate::util::size_for_storable_type(st, self.mode) as u64
                 ));
 
                 self.insert_call(ftc.unit().find_alloc().expect("No alloc implementation included"), ftc, ins);
@@ -139,18 +139,18 @@ impl TranslationContext {
             ir::Ins::NewSlice(st) => {
                 ins.push(x86::Ins::MovRegImm(
                     ftc.stack().push_vt(&ir::ValueType::Ref(Box::new(ir::StorableType::Slice(Box::new(st.clone()))))),
-                    crate::registerify::size_for_storable_type(st, self.mode) as u64
+                    crate::util::size_for_storable_type(st, self.mode) as u64
                 ));
 
                 self.insert_call(ftc.unit().find_alloc_slice().expect("No alloc slice implementation included"), ftc, ins);
             },
             ir::Ins::Convert(from, to) => {
-                let size_a = crate::registerify::size_for_value_type(from, self.mode);
-                let size_b = crate::registerify::size_for_value_type(to, self.mode);
+                let size_a = crate::util::size_for_value_type(from, self.mode);
+                let size_b = crate::util::size_for_value_type(to, self.mode);
 
                 // Only need to do anything if promoting to a higher size
                 if size_b > size_a {
-                    if to.signed() {
+                    if to.is_signed() {
                         ins.push(x86::Ins::MovsxRegReg(ftc.stack().peek_vt(to), ftc.stack().peek_vt(from)));
                     } else if size_a != 4 { // No need to zero extend from 32 bits, as this has already happened (I think?)
                         ins.push(x86::Ins::MovzxRegReg(ftc.stack().peek_vt(to), ftc.stack().peek_vt(from)));
@@ -166,7 +166,7 @@ impl TranslationContext {
                 for (i, ret) in ftc.func().signature().returns().iter().enumerate() {
                     // TODO: There may be issues with multiple return values here, as rdx could be overwritten before it is read
                     ins.push(x86::Ins::MovRegReg(
-                        crate::registerify::reg_for_value_type(ret, self.mode, crate::registerify::SYS_V_ABI_RET[rets_len - 1 - i]),
+                        crate::util::reg_for_value_type(ret, self.mode, crate::registerify::SYS_V_ABI_RET[rets_len - 1 - i]),
                         ftc.stack_ref().peek_at_vt(i, ret)
                     ));
                 }
@@ -174,7 +174,7 @@ impl TranslationContext {
                 ftc.stack().zero();
 
                 // Root is always 0
-                ins.push(x86::Ins::JumpLocalSymbol(0));
+                ins.push(x86::Ins::JumpLocalSymbol(x86::LocalSymbolID::new(0)));
             },
             ir::Ins::Inc(vt, i) => {
                 ins.push(x86::Ins::AddRegImm(
@@ -197,7 +197,7 @@ impl TranslationContext {
                 ));
             },
             ir::Ins::Mul(vt) => {
-                if vt.signed() {
+                if vt.is_signed() {
                     let b = ftc.stack().pop_vt(vt);
                     let a = ftc.stack().peek_vt(vt);
                     // a = a * b

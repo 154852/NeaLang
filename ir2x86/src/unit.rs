@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use x86::GlobalSymbolID;
-
-use crate::{registerify::{SYS_V_ABI, StackToReg, reg_for_value_type}};
+use crate::registerify::StackToReg;
 
 pub(crate) enum LocalSymbol {
     If,
@@ -36,7 +34,7 @@ pub struct FunctionTranslationContext<'a> {
     unit: &'a ir::TranslationUnit,
     stack: StackToReg,
     local_symbols: LocalSymbolStack,
-    local_symbols_allocated: x86::LocalSymbolID
+    local_symbols_allocated: usize
 }
 
 impl<'a> FunctionTranslationContext<'a> {
@@ -51,7 +49,7 @@ impl<'a> FunctionTranslationContext<'a> {
 
     pub(crate) fn new_local_symbol(&mut self) -> x86::LocalSymbolID {
         self.local_symbols_allocated += 1;
-        self.local_symbols_allocated - 1
+        x86::LocalSymbolID::new(self.local_symbols_allocated - 1)
     }
 
     pub(crate) fn stack(&mut self) -> &mut StackToReg {
@@ -81,10 +79,10 @@ impl<'a> FunctionTranslationContext<'a> {
     pub(crate) fn local_addr(&self, idx: ir::LocalIndex) -> u64 {
         let mut addr = 0;
 
-        assert!(self.function.local_count() > idx);
+        assert!(self.function.local_count() > idx.idx());
 
-        for i in self.function.locals().iter().take(idx + 1) {
-            addr += crate::registerify::size_for_storable_type(i.local_type(), self.mode) as u64;
+        for i in &self.function.locals()[0..idx.idx() + 1] {
+            addr += crate::util::size_for_storable_type(i.local_type(), self.mode) as u64;
         }
 
         addr
@@ -94,12 +92,12 @@ impl<'a> FunctionTranslationContext<'a> {
         x86::Mem::new().base(x86::RegClass::Ebp).disp(-(self.local_addr(idx) as i64))
     }
 
-    pub(crate) fn symbol_id_for_function(&self, idx: ir::FunctionIndex) -> GlobalSymbolID {
-        idx
+    pub(crate) fn symbol_id_for_function(&self, idx: ir::FunctionIndex) -> x86::GlobalSymbolID {
+        x86::GlobalSymbolID::new(idx.idx())
     }
 
-    pub(crate) fn symbol_id_for_global(&self, idx: ir::GlobalIndex) -> GlobalSymbolID {
-        self.unit.function_count() + idx
+    pub(crate) fn symbol_id_for_global(&self, idx: ir::GlobalIndex) -> x86::GlobalSymbolID {
+        x86::GlobalSymbolID::new(self.unit.function_count() + idx.idx())
     }
 }
 
@@ -116,12 +114,12 @@ impl<'a> GlobalIDAllocator<'a> {
         }
     }
 
-    pub fn global_id_of_function(&self, func: usize) -> x86::GlobalSymbolID {
-        func
+    pub fn global_id_of_function(&self, func: ir::FunctionIndex) -> x86::GlobalSymbolID {
+        x86::GlobalSymbolID::new(func.idx())
     }
 
-    pub fn global_id_of_global(&self, global: usize) -> x86::GlobalSymbolID {
-        self.unit.function_count() + global
+    pub fn global_id_of_global(&self, global: ir::GlobalIndex) -> x86::GlobalSymbolID {
+        x86::GlobalSymbolID::new(self.unit.function_count() + global.idx())
     }
 
     pub fn push_global_symbol_mapping(&mut self, global: x86::GlobalSymbolID, symbol: usize, addend: i64) {
@@ -157,13 +155,13 @@ impl TranslationContext {
         if func.local_count() > 0 {
             x86_ins.push(x86::Ins::PushReg(self.mode.base_ptr()));
             x86_ins.push(x86::Ins::MovRegReg(self.mode.base_ptr(), self.mode.stack_ptr()));
-            x86_ins.push(x86::Ins::SubRegImm(self.mode.stack_ptr(), ftc.local_addr(func.local_count() - 1)));
+            x86_ins.push(x86::Ins::SubRegImm(self.mode.stack_ptr(), ftc.local_addr(func.last_local_index())));
 
             // Put params into locals
             for (p, param) in func.signature().params().iter().enumerate() {
                 x86_ins.push(x86::Ins::MovMemReg(
-                    ftc.local_mem(p),
-                    reg_for_value_type(param, self.mode, SYS_V_ABI[p])
+                    ftc.local_mem(ir::LocalIndex::new(p)),
+                    crate::util::reg_for_value_type(param, self.mode, crate::registerify::SYS_V_ABI[p])
                 ));
             }
         }
@@ -173,7 +171,7 @@ impl TranslationContext {
         }
 
         // Root is always 0
-        x86_ins.push(x86::Ins::LocalSymbol(0));
+        x86_ins.push(x86::Ins::LocalSymbol(x86::LocalSymbolID::new(0)));
         if func.local_count() > 0 {
             x86_ins.push(x86::Ins::MovRegReg(self.mode.stack_ptr(), self.mode.base_ptr()));
             x86_ins.push(x86::Ins::PopReg(self.mode.base_ptr()));
@@ -183,9 +181,9 @@ impl TranslationContext {
         x86_ins
     }
 
-    fn translate_storable(&self, storable: &ir::Storable, unit: &ir::TranslationUnit, gid_allocator: &GlobalIDAllocator, relocs: &mut Vec<x86::Relocation>, global: GlobalSymbolID, offset: usize, section_offset: usize, addend: i64) -> Vec<u8> {
+    fn translate_storable(&self, storable: &ir::StorableValue, unit: &ir::TranslationUnit, gid_allocator: &GlobalIDAllocator, relocs: &mut Vec<x86::Relocation>, global: x86::GlobalSymbolID, offset: usize, section_offset: usize, addend: i64) -> Vec<u8> {
         match storable {
-            ir::Storable::Value(v) => match v {
+            ir::StorableValue::Value(v) => match v {
                 ir::Value::U8(i) => i.to_le_bytes().to_vec(),
                 ir::Value::I8(i) => i.to_le_bytes().to_vec(),
                 ir::Value::U16(i) => i.to_le_bytes().to_vec(),
@@ -212,9 +210,9 @@ impl TranslationContext {
                     }
                 },
             },
-            ir::Storable::Compound(c) => {
+            ir::StorableValue::Compound(c) => {
                 match c {
-                    ir::Compound::Struct(s) => {
+                    ir::CompoundValue::Struct(s) => {
                         let mut data = Vec::new();
 
                         for p in s.props() {
@@ -225,7 +223,7 @@ impl TranslationContext {
                     }
                 }
             },
-            ir::Storable::Slice(data_global, start, length) => {
+            ir::StorableValue::Slice(data_global, start, length) => {
                 let mut data = Vec::new();
 
                 assert_eq!(*start, 0); // TODO: Values need to be type checked anyway
@@ -244,7 +242,7 @@ impl TranslationContext {
 
                 data
             },
-            ir::Storable::SliceData(values) => {
+            ir::StorableValue::SliceData(values) => {
                 let mut data = Vec::new();
 
                 for value in values {
@@ -256,11 +254,11 @@ impl TranslationContext {
         }
     }
 
-    pub fn translate_global(&self, global: &ir::Global, unit: &ir::TranslationUnit, gid_allocator: &GlobalIDAllocator, relocs: &mut Vec<x86::Relocation>, symbol: GlobalSymbolID, section_offset: usize, addend: i64) -> Vec<u8> {
+    pub fn translate_global(&self, global: &ir::Global, unit: &ir::TranslationUnit, gid_allocator: &GlobalIDAllocator, relocs: &mut Vec<x86::Relocation>, symbol: x86::GlobalSymbolID, section_offset: usize, addend: i64) -> Vec<u8> {
         if let Some(default) = global.default() {
             self.translate_storable(default, unit, gid_allocator, relocs, symbol, 0, section_offset, addend)
         } else {
-            vec![0; crate::registerify::size_for_storable_type(global.global_type(), self.mode)]
+            vec![0; crate::util::size_for_storable_type(global.global_type(), self.mode)]
         }
     }
 }

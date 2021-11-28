@@ -1,4 +1,4 @@
-use crate::{CompoundTypeRef, PropertyIndex, StorableType, unit::*};
+use crate::{CompoundTypeRef, GlobalIndex, PropertyIndex, StorableType, ValueType, unit::*};
 
 #[derive(Debug)]
 pub enum ValuePathOrigin {

@@ -71,6 +71,6 @@ impl StructDeclaration {
             ));
         }
 
-        Ok(ir::CompoundType::new(&self.name, ir::TypeContent::Struct(ir_struct)))
+        Ok(ir::CompoundType::new(&self.name, ir::CompoundContent::Struct(ir_struct)))
     }
 }

@@ -1,11 +1,9 @@
-use x86;
-use ir2x86;
 use std::io::Write;
 use ofile::{elf, elfbuilder};
 
 const TEXT_BASE: u64 = 0x401000;
 
-fn name_for_func(func: &ir::Function) -> String {
+fn mangle_func_name(func: &ir::Function) -> String {
     if let Some(ctr) = func.method_of() {
         format!("{}.{}", ctr.name(), func.name())
     } else {
@@ -31,13 +29,13 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
     let data_base_symbol = elf.push_symbol(elfbuilder::Symbol::Section(2)); // data is section 2, TODO: This should not be hard coded
 
     for (i, func) in unit.functions().iter().enumerate() {
-        let gid = gid_allocator.global_id_of_function(i);
+        let gid = gid_allocator.global_id_of_function(ir::FunctionIndex::new(i));
         
         if func.is_extern() {
             if !relocatable {
                 return Err(format!("Cannot import function '{}' with a statically compiled binary", func.name()));
             }
-            gid_allocator.push_global_symbol_mapping(gid, elf.push_symbol(elfbuilder::Symbol::Relocatable(name_for_func(func))), 0);
+            gid_allocator.push_global_symbol_mapping(gid, elf.push_symbol(elfbuilder::Symbol::Relocatable(mangle_func_name(func))), 0);
         } else {
             let mut ins = ctx.translate_function(&func, unit);
             x86::opt::pass_zero(&mut ins);
@@ -49,7 +47,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
             gid_allocator.push_global_symbol_mapping(gid, elf.push_symbol(elfbuilder::Symbol::Function(if func.is_entry() {
                 "main".to_owned()
             } else {
-                name_for_func(func)
+                mangle_func_name(func)
             }, text_base + addr as u64, length as u64)), 0);
         }
     }
@@ -59,7 +57,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
     let mut relocs = Vec::new();
     let mut data = Vec::new();
     for (i, global) in unit.globals().iter().enumerate() {
-        let gid = gid_allocator.global_id_of_global(i);
+        let gid = gid_allocator.global_id_of_global(ir::GlobalIndex::new(i));
 
         if let Some(name) = global.name() {
             let pushed = ctx.translate_global(global, unit, &gid_allocator, &mut relocs, gid, data.len(), 0);
@@ -164,7 +162,6 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 
     elf.set_text(text_base, text);
     elf.set_data(data_base, data);
-    // elf.set_rodata(0x403000, rodata);
 
     let header = elf::Header::new_with_entry(
         elf::ABI::SysV,

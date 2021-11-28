@@ -34,22 +34,22 @@ impl StringLitExpr {
             None,
             ir::StorableType::SliceData(Box::new(ir::StorableType::Value(ir::ValueType::U8))),
             false,
-            ir::Storable::SliceData(self.value.as_bytes().iter().map(|x| ir::Storable::Value(ir::Value::U8(*x))).collect())
+            ir::StorableValue::SliceData(self.value.as_bytes().iter().map(|x| ir::StorableValue::Value(ir::Value::U8(*x))).collect())
         ));
 
         let raw_slice = ctx.ir_unit.add_global(ir::Global::new_default::<String>(
             None,
             ir::StorableType::Slice(Box::new(ir::StorableType::Value(ir::ValueType::U8))),
             false,
-            ir::Storable::Slice(raw_data, 0, self.value.as_bytes().len())
+            ir::StorableValue::Slice(raw_data, 0, self.value.as_bytes().len())
         ));
 
         let string_id = ctx.ir_unit.add_global(ir::Global::new_default::<String>(
             None, 
             st.clone(),
             false,
-            ir::Storable::Compound(ir::Compound::Struct(ir::Struct::new(vec![
-                ir::StructProp::new(ir::Storable::Value(ir::Value::Ref(raw_slice)))
+            ir::StorableValue::Compound(ir::CompoundValue::Struct(ir::StructValue::new(vec![
+                ir::StructPropertyValue::new(ir::StorableValue::Value(ir::Value::Ref(raw_slice)))
             ])))
         ));
 
@@ -57,7 +57,7 @@ impl StringLitExpr {
             None, 
             ir::StorableType::Value(ir::ValueType::Ref(Box::new(st.clone()))),
             false,
-            ir::Storable::Value(ir::Value::Ref(string_id))
+            ir::StorableValue::Value(ir::Value::Ref(string_id))
         ));
 
         target.push(ir::Ins::PushPath(

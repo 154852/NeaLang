@@ -215,6 +215,12 @@ pub struct Integer {
 }
 
 impl Integer {
+    pub fn new(value: u32) -> Integer {
+        Integer {
+            value
+        }
+    }
+
     fn encode(&self, writer: &mut BinaryWriter, _class: &ClassFile) {
         writer.u32(self.value);
     }

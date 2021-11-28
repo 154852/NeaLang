@@ -69,7 +69,7 @@ impl TranslationUnit {
                     let func = func.to_ir_base(unit, self)?;
                     let idx = unit.add_function(func);
                     if first_index.is_none() {
-                        first_index = Some(idx);
+                        first_index = Some(idx.idx());
                     }
                 },
                 _ => {}
@@ -84,7 +84,7 @@ impl TranslationUnit {
 
                     if func.code.is_some() {
                         // Safe to unwrap as this wouldn't be running otherwise
-                        func.append_ir(unit, id + first_index.unwrap())?;
+                        func.append_ir(unit, ir::FunctionIndex::new(id + first_index.unwrap()))?;
                     }
                     id += 1;
                 },
