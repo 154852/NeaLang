@@ -21,8 +21,8 @@ class Heap {
     const core = {
         exit: (code) => process.exit(code),
         putchar: (char) => process.stdout.write(String.fromCharCode(char)),
-        nl_new_object: (size) => heap.alloc(size),
-        nl_new_slice: (length, size) => {
+        new_object: (size) => heap.alloc(size),
+        new_slice: (length, size) => {
             let addr = heap.alloc(8);
             let data = heap.alloc(length * size);
             let sliced = new Uint8Array(mem.buffer);
@@ -42,7 +42,7 @@ class Heap {
     };
     
     let primary = await WebAssembly.instantiate(fs.readFileSync(primaryPath), {
-        std: core
+        core
     });
 
     mem = primary.instance.exports.mem;

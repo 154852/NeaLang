@@ -1,7 +1,12 @@
-func [arch="x86,wasm"] exit(code: i32) extern
-func [arch="x86,wasm"] putchar(chr: u32) extern
-func [arch="x86,wasm", alloc] nl_new_object(size: uptr): uptr extern
-func [arch="x86,wasm", alloc_slice] nl_new_slice(count: uptr, size: uptr): uptr extern
+func [arch="x86"] exit(code: i32) extern
+func [arch="x86"] putchar(chr: u32) extern
+func [arch="x86", alloc] nl_new_object(size: uptr): uptr extern
+func [arch="x86", alloc_slice] nl_new_slice(count: uptr, size: uptr): uptr extern
+
+func [arch="wasm", location="core"] exit(code: i32) extern
+func [arch="wasm", location="core"] putchar(chr: u32) extern
+func [arch="wasm", location="core", alloc] new_object(size: uptr): uptr extern
+func [arch="wasm", location="core", alloc_slice] new_slice(count: uptr, size: uptr): uptr extern
 
 func [arch="java", location="nl/examples/Std"] exit(code: i32) extern
 func [arch="java", location="nl/examples/Std"] putchar(b: u32) extern

@@ -228,11 +228,19 @@ impl<'a> TranslationContext<'a> {
                 func.signature().returns().iter().map(|x| value_type_to_val_type(x)).collect()
             ));
 
-            module.add_import(wasm::Import::new("std", if let Some(method_of) = func.method_of() {
-                format!("{}.{}", method_of.name(), func.name())
-            } else {
-                func.name().to_owned()
-            }, wasm::ImportDescriptor::Type(wfunc)));
+            module.add_import(wasm::Import::new(
+                if let Some(location) = func.location() {
+                    location.to_string()
+                } else {
+                    "std".to_string()
+                },
+                if let Some(method_of) = func.method_of() {
+                    format!("{}.{}", method_of.name(), func.name())
+                } else {
+                    func.name().to_owned()
+                },
+                wasm::ImportDescriptor::Type(wfunc)
+            ));
         }
 
         for func in unit.functions() {
