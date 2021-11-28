@@ -1,12 +1,12 @@
 use java::ClassFile;
 
-use crate::{TranslationContext, storable_type_to_jtype};
+use crate::{TranslationContext, name_for_compound, name_for_global, storable_type_to_jtype};
 
 impl<'a> TranslationContext<'a> {
 	pub fn translate_storable(&self, storable: &ir::Storable, storable_type: &ir::StorableType, classfile: &mut ClassFile, insns: &mut Vec<java::Ins>) {
 		match (storable, storable_type) {
 			(ir::Storable::Compound(compound_value), ir::StorableType::Compound(compound_type)) => {
-				let name = format!("{}${}", classfile.name(), compound_type.name());
+				let name = name_for_compound(classfile, compound_type);
 
 				insns.push(java::Ins::New { index: classfile.const_class(&name) });
 				insns.push(java::Ins::Dup);
@@ -40,10 +40,7 @@ impl<'a> TranslationContext<'a> {
 					ir::Value::I64(_) => todo!(),
 					ir::Value::Ref(global_index) => {
 						let global = self.unit().get_global(*global_index).unwrap();
-						let name = match global.name() {
-							Some(x) => x.to_string(),
-							None => format!("_global${}", global_index)
-						};
+						let name = name_for_global(global, *global_index);
 						insns.push(java::Ins::GetStatic {
 							index: classfile.const_field(&classfile.name().to_string(), &name, &storable_type_to_jtype(global.global_type(), &classfile).to_string())
 						});
@@ -60,10 +57,7 @@ impl<'a> TranslationContext<'a> {
 					_ => panic!("Invalid slice reference")
 				}
 
-				let name = match owned.name() {
-					Some(x) => x.to_string(),
-					None => format!("_global${}", *owned_index)
-				};
+				let name = name_for_global(owned, *owned_index);
 				insns.push(java::Ins::GetStatic {
 					index: classfile.const_field(&classfile.name().to_string(), &name, &storable_type_to_jtype(owned.global_type(), &classfile).to_string())
 				});

@@ -1,6 +1,6 @@
 use java::ClassFile;
 
-use crate::{TranslationContext, storable_type_to_jtype, value_type_to_jtype};
+use crate::{TranslationContext, name_for_compound, name_for_function, name_for_global, storable_type_to_jtype, value_type_to_jtype};
 
 enum Path {
     Local(usize, java::Descriptor),
@@ -271,7 +271,7 @@ impl<'a> StackMapBuilder<'a> {
     fn verification_type_for_storable(storable: &ir::StorableType, class: &mut ClassFile) -> java::VerificationTypeInfo {
         match storable {
             ir::StorableType::Compound(ctr) => {
-                java::VerificationTypeInfo::Object(class.const_class(&format!("{}${}", class.name(), ctr.name())))
+                java::VerificationTypeInfo::Object(class.const_class(&name_for_compound(class, ctr)))
             },
             ir::StorableType::Value(vt) => match vt {
                 ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::Bool |
@@ -357,10 +357,7 @@ impl<'a> TranslationContext<'a> {
                     ir::ValuePathOrigin::Global(idx, st) => {
                         let field_idx = class.const_field(
                             &class.name().to_string(),
-                            &match self.unit().get_global(*idx).unwrap().name() {
-                                Some(n) => n.to_string(),
-                                None => format!("_global${}", idx)
-                            },
+                            &name_for_global(self.unit().get_global(*idx).unwrap(), *idx),
                             &storable_type_to_jtype(st, class).to_string()
                         );
                         Path::Global(field_idx)
@@ -384,7 +381,7 @@ impl<'a> TranslationContext<'a> {
                                     let prop = struc.prop(*prop_idx).unwrap();
                                     let desc = storable_type_to_jtype(prop.prop_type(), &class);
 
-                                    let field_ref_idx = class.const_field(&format!("{}${}", class.name(), ctr.name()), prop.name(), &desc.to_string());
+                                    let field_ref_idx = class.const_field(&name_for_compound(class, ctr), prop.name(), &desc.to_string());
 
                                     path = Path::Prop(field_ref_idx, desc);
                                 },
@@ -410,7 +407,7 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::New(st) => {
                 let name = match st {
                     ir::StorableType::Compound(ctr) => {
-                        format!("{}${}", class.name(), ctr.name())
+                        name_for_compound(class, ctr)
                     },
                     ir::StorableType::Value(_) => panic!("Cannot currently create reference to value"),
                     ir::StorableType::Slice(_) => todo!(),
@@ -425,7 +422,7 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::NewSlice(st) => {
                 match st {
                     ir::StorableType::Compound(ctr) => {
-                        let class_idx = class.const_class(&format!("{}${}", class.name(), ctr.name()));
+                        let class_idx = class.const_class(&name_for_compound(class, ctr));
 
                         insns.push(java::Ins::ANewArray { index: class_idx });
                     },
@@ -478,7 +475,7 @@ impl<'a> TranslationContext<'a> {
                     Some(loc) => loc.to_string(),
                     None => class.name().to_string()
                 };
-                let method_ref = class.const_method(&name, call_func.name(), &TranslationContext::signature_as_descriptor(call_func.signature(), &class));
+                let method_ref = class.const_method(&name, &name_for_function(call_func), &TranslationContext::signature_as_descriptor(call_func.signature(), &class));
 
                 insns.push(java::Ins::InvokeStatic { index: method_ref });
             },

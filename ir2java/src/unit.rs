@@ -4,7 +4,7 @@ use crate::{InstructionTarget, PathStack, StackMapBuilder};
 
 pub(crate) fn storable_type_to_jtype(st: &ir::StorableType, class: &ClassFile) -> java::Descriptor {
     match st {
-        ir::StorableType::Compound(ctr) => java::Descriptor::Reference(format!("{}${}", class.name(), ctr.name())),
+        ir::StorableType::Compound(ctr) => java::Descriptor::Reference(name_for_compound(class, ctr)),
         ir::StorableType::Value(v) => value_type_to_jtype(v, class),
         ir::StorableType::Slice(st) => java::Descriptor::Array(1, Box::new(storable_type_to_jtype(st, class))),
         ir::StorableType::SliceData(st) => java::Descriptor::Array(1, Box::new(storable_type_to_jtype(st, class))),
@@ -26,12 +26,31 @@ pub(crate) fn value_type_to_jtype(vt: &ir::ValueType, class: &ClassFile) -> java
         ir::ValueType::Bool => java::Descriptor::Boolean,
         ir::ValueType::Ref(vt) =>
             match vt.as_ref() {
-                ir::StorableType::Compound(c) => java::Descriptor::Reference(format!("{}${}", class.name(), c.name())),
+                ir::StorableType::Compound(compound) => java::Descriptor::Reference(name_for_compound(class, compound)),
                 ir::StorableType::Value(_) => todo!(),
                 ir::StorableType::Slice(st) => java::Descriptor::Array(1, Box::new(storable_type_to_jtype(st, class))),
                 ir::StorableType::SliceData(_) => panic!("Cannot get jtype for slice data"),
             },
         ir::ValueType::Index(_) => java::Descriptor::Int,
+    }
+}
+
+pub fn name_for_global(global: &ir::Global, index: ir::GlobalIndex) -> String {
+    match global.name() {
+        Some(x) => x.to_string(),
+        None => format!("_global${}", index)
+    }
+}
+
+pub fn name_for_compound(class: &ClassFile, compound: &ir::CompoundType) -> String {
+    format!("{}${}", class.name(), compound.name())
+}
+
+pub fn name_for_function(func: &ir::Function) -> String {
+    if let Some(method_of) = func.method_of() {
+        format!("{}${}", method_of.name(), func.name())
+    } else {
+        func.name().to_string()
     }
 }
 
@@ -114,7 +133,7 @@ impl<'a> TranslationContext<'a> {
                 ctx.translate_ins(func, ins, &mut path_stack, &mut insns, &mut stack_map, &mut classfile);
             }
 
-            let method = java::Method::new_on(func.name(), TranslationContext::signature_as_descriptor(func.signature(), &classfile), &mut classfile);
+            let method = java::Method::new_on(name_for_function(func), TranslationContext::signature_as_descriptor(func.signature(), &classfile), &mut classfile);
 
             // TODO: Find correct max size
             let mut code = java::Code::new(10, func.local_count() as u16, insns.take());
@@ -125,17 +144,12 @@ impl<'a> TranslationContext<'a> {
             ));
 
             if func.is_entry() {
-                main_name = Some(func.name().clone());
+                main_name = Some(name_for_function(func));
             }
         }
 
         if let Some(main_name) = main_name {
-            // let name_index = classfile.consant_pool_index_of_str(&main_name).unwrap();
-            // let desc_index = classfile.consant_pool_index_of_str("()V").unwrap();
-            // let name_and_type = classfile.add_constant(java::Constant::NameAndType(java::NameAndType::new(name_index, desc_index)));
-            // let method_ref = classfile.add_constant(java::Constant::MethodRef(java::MethodRef::new(classfile.this_index(), name_and_type)));
-
-            let target = classfile.const_method(&classfile.name().to_string(), main_name, "()V");
+            let target = classfile.const_method(&classfile.name().to_string(), &main_name, "()V");
             
             let method = java::Method::new_on("main", "([Ljava/lang/String;)V", &mut classfile);
             method.add_code(java::Code::new(0, 1, vec![
@@ -158,10 +172,7 @@ impl<'a> TranslationContext<'a> {
         let mut clinit = Vec::new();
 
         for (idx, global) in unit.globals().iter().enumerate() {
-            let name = match global.name() {
-                Some(x) => x.to_string(),
-                None => format!("_global${}", idx)
-            };
+            let name = name_for_global(global, idx);
             let desc = storable_type_to_jtype(global.global_type(), &classfile).to_string();
             let field = java::Field::new_on(
                 &name,
