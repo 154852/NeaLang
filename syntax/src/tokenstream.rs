@@ -115,7 +115,7 @@ impl<'a, T: std::fmt::Debug + TokenKind> TokenStream<'a, T> {
 macro_rules! keywords {
     ( $string:expr , $offset:expr , $( $word:expr => $name:expr ),* ) => {
         $(
-            if $string.starts_with($word) && ($string.len() == $word.len() || !$string.as_bytes()[$word.len()].is_ascii_alphanumeric()) {
+            if $string.starts_with($word) && ($string.len() == $word.len() || !($string.as_bytes()[$word.len()].is_ascii_alphanumeric()|| $string.as_bytes()[$word.len()] as char == '_')) {
                 return Some(($word.len(), Token::new($name, ::syntax::Span::new($offset, $offset + $word.len()))));
             }
         )*
