@@ -57,10 +57,10 @@ func test_if_else() {
 }
 
 func test_math() {
-	if (1 + 2) == 3 {
-		if (3 * 4) == 12 {
-			if (6 / 3) == 2 {
-				if (9 - 8) == 1 {
+	if 1 + 2 == 3 {
+		if 3 * 4 == 12 {
+			if 6 / 3 == 2 {
+				if 9 - 8 == 1 {
 					print("test_math");
 					return;
 				}
@@ -73,8 +73,8 @@ func test_math() {
 
 func test_div() {
 	if (4 / 2) == 2 {
-		if ((9 + 3) / 4) == 3 {
-			if 3 == (1 + (4 / (1 + 1))) {
+		if (9 + 3) / 4 == 3 {
+			if 3 == 1 + (4 / (1 + 1)) {
 				test_pass("test_div");
 				return;
 			}
@@ -107,11 +107,17 @@ func test_for() {
 		test = test + i;
 	}
 
-	var expected = (100 * (100 + 1)) / 2;
+	var expected = 100 * (100 + 1) / 2;
 	if test == expected {
 		test_pass("test_for");
 	} else {
 		test_fail("test_for");
+	}
+}
+
+func op_order() {
+	if 1 == 3 + 2 {
+		
 	}
 }
 
