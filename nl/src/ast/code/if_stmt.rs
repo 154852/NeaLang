@@ -69,7 +69,8 @@ impl IfStmt {
     }
 
     pub fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
-        self.condition.append_ir_value(ctx, target, Some(&ir::ValueType::Bool))?;
+        let mut cond = IrGenCodeTarget::new();
+        self.condition.append_ir_value(ctx, &mut cond, Some(&ir::ValueType::Bool))?;
 
         let mut true_then = IrGenCodeTarget::new();
         for code in &self.code {
@@ -84,11 +85,13 @@ impl IfStmt {
 
             target.push(ir::Ins::IfElse(
                 true_then.take(),
-                false_then.take()
+                false_then.take(),
+                cond.take()
             ));
         } else {
             target.push(ir::Ins::If(
-                true_then.take()
+                true_then.take(),
+                cond.take()
             ));
         }
 

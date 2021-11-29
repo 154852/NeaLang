@@ -328,7 +328,19 @@ impl<'a> TranslationContext<'a> {
                     _ => panic!()
                 },
             ir::Ins::Le(_) => todo!(),
-            ir::Ins::Gt(_) => todo!(),
+            ir::Ins::Gt(vt) =>
+                match vt {
+                    ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::U16 | ir::ValueType::I16 | ir::ValueType::U32 | ir::ValueType::I32 => {
+                        insns.push(java::Ins::IfICmpGt { branch: 3 + 1 + 3 });
+                        insns.push(java::Ins::IConst0);
+                        insns.push(java::Ins::Goto { branch: 3 + 1 });
+                        stack_map.empty_stack_target(insns.tell(), class);
+                        insns.push(java::Ins::IConst1);
+                        stack_map.single_stack_target(insns.tell(), java::VerificationTypeInfo::Integer, class);
+                    },
+                    ir::ValueType::U64 | ir::ValueType::I64 => todo!(),
+                    _ => panic!()
+                },
             ir::Ins::Ge(_) => todo!(),
             ir::Ins::Loop(code, condition, inc) => {
                 stack_map.empty_stack_target(insns.tell(), class);
@@ -357,8 +369,50 @@ impl<'a> TranslationContext<'a> {
 
                 stack_map.empty_stack_target(insns.tell(), class);
             },
-            ir::Ins::If(_) => todo!(),
-            ir::Ins::IfElse(_, _) => todo!(),
+            ir::Ins::If(true_then, condition) => {
+                let mut condition_branch = InstructionTarget::new(insns.tell());
+                for ins in condition { self.translate_ins(func, ins, path_stack, &mut condition_branch, stack_map, class); }
+                let condition_branch_size = condition_branch.tell() - insns.tell();
+
+                // Ifeq jump to end - 3 bytes
+
+                let mut true_branch = InstructionTarget::new(insns.tell() + condition_branch_size + 3);
+                for ins in true_then { self.translate_ins(func, ins, path_stack, &mut true_branch, stack_map, class); }
+                let true_branch_size = true_branch.tell() - condition_branch_size - 3 - insns.tell();
+
+                let overlap = insns.tell();
+                
+                insns.extend(condition_branch, overlap);
+                insns.push(java::Ins::IfEq { branch: (true_branch_size + 3) as i16 });
+                insns.extend(true_branch, overlap + condition_branch_size + 3);
+                stack_map.empty_stack_target(insns.tell(), class);
+            },
+            ir::Ins::IfElse(true_then, false_then, condition) => {
+                let mut condition_branch = InstructionTarget::new(insns.tell());
+                for ins in condition { self.translate_ins(func, ins, path_stack, &mut condition_branch, stack_map, class); }
+                let condition_branch_size = condition_branch.tell() - insns.tell();
+
+                // Ifeq jump to false_then - 3 bytes
+
+                let mut true_branch = InstructionTarget::new(insns.tell() + condition_branch_size + 3);
+                for ins in true_then { self.translate_ins(func, ins, path_stack, &mut true_branch, stack_map, class); }
+                let true_branch_size = true_branch.tell() - condition_branch_size - 3 - insns.tell();
+
+                let mut false_branch = InstructionTarget::new(insns.tell() + condition_branch_size + 3 + true_branch_size + 3);
+                for ins in false_then { self.translate_ins(func, ins, path_stack, &mut false_branch, stack_map, class); }
+                let false_branch_size = false_branch.tell() - condition_branch_size - 3 - true_branch_size - 3 - insns.tell();
+
+                let overlap = insns.tell();
+                
+                insns.extend(condition_branch, overlap);
+                insns.push(java::Ins::IfEq { branch: (true_branch_size + 3 + 3) as i16 });
+                insns.extend(true_branch, overlap + condition_branch_size + 3);
+                insns.push(java::Ins::Goto { branch: (false_branch_size + 3) as i16 });
+                stack_map.empty_stack_target(insns.tell(), class);
+                insns.extend(false_branch, overlap + condition_branch_size + 6 + true_branch_size);
+
+                stack_map.empty_stack_target(insns.tell(), class);
+            },
             ir::Ins::Break(_) => todo!(),
             ir::Ins::Continue(_) => todo!(),
             ir::Ins::PushLiteral(vt, i) => 

@@ -339,7 +339,10 @@ impl Ins {
 
                 pop!(stack, ValueType::Bool);
             }),
-            Ins::If(block) => Ok({
+            Ins::If(block, cond) => Ok({
+                if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
+
+                for el in cond { el.validate(stack, blocks, function, unit)?; }
                 pop!(stack, ValueType::Bool);
 
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
@@ -349,7 +352,10 @@ impl Ins {
                 })?;
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
             }),
-            Ins::IfElse(true_then, else_then) => Ok({
+            Ins::IfElse(true_then, else_then, cond) => Ok({
+                if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
+
+                for el in cond { el.validate(stack, blocks, function, unit)?; }
                 pop!(stack, ValueType::Bool);
                 
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
@@ -383,7 +389,7 @@ impl Ins {
 fn ensure_returns(block: &Vec<Ins>) -> Result<(), ValidationError> {
     match block.last() {
         Some(Ins::Ret) => Ok(()),
-        Some(Ins::IfElse(a, b)) => {
+        Some(Ins::IfElse(a, b, _)) => {
             ensure_returns(a)?;
             ensure_returns(b)?;
             Ok(())

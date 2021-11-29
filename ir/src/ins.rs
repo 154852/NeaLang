@@ -291,6 +291,7 @@ pub enum Ins {
     /// ```
     Loop(Vec<Ins>, Vec<Ins>, Vec<Ins>),
 
+    /// Code, Condition
     /// Executes it's children if the popped item is nonzero.
     /// The instruction must start with one (bool) item on the stack, and it's content must end with 0.
     /// # Examples
@@ -304,8 +305,9 @@ pub enum Ins {
     /// ]));
     /// func.push(ir::Ins::Ret);
     /// ```
-    If(Vec<Ins>),
+    If(Vec<Ins>, Vec<Ins>),
 
+    /// true_then, false_then, condition
     /// Executes it's first set of children if the popped item is nonzero, otherwise executes it's second set.
     /// The instruction must start with one (bool) item on the stack, and both branches must end with 0.
     /// # Examples
@@ -321,7 +323,7 @@ pub enum Ins {
     /// ]));
     /// func.push(ir::Ins::Ret);
     /// ```
-    IfElse(Vec<Ins>, Vec<Ins>),
+    IfElse(Vec<Ins>, Vec<Ins>, Vec<Ins>),
 
     /// Breaks out of the loop at the depth above the current instruction given. The depth must refer to a Loop, and must run with an empty stack
     /// # Examples

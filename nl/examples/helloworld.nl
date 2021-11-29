@@ -12,7 +12,16 @@ func other() {
 	print(other_string);
 
 	print("Hello world\n");
-	print("Hello 2\n");
+
+	if 2 > 1 {
+		print("GT 2\n");
+	} else {
+		print("LTE 2\n");
+	}
+
+	if 2 > 1 {
+		print("GT 2\n");
+	}
 	exit(0);
 }
 

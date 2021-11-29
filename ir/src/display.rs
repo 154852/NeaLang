@@ -108,16 +108,21 @@ impl std::fmt::Display for Ins {
                 f.write_str("\n\t}")?;
                 Ok(())
             },
-            Ins::If(true_then) => {
+            Ins::If(true_then, cond) => {
                 f.write_str("if\n\tthen {")?;
                 for ins in true_then {
+                    f.write_str("\n\t\t")?;
+                    ins.fmt(f)?;
+                }
+                f.write_str("\n\t}\n\tcond {")?;
+                for ins in cond {
                     f.write_str("\n\t\t")?;
                     ins.fmt(f)?;
                 }
                 f.write_str("\n\t}")?;
                 Ok(())
             },
-            Ins::IfElse(true_then, false_then) => {
+            Ins::IfElse(true_then, false_then, cond) => {
                 f.write_str("if\n\tthen {")?;
                 for ins in true_then {
                     f.write_str("\n\t\t")?;
@@ -127,6 +132,11 @@ impl std::fmt::Display for Ins {
                 for ins in false_then {
                     f.write_str("\n\t\t")?;
                     f.write_str(&format!("{}", ins).replace('\n', "\n\t\t"))?;
+                }
+                f.write_str("\n\t}\n\tcond {")?;
+                for ins in cond {
+                    f.write_str("\n\t\t")?;
+                    ins.fmt(f)?;
                 }
                 f.write_str("\n\t}")?;
                 Ok(())

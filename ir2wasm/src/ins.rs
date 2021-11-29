@@ -142,6 +142,9 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::Lt(vt) => {
                 insns.push(wasm::Ins::Lt(crate::util::value_type_to_num_type(vt), vt.is_signed()));
             },
+            ir::Ins::Gt(vt) => {
+                insns.push(wasm::Ins::Gt(crate::util::value_type_to_num_type(vt), vt.is_signed()));
+            },
             ir::Ins::Call(idx) => {
                 insns.push(wasm::Ins::Call(self.function_index(*idx).unwrap()));
             },
@@ -160,6 +163,42 @@ impl<'a> TranslationContext<'a> {
 
                     inner_insns
                 })]));
+            },
+            ir::Ins::If(true_then, cond) => {
+                insns.push(wasm::Ins::Block(wasm::BlockType::Empty, {
+                    let mut inner_insns = Vec::new();
+
+                    for ins in cond { self.translate_ins(func, path_stack, ins, &mut inner_insns); }
+                    inner_insns.push(wasm::Ins::Eqz(wasm::NumType::I32));
+                    inner_insns.push(wasm::Ins::BrIf(0));
+
+                    for ins in true_then { self.translate_ins(func, path_stack, ins, &mut inner_insns); }
+
+                    inner_insns
+                }));
+            },
+            ir::Ins::IfElse(true_then, false_then, cond) => {
+                insns.push(wasm::Ins::Block(wasm::BlockType::Empty, {
+                    let mut first_inner_insns = Vec::new();
+
+                    first_inner_insns.push(wasm::Ins::Block(wasm::BlockType::Empty, {
+                        let mut inner_insns = Vec::new();
+
+                        for ins in cond { self.translate_ins(func, path_stack, ins, &mut inner_insns); }
+                        inner_insns.push(wasm::Ins::Eqz(wasm::NumType::I32));
+                        inner_insns.push(wasm::Ins::BrIf(0));
+    
+                        for ins in true_then { self.translate_ins(func, path_stack, ins, &mut inner_insns); }
+    
+                        inner_insns.push(wasm::Ins::Br(1));
+    
+                        inner_insns
+                    }));
+
+                    for ins in false_then { self.translate_ins(func, path_stack, ins, &mut first_inner_insns); }
+
+                    first_inner_insns
+                }));
             },
             ir::Ins::Convert(from, to) => {
                 if crate::util::value_type_to_num_type(from) != crate::util::value_type_to_num_type(to) {

@@ -295,7 +295,11 @@ impl TranslationContext {
 
                 ins.push(x86::Ins::LocalSymbol(final_end));
             },
-            ir::Ins::If(then) => {
+            ir::Ins::If(then, condition) => {
+                for inner_ins in condition {
+                    self.translate_instruction_to(inner_ins, ftc, ins);
+                }
+
                 let cond = ftc.stack().pop_vt(&ir::ValueType::Bool);
                 ins.push(x86::Ins::TestRegReg(cond, cond));
                 
@@ -310,7 +314,11 @@ impl TranslationContext {
 
                 ins.push(x86::Ins::LocalSymbol(end));
             },
-            ir::Ins::IfElse(true_then, false_then) => {
+            ir::Ins::IfElse(true_then, false_then, condition) => {
+                for inner_ins in condition {
+                    self.translate_instruction_to(inner_ins, ftc, ins);
+                }
+
                 let cond = ftc.stack().pop_vt(&ir::ValueType::Bool);
                 ins.push(x86::Ins::TestRegReg(cond, cond));
                 
