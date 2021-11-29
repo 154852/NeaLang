@@ -199,46 +199,21 @@ impl Expr {
         syntax::MatchResult::Ok(expr)
     }
 
-    fn parse_op_mul<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
+    fn parse_op_mul_div<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
         let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_primary));
         let start = stream.tell_start();
 
         loop {
             match stream.token_kind() {
-                Some(TokenKind::Mul)  => {
-                    stream.step();
-
-                    let right = syntax::ex!(syntax::parse!(stream, Expr::parse_primary), stream.error("Expected right hand side to expression"));
-
-                    expr = Expr::BinaryExpr(BinaryExpr {
-                        span: syntax::Span::new(start, stream.tell_start()),
-                        op: BinaryOp::Mul,
-                        left: Box::new(expr),
-                        right: Box::new(right)
-                    });
-                },
-                _ => break,
-            }
-        }
-
-        syntax::MatchResult::Ok(expr)
-    }
-
-    fn parse_op_add_sub<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
-        let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_op_mul));
-        let start = stream.tell_start();
-
-        loop {
-            match stream.token_kind() {
-                Some(TokenKind::Add) | Some(TokenKind::Sub) => {
+                Some(TokenKind::Mul) | Some(TokenKind::Div) => {
                     let op = match stream.token_kind().unwrap() {
-                        TokenKind::Add => BinaryOp::Add,
-                        TokenKind::Sub => BinaryOp::Sub,
+                        TokenKind::Mul => BinaryOp::Mul,
+                        TokenKind::Div => BinaryOp::Div,
                         _ => unreachable!()
                     };
                     stream.step();
 
-                    let right = syntax::ex!(syntax::parse!(stream, Expr::parse_op_mul), stream.error("Expected right hand side to expression"));
+                    let right = syntax::ex!(syntax::parse!(stream, Expr::parse_primary), stream.error("Expected right hand side to expression"));
 
                     expr = Expr::BinaryExpr(BinaryExpr {
                         span: syntax::Span::new(start, stream.tell_start()),
@@ -254,20 +229,25 @@ impl Expr {
         syntax::MatchResult::Ok(expr)
     }
 
-    fn parse_op_div<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
-        let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_op_add_sub));
+    fn parse_op_add_sub<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
+        let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_op_mul_div));
         let start = stream.tell_start();
 
         loop {
             match stream.token_kind() {
-                Some(TokenKind::Div)  => {
+                Some(TokenKind::Add) | Some(TokenKind::Sub) => {
+                    let op = match stream.token_kind().unwrap() {
+                        TokenKind::Add => BinaryOp::Add,
+                        TokenKind::Sub => BinaryOp::Sub,
+                        _ => unreachable!()
+                    };
                     stream.step();
 
-                    let right = syntax::ex!(syntax::parse!(stream, Expr::parse_op_add_sub), stream.error("Expected right hand side to expression"));
+                    let right = syntax::ex!(syntax::parse!(stream, Expr::parse_op_mul_div), stream.error("Expected right hand side to expression"));
 
                     expr = Expr::BinaryExpr(BinaryExpr {
                         span: syntax::Span::new(start, stream.tell_start()),
-                        op: BinaryOp::Div,
+                        op,
                         left: Box::new(expr),
                         right: Box::new(right)
                     });
@@ -280,7 +260,7 @@ impl Expr {
     }
 
     fn parse_op_cmp<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
-        let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_op_div));
+        let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_op_add_sub));
         let start = stream.tell_start();
 
         loop {
@@ -299,7 +279,7 @@ impl Expr {
                     };
                     stream.step();
 
-                    let right = syntax::ex!(syntax::parse!(stream, Expr::parse_op_div), stream.error("Expected right hand side to expression"));
+                    let right = syntax::ex!(syntax::parse!(stream, Expr::parse_op_add_sub), stream.error("Expected right hand side to expression"));
 
                     expr = Expr::BinaryExpr(BinaryExpr {
                         span: syntax::Span::new(start, stream.tell_start()),

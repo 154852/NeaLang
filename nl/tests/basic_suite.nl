@@ -115,10 +115,17 @@ func test_for() {
 	}
 }
 
-func op_order() {
-	if 1 == 3 + 2 {
-		
+func test_op_order() {
+	if 3*2 + 1 == 7 {
+		if 9/3 + 2 == 5 {
+			if 9/3 + 6*2 == 15 {
+				test_pass("test_op_order");
+				return;
+			}
+		}
 	}
+
+	test_fail("test_op_order");
 }
 
 func [entry] main() {
@@ -130,4 +137,5 @@ func [entry] main() {
 	test_call_expr();
 	test_for();
 	test_div();
+	test_op_order();
 }
