@@ -85,6 +85,16 @@ impl StackToReg {
         self.idx
     }
 
+    pub fn uses(&self, reg: x86::RegClass) -> bool {
+        for i in 0..self.idx {
+            if SYS_V_ABI_RET[i] == reg {
+                return true;
+            }
+        }
+
+        false
+    }
+
     pub fn pop_vt(&mut self, vt: &ir::ValueType) -> x86::Reg {
         crate::util::reg_for_value_type(vt, self.mode, self.pop())
     }

@@ -136,15 +136,16 @@ impl<'a> TranslationContext<'a> {
                     ir::ValueType::Ref(_) | ir::ValueType::Index(_) => panic!(),
                 });
             },
-            ir::Ins::Add(vt) => {
-                insns.push(wasm::Ins::Add(crate::util::value_type_to_num_type(vt)));
-            },
-            ir::Ins::Lt(vt) => {
-                insns.push(wasm::Ins::Lt(crate::util::value_type_to_num_type(vt), vt.is_signed()));
-            },
-            ir::Ins::Gt(vt) => {
-                insns.push(wasm::Ins::Gt(crate::util::value_type_to_num_type(vt), vt.is_signed()));
-            },
+            ir::Ins::Add(vt) => insns.push(wasm::Ins::Add(crate::util::value_type_to_num_type(vt))),
+            ir::Ins::Mul(vt) => insns.push(wasm::Ins::Mul(crate::util::value_type_to_num_type(vt))),
+            ir::Ins::Div(vt) => insns.push(wasm::Ins::Div(crate::util::value_type_to_num_type(vt), vt.is_signed())),
+            ir::Ins::Sub(vt) => insns.push(wasm::Ins::Sub(crate::util::value_type_to_num_type(vt))),
+            ir::Ins::Lt(vt) => insns.push(wasm::Ins::Lt(crate::util::value_type_to_num_type(vt), vt.is_signed())),
+            ir::Ins::Le(vt) => insns.push(wasm::Ins::Le(crate::util::value_type_to_num_type(vt), vt.is_signed())),
+            ir::Ins::Gt(vt) => insns.push(wasm::Ins::Gt(crate::util::value_type_to_num_type(vt), vt.is_signed())),
+            ir::Ins::Ge(vt) => insns.push(wasm::Ins::Ge(crate::util::value_type_to_num_type(vt), vt.is_signed())),
+            ir::Ins::Eq(vt) => insns.push(wasm::Ins::Eq(crate::util::value_type_to_num_type(vt))),
+            ir::Ins::Ne(vt) => insns.push(wasm::Ins::Ne(crate::util::value_type_to_num_type(vt))),
             ir::Ins::Call(idx) => {
                 insns.push(wasm::Ins::Call(self.function_index(*idx).unwrap()));
             },

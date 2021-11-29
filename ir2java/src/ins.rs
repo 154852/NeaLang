@@ -135,16 +135,26 @@ impl<'a> StackMapBuilder<'a> {
     }
 
     fn empty_stack_target(&mut self, addr: usize, class: &mut java::ClassFile) {
+        if addr == self.offset { return; }
+
         if self.first_unused_local != self.previous_first_unused_local {
             let mut locals = Vec::new();
             for i in self.previous_first_unused_local..self.first_unused_local {
                 locals.push(crate::util::verification_type_for_storable(self.func.locals()[i].local_type(), class));
             }
 
-            self.push_at(addr, java::StackMapFrame::AppendFrame {
-                offset: self.delta_to(addr),
-                locals
-            });
+            if locals.len() > 3 {
+                self.push_at(addr, java::StackMapFrame::FullFrame {
+                    offset: self.delta_to(addr),
+                    locals,
+                    stack: vec![]
+                });
+            } else {
+                self.push_at(addr, java::StackMapFrame::AppendFrame {
+                    offset: self.delta_to(addr),
+                    locals
+                });
+            }
 
             self.previous_first_unused_local = self.first_unused_local;
         } else {
@@ -155,6 +165,8 @@ impl<'a> StackMapBuilder<'a> {
     }
 
     fn single_stack_target(&mut self, addr: usize, el: java::VerificationTypeInfo, class: &mut java::ClassFile) {
+        if addr == self.offset { return; }
+
         if self.first_unused_local != self.previous_first_unused_local {
             let mut locals = Vec::new();
             for i in self.previous_first_unused_local..self.first_unused_local {
@@ -196,6 +208,19 @@ impl<'a> StackMapBuilder<'a> {
 
 impl<'a> TranslationContext<'a> {
     pub(crate) fn translate_ins(&self, func: &ir::Function, ins: &ir::Ins, path_stack: &mut PathStack, insns: &mut InstructionTarget, stack_map: &mut StackMapBuilder, class: &mut java::ClassFile) {
+        macro_rules! icmp {
+            ($op:ident) => {
+                {
+                    insns.push(java::Ins::$op { branch: 3 + 1 + 3 });
+                    insns.push(java::Ins::IConst0);
+                    insns.push(java::Ins::Goto { branch: 3 + 1 });
+                    stack_map.empty_stack_target(insns.tell(), class);
+                    insns.push(java::Ins::IConst1);
+                    stack_map.single_stack_target(insns.tell(), java::VerificationTypeInfo::Integer, class);
+                }
+            };
+        }
+        
         match ins {
             ir::Ins::PushPath(value_path, _) => {
                 let mut path = match value_path.origin() {
@@ -309,39 +334,48 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::Dec(_, _) => todo!(),
             ir::Ins::Add(vt) =>
                 insns.push(java::opt::ins::add(&crate::util::value_type_to_descriptor(vt, class))),
-            ir::Ins::Mul(_) => todo!(),
-            ir::Ins::Div(_) => todo!(),
-            ir::Ins::Sub(_) => todo!(),
-            ir::Ins::Eq(_) => todo!(),
-            ir::Ins::Ne(_) => todo!(),
-            ir::Ins::Lt(vt) =>
+            ir::Ins::Mul(vt) =>
+                insns.push(java::opt::ins::mul(&crate::util::value_type_to_descriptor(vt, class))),
+            ir::Ins::Div(vt) =>
+                insns.push(java::opt::ins::div(&crate::util::value_type_to_descriptor(vt, class))),
+            ir::Ins::Sub(vt) =>
+                insns.push(java::opt::ins::sub(&crate::util::value_type_to_descriptor(vt, class))),
+            ir::Ins::Eq(vt) =>
                 match vt {
-                    ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::U16 | ir::ValueType::I16 | ir::ValueType::U32 | ir::ValueType::I32 => {
-                        insns.push(java::Ins::IfICmpLt { branch: 3 + 1 + 3 });
-                        insns.push(java::Ins::IConst0);
-                        insns.push(java::Ins::Goto { branch: 3 + 1 });
-                        stack_map.empty_stack_target(insns.tell(), class);
-                        insns.push(java::Ins::IConst1);
-                        stack_map.single_stack_target(insns.tell(), java::VerificationTypeInfo::Integer, class);
-                    },
-                    ir::ValueType::U64 | ir::ValueType::I64 => todo!(),
-                    _ => panic!()
+                    ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::U8 | ir::ValueType::I8 |
+                    ir::ValueType::U16 | ir::ValueType::I16 | ir::ValueType::U32 | ir::ValueType::I32 => icmp!(IfICmpEq),
+                    _ => todo!()
                 },
-            ir::Ins::Le(_) => todo!(),
+            ir::Ins::Ne(vt) =>
+                match vt {
+                    ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::U8 | ir::ValueType::I8 |
+                    ir::ValueType::U16 | ir::ValueType::I16 | ir::ValueType::U32 | ir::ValueType::I32 => icmp!(IfICmpNe),
+                    _ => todo!()
+                },
+            ir::Ins::Lt(vt) => 
+                match vt {
+                    ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::U8 | ir::ValueType::I8 |
+                    ir::ValueType::U16 | ir::ValueType::I16 | ir::ValueType::U32 | ir::ValueType::I32 => icmp!(IfICmpLt),
+                    _ => todo!()
+                },
+            ir::Ins::Le(vt) =>
+                match vt {
+                    ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::U8 | ir::ValueType::I8 |
+                    ir::ValueType::U16 | ir::ValueType::I16 | ir::ValueType::U32 | ir::ValueType::I32 => icmp!(IfICmpLe),
+                    _ => todo!()
+                },
             ir::Ins::Gt(vt) =>
                 match vt {
-                    ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::U16 | ir::ValueType::I16 | ir::ValueType::U32 | ir::ValueType::I32 => {
-                        insns.push(java::Ins::IfICmpGt { branch: 3 + 1 + 3 });
-                        insns.push(java::Ins::IConst0);
-                        insns.push(java::Ins::Goto { branch: 3 + 1 });
-                        stack_map.empty_stack_target(insns.tell(), class);
-                        insns.push(java::Ins::IConst1);
-                        stack_map.single_stack_target(insns.tell(), java::VerificationTypeInfo::Integer, class);
-                    },
-                    ir::ValueType::U64 | ir::ValueType::I64 => todo!(),
-                    _ => panic!()
+                    ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::U8 | ir::ValueType::I8 |
+                    ir::ValueType::U16 | ir::ValueType::I16 | ir::ValueType::U32 | ir::ValueType::I32 => icmp!(IfICmpGt),
+                    _ => todo!()
                 },
-            ir::Ins::Ge(_) => todo!(),
+            ir::Ins::Ge(vt) =>
+                match vt {
+                    ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::U8 | ir::ValueType::I8 |
+                    ir::ValueType::U16 | ir::ValueType::I16 | ir::ValueType::U32 | ir::ValueType::I32 => icmp!(IfICmpGe),
+                    _ => todo!()
+                },
             ir::Ins::Loop(code, condition, inc) => {
                 stack_map.empty_stack_target(insns.tell(), class);
                 
@@ -374,18 +408,23 @@ impl<'a> TranslationContext<'a> {
                 for ins in condition { self.translate_ins(func, ins, path_stack, &mut condition_branch, stack_map, class); }
                 let condition_branch_size = condition_branch.tell() - insns.tell();
 
-                // Ifeq jump to end - 3 bytes
-
-                let mut true_branch = InstructionTarget::new(insns.tell() + condition_branch_size + 3);
-                for ins in true_then { self.translate_ins(func, ins, path_stack, &mut true_branch, stack_map, class); }
-                let true_branch_size = true_branch.tell() - condition_branch_size - 3 - insns.tell();
-
                 let overlap = insns.tell();
-                
-                insns.extend(condition_branch, overlap);
-                insns.push(java::Ins::IfEq { branch: (true_branch_size + 3) as i16 });
-                insns.extend(true_branch, overlap + condition_branch_size + 3);
-                stack_map.empty_stack_target(insns.tell(), class);
+
+                if true_then.len() != 0 {
+                    // Ifeq jump to end - 3 bytes
+
+                    let mut true_branch = InstructionTarget::new(insns.tell() + condition_branch_size + 3);
+                    for ins in true_then { self.translate_ins(func, ins, path_stack, &mut true_branch, stack_map, class); }
+                    let true_branch_size = true_branch.tell() - condition_branch_size - 3 - insns.tell();
+                    
+                    insns.extend(condition_branch, overlap);
+                    insns.push(java::Ins::IfEq { branch: (true_branch_size + 3) as i16 });
+                    insns.extend(true_branch, overlap + condition_branch_size + 3);
+                    stack_map.empty_stack_target(insns.tell(), class);
+                } else {
+                    insns.extend(condition_branch, overlap);
+                    insns.push(java::Ins::Pop);
+                }
             },
             ir::Ins::IfElse(true_then, false_then, condition) => {
                 let mut condition_branch = InstructionTarget::new(insns.tell());

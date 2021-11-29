@@ -41,6 +41,9 @@ pub enum Ins {
     // Call A
     CallGlobalSymbol(GlobalSymbolID),
 
+    // cwd / cdq / cqo
+    Cdq(Size),
+
     // If Condition Then A <- B
     CMovRegReg(Condition, Reg, Reg),
     // If Condition Then A <- B
@@ -57,6 +60,11 @@ pub enum Ins {
 
     /// If Condition Then A = 1
     ConditionalSet(Condition, RegClass),
+
+    // eax <- eax / A
+    IDivReg(Reg),
+    // eax <- eax / A
+    IDivMem(Size, Mem),
 
     // A <- A * B
     IMulRegReg(Reg, Reg),
@@ -148,6 +156,13 @@ impl Ins {
                 unfilled_local_symbols.push(Relocation::new_global_relative(id, data.len() - 4, -4));
             },
 
+            // https://www.felixcloutier.com/x86/cwd:cdq:cqo
+            Ins::Cdq(s) => match s {
+                Size::Byte => panic!("Cannot CDQ byte"),
+                Size::Word | Size::Double => Encoder::new(0x99).to(data),
+                Size::Quad => Encoder::new(0x99).long().to(data),
+            },
+
             // https://www.felixcloutier.com/x86/cmovcc
             Ins::CMovRegReg(c, a, b) => Encoder::new_long([0x0f, 0x40 + c.base()]).rr(a, b).to(data),
             Ins::CMovRegMem(c, r, ref m) => Encoder::new_long([0x0f, 0x40 + c.base()]).rm(r, m).to(data),
@@ -160,6 +175,10 @@ impl Ins {
 
             // https://www.felixcloutier.com/x86/setcc
             Ins::ConditionalSet(c, r) => Encoder::new_long([0x0f, 0x90 + c.base()]).rn(r.u8(), 0).to(data),
+
+            // https://www.felixcloutier.com/x86/idiv
+            Ins::IDivReg(a) => Encoder::new(if a.size() == Size::Byte { 0xf6 } else { 0xf7 }).rn(a, 7).to(data),
+            Ins::IDivMem(s, ref m) => Encoder::new(if s == Size::Byte { 0xf6 } else { 0xf7 }).mn(s, m, 7).to(data),
 
             // https://www.felixcloutier.com/x86/imul
             Ins::IMulRegReg(a, b) => Encoder::new_long([0x0f, 0xaf]).rr(a, b).to(data),

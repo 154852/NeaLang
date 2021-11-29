@@ -276,4 +276,37 @@ pub mod ins {
 			Descriptor::Void => panic!("Cannot add void"),
 		}
 	}
+
+	pub fn mul(desc: &Descriptor) -> Ins {
+		match desc {
+			Descriptor::Byte | Descriptor::Char | Descriptor::Int | Descriptor::Short | Descriptor::Boolean => Ins::IMul,
+			Descriptor::Double => Ins::DMul,
+			Descriptor::Float => Ins::FMul,
+			Descriptor::Long => Ins::LMul,
+			Descriptor::Reference(_) | Descriptor::Array(_, _) => panic!("Cannot mul references"),
+			Descriptor::Void => panic!("Cannot mul void"),
+		}
+	}
+
+	pub fn sub(desc: &Descriptor) -> Ins {
+		match desc {
+			Descriptor::Byte | Descriptor::Char | Descriptor::Int | Descriptor::Short | Descriptor::Boolean => Ins::ISub,
+			Descriptor::Double => Ins::DSub,
+			Descriptor::Float => Ins::FSub,
+			Descriptor::Long => Ins::LSub,
+			Descriptor::Reference(_) | Descriptor::Array(_, _) => panic!("Cannot sub references"),
+			Descriptor::Void => panic!("Cannot sub void"),
+		}
+	}
+
+	pub fn div(desc: &Descriptor) -> Ins {
+		match desc {
+			Descriptor::Byte | Descriptor::Char | Descriptor::Int | Descriptor::Short | Descriptor::Boolean => Ins::IDiv,
+			Descriptor::Double => Ins::DDiv,
+			Descriptor::Float => Ins::FDiv,
+			Descriptor::Long => Ins::LDiv,
+			Descriptor::Reference(_) | Descriptor::Array(_, _) => panic!("Cannot div references"),
+			Descriptor::Void => panic!("Cannot div void"),
+		}
+	}
 }

@@ -23,6 +23,9 @@ enum SubCommand {
 struct BuildOpts {
     path: Vec<String>,
 
+    #[clap(short='I')]
+    include: Vec<String>,
+
     #[clap(short, long, default_value = "a.out")]
     output: String,
 
@@ -75,14 +78,38 @@ fn print_error_range(mut start: usize, mut end: usize, source: &str, path: &Path
 pub struct BuildContext {
     linked_paths: Vec<PathBuf>,
     target_arch_name: &'static str,
+    search_dirs: Vec<PathBuf>
 }
 
 impl BuildContext {
-    pub fn new(linked_paths: &Vec<String>, target_arch_name: &'static str) -> BuildContext {
+    pub fn new(linked_paths: &Vec<String>, target_arch_name: &'static str, search_dirs: &Vec<String>) -> BuildContext {
         BuildContext {
             linked_paths: linked_paths.iter().map(|x| Path::new(x).canonicalize().expect("Invalid path")).collect(),
-            target_arch_name
+            target_arch_name,
+            search_dirs: search_dirs.iter().map(|x| Path::new(x).canonicalize().expect("Invalid path")).collect()
         }
+    }
+
+    fn find_import(&self, working: PathBuf, name: &Vec<String>) -> Option<PathBuf> {
+        let mut child_path = working;
+        for element in name {
+            child_path = child_path.join(element);
+        }
+
+        child_path = child_path.with_extension("nl");
+        if child_path.exists() { return Some(child_path); }
+
+        for search_dir in &self.search_dirs {
+            let mut child_path = search_dir.clone();
+            for element in name {
+                child_path = child_path.join(element);
+            }
+
+            child_path = child_path.with_extension("nl");
+            if child_path.exists() { return Some(child_path); }            
+        }
+
+        None
     }
 
     fn append_at_path(&self, ir_unit: &mut ir::TranslationUnit, path: &PathBuf, visited_paths: &mut Vec<PathBuf>) {
@@ -118,14 +145,14 @@ impl BuildContext {
         for node in &unit.nodes {
             match node {
                 ast::TopLevelNode::Import(import_stmt) => {
-                    let mut child_path = path.parent().unwrap().to_path_buf(); // Can't be a directory, so can't be /
-                    for element in &import_stmt.path {
-                        child_path = child_path.join(element);
+                    if let Some(child_path) = self.find_import(path.parent().unwrap().to_path_buf(), &import_stmt.path) {
+                        self.append_at_path(ir_unit, &child_path, visited_paths);
+                    } else {
+                        let error = format!("Could not resolve import {}", import_stmt.path.join("."));
+                        eprintln!("ImportError in {}: Could not resolve import {}", path.display(), error);
+                        print_error_range(import_stmt.span.start, import_stmt.span.end, &content, &path, &error);
+                        std::process::exit(1);
                     }
-
-                    child_path = child_path.with_extension("nl");
-
-                    self.append_at_path(ir_unit, &child_path, visited_paths);
                 },
                 _ => {}
             }
@@ -209,7 +236,7 @@ fn build(build_opts: &BuildOpts) {
             std::process::exit(1);
         }
     };
-    let ir_unit = BuildContext::new(&build_opts.path, arch.short_name()).build();
+    let ir_unit = BuildContext::new(&build_opts.path, arch.short_name(), &build_opts.include).build();
 
     if build_opts.emit_ir {
         for (idx, func) in ir_unit.functions().iter().enumerate() {

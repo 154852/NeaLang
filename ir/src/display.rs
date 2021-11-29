@@ -68,42 +68,42 @@ impl std::fmt::Display for ValuePath {
 impl std::fmt::Display for Ins {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Ins::PushPath(path, _) => f.write_fmt(format_args!("pushpath {}", path)),
-            Ins::Push(_) => f.write_str("push"),
-            Ins::Pop(_) => f.write_str("pop"),
-            Ins::Index(_) => f.write_str("index"),
+            Ins::PushPath(path, vt) => f.write_fmt(format_args!("pushpath %{} {}", vt, path)),
+            Ins::Push(vt) => f.write_fmt(format_args!("push %{}", vt)),
+            Ins::Pop(vt) => f.write_fmt(format_args!("pop %{}", vt)),
+            Ins::Index(vt) => f.write_fmt(format_args!("index %{}", vt)),
             Ins::New(st) => f.write_fmt(format_args!("new {}", st)),
             Ins::NewSlice(st) => f.write_fmt(format_args!("newslice {}", st)),
             Ins::Convert(from, to) => f.write_fmt(format_args!("conv {}, {}", from, to)),
             Ins::Call(idx) => f.write_fmt(format_args!("call #fn({})", idx)),
             Ins::Ret => f.write_str("ret"),
-            Ins::Inc(_, i) => f.write_fmt(format_args!("inc {}", i)),
-            Ins::Dec(_, i) => f.write_fmt(format_args!("dec {}", i)),
-            Ins::Add(_) => f.write_str("add"),
-            Ins::Mul(_) => f.write_str("mul"),
-            Ins::Div(_) => f.write_str("div"),
-            Ins::Sub(_) => f.write_str("sub"),
-            Ins::Eq(_) => f.write_str("eq"),
-            Ins::Ne(_) => f.write_str("ne"),
-            Ins::Lt(_) => f.write_str("lt"),
-            Ins::Le(_) => f.write_str("le"),
-            Ins::Gt(_) => f.write_str("gt"),
-            Ins::Ge(_) => f.write_str("ge"),
+            Ins::Inc(vt, i) => f.write_fmt(format_args!("inc %{} {}", vt, i)),
+            Ins::Dec(vt, i) => f.write_fmt(format_args!("dec %{} {}", vt, i)),
+            Ins::Add(vt) => f.write_fmt(format_args!("add %{}", vt)),
+            Ins::Mul(vt) => f.write_fmt(format_args!("mul %{}", vt)),
+            Ins::Div(vt) => f.write_fmt(format_args!("div %{}", vt)),
+            Ins::Sub(vt) => f.write_fmt(format_args!("sub %{}", vt)),
+            Ins::Eq(vt) => f.write_fmt(format_args!("eq %{}", vt)),
+            Ins::Ne(vt) => f.write_fmt(format_args!("ne %{}", vt)),
+            Ins::Lt(vt) => f.write_fmt(format_args!("lt %{}", vt)),
+            Ins::Le(vt) => f.write_fmt(format_args!("le %{}", vt)),
+            Ins::Gt(vt) => f.write_fmt(format_args!("gt %{}", vt)),
+            Ins::Ge(vt) => f.write_fmt(format_args!("ge %{}", vt)),
             Ins::Loop(code, cond, inc) => {
                 f.write_str("loop\n\tcode {")?;
                 for ins in code {
                     f.write_str("\n\t\t")?;
-                    ins.fmt(f)?;
+                    f.write_str(&format!("{}", ins).replace('\n', "\n\t\t"))?;
                 }
                 f.write_str("\n\t}\n\tcond {")?;
                 for ins in cond {
                     f.write_str("\n\t\t")?;
-                    ins.fmt(f)?;
+                    f.write_str(&format!("{}", ins).replace('\n', "\n\t\t"))?;
                 }
                 f.write_str("\n\t}\n\tinc {")?;
                 for ins in inc {
                     f.write_str("\n\t\t")?;
-                    ins.fmt(f)?;
+                    f.write_str(&format!("{}", ins).replace('\n', "\n\t\t"))?;
                 }
                 f.write_str("\n\t}")?;
                 Ok(())
@@ -112,12 +112,12 @@ impl std::fmt::Display for Ins {
                 f.write_str("if\n\tthen {")?;
                 for ins in true_then {
                     f.write_str("\n\t\t")?;
-                    ins.fmt(f)?;
+                    f.write_str(&format!("{}", ins).replace('\n', "\n\t\t"))?;
                 }
                 f.write_str("\n\t}\n\tcond {")?;
                 for ins in cond {
                     f.write_str("\n\t\t")?;
-                    ins.fmt(f)?;
+                    f.write_str(&format!("{}", ins).replace('\n', "\n\t\t"))?;
                 }
                 f.write_str("\n\t}")?;
                 Ok(())
@@ -136,14 +136,14 @@ impl std::fmt::Display for Ins {
                 f.write_str("\n\t}\n\tcond {")?;
                 for ins in cond {
                     f.write_str("\n\t\t")?;
-                    ins.fmt(f)?;
+                    f.write_str(&format!("{}", ins).replace('\n', "\n\t\t"))?;
                 }
                 f.write_str("\n\t}")?;
                 Ok(())
             },
             Ins::Break(depth) => f.write_fmt(format_args!("break {}", depth)),
             Ins::Continue(depth) => f.write_fmt(format_args!("break {}", depth)),
-            Ins::PushLiteral(_, val) => f.write_fmt(format_args!("pushlit {}", val)),
+            Ins::PushLiteral(vt, val) => f.write_fmt(format_args!("pushlit %{} {}", vt, val)),
             Ins::Drop => f.write_str("drop"),
         }
     }

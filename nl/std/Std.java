@@ -1,4 +1,4 @@
-package nl.examples;
+package nl.std;
 
 public class Std {
 	public static void putchar(int ch) {
