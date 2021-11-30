@@ -323,6 +323,10 @@ impl Ins {
                 pop!(stack, = *operand_type);
                 stack.push(ValueType::Bool);
             }),
+            Ins::BoolAnd | Ins::BoolOr => Ok({
+                pop!(stack, = ValueType::Bool);
+                peek!(stack, 0, = &ValueType::Bool);
+            }),
             Ins::Loop(block, condition, inc) => Ok({
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
                 blocks.with(BlockElement::Loop, |blocks| {

@@ -15,7 +15,8 @@ pub struct BinaryExpr {
 #[derive(Debug)]
 pub enum BinaryOp {
     Add, Mul, Div, Sub,
-    Eq, Ne, Lt, Le, Gt, Ge
+    Eq, Ne, Lt, Le, Gt, Ge,
+    BoolAnd, BoolOr
 }
 
 impl BinaryOp {
@@ -51,6 +52,9 @@ impl BinaryExpr {
             BinaryOp::Le => ir::Ins::Le(left.clone()),
             BinaryOp::Gt => ir::Ins::Gt(left.clone()),
             BinaryOp::Ge => ir::Ins::Ge(left.clone()),
+
+            BinaryOp::BoolAnd => ir::Ins::BoolAnd,
+            BinaryOp::BoolOr => ir::Ins::BoolOr,
         });
 
         Ok(left)

@@ -89,6 +89,8 @@ impl std::fmt::Display for Ins {
             Ins::Le(vt) => f.write_fmt(format_args!("le %{}", vt)),
             Ins::Gt(vt) => f.write_fmt(format_args!("gt %{}", vt)),
             Ins::Ge(vt) => f.write_fmt(format_args!("ge %{}", vt)),
+            Ins::BoolAnd => f.write_str("and"),
+            Ins::BoolOr => f.write_str("or"),
             Ins::Loop(code, cond, inc) => {
                 f.write_str("loop\n\tcode {")?;
                 for ins in code {

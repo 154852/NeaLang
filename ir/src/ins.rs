@@ -257,6 +257,12 @@ pub enum Ins {
     /// ```
     Ge(ValueType),
 
+    /// Pushes boolean 1 if both of the last two (popped) items on the stack are 1
+    BoolAnd,
+
+    /// Pushes boolean 1 if either of the last two (popped) items on the stack are 1
+    BoolOr,
+
     /// Code, Condition, Inc
     /// Continues to loop over it's code while it's condition does not evaluate to zero, running inc after each iteration
     /// Initially evaluates the condition. If it is zero, it breaks. Otherwise it runs code, followed by inc, and then re-evaluates.

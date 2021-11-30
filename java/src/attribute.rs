@@ -1,4 +1,4 @@
-use crate::ClassAccessFlags;
+use crate::{ClassAccessFlags, Descriptor};
 use crate::io::BinaryWriter;
 use crate::classfile::ClassFile;
 use crate::instructions::Ins;
@@ -251,7 +251,7 @@ impl StackMapTable {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum VerificationTypeInfo {
     Top,
     Integer,
@@ -275,6 +275,22 @@ impl VerificationTypeInfo {
                 writer.u8(7);
                 writer.u16(class.constant_pool_index_to_encodable_index(*idx));
             },
+        }
+    }
+
+    pub fn from_descriptor(desc: &Descriptor, class: &mut ClassFile) -> VerificationTypeInfo {
+        match desc {
+            Descriptor::Byte => VerificationTypeInfo::Integer,
+            Descriptor::Char => VerificationTypeInfo::Integer,
+            Descriptor::Double => VerificationTypeInfo::Double,
+            Descriptor::Float => VerificationTypeInfo::Float,
+            Descriptor::Int => VerificationTypeInfo::Integer,
+            Descriptor::Long => VerificationTypeInfo::Long,
+            Descriptor::Reference(name) => VerificationTypeInfo::Object(class.const_class(name)),
+            Descriptor::Short => VerificationTypeInfo::Integer,
+            Descriptor::Boolean => VerificationTypeInfo::Integer,
+            Descriptor::Array(_, _) => VerificationTypeInfo::Object(class.const_class(&desc.to_string())),
+            Descriptor::Void => panic!("void can not be a verification type"),
         }
     }
 }

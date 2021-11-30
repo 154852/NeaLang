@@ -146,6 +146,8 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::Ge(vt) => insns.push(wasm::Ins::Ge(crate::util::value_type_to_num_type(vt), vt.is_signed())),
             ir::Ins::Eq(vt) => insns.push(wasm::Ins::Eq(crate::util::value_type_to_num_type(vt))),
             ir::Ins::Ne(vt) => insns.push(wasm::Ins::Ne(crate::util::value_type_to_num_type(vt))),
+            ir::Ins::BoolAnd => insns.push(wasm::Ins::And(wasm::NumType::I32)),
+            ir::Ins::BoolOr => insns.push(wasm::Ins::Or(wasm::NumType::I32)),
             ir::Ins::Call(idx) => {
                 insns.push(wasm::Ins::Call(self.function_index(*idx).unwrap()));
             },

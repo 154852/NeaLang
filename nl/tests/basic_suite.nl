@@ -56,6 +56,20 @@ func test_if_else() {
 	test_fail("test_if_else");
 }
 
+func test_bool_expr() {
+	if 1 + 2 == 3 && 1 == 1 {
+		if 1 + 2 == 1 || 1 == 1 {
+			if 1 + 2 == 1 || 2 == 1 {
+
+			} else {
+				test_pass("test_bool_expr");
+				return;
+			}
+		}
+	}
+	test_fail("test_bool_expr");
+}
+
 func test_math() {
 	if 1 + 2 == 3 {
 		if 3 * 4 == 12 {
@@ -131,6 +145,7 @@ func test_op_order() {
 func [entry] main() {
 	test_if();
 	test_if_else();
+	test_bool_expr();
 	test_new();
 	test_int_slice_index();
 	test_math();

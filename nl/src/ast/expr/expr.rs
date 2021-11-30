@@ -295,7 +295,37 @@ impl Expr {
         syntax::MatchResult::Ok(expr)
     }
 
+    fn parse_op_bool<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
+        let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_op_cmp));
+        let start = stream.tell_start();
+
+        loop {
+            match stream.token_kind() {
+                Some(TokenKind::BoolAnd) | Some(TokenKind::BoolOr) => {
+                    let op = match stream.token_kind().unwrap() {
+                        TokenKind::BoolAnd => BinaryOp::BoolAnd,
+                        TokenKind::BoolOr => BinaryOp::BoolOr,
+                        _ => unreachable!()
+                    };
+                    stream.step();
+
+                    let right = syntax::ex!(syntax::parse!(stream, Expr::parse_op_cmp), stream.error("Expected right hand side to expression"));
+
+                    expr = Expr::BinaryExpr(BinaryExpr {
+                        span: syntax::Span::new(start, stream.tell_start()),
+                        op,
+                        left: Box::new(expr),
+                        right: Box::new(right)
+                    });
+                },
+                _ => break,
+            }
+        }
+
+        syntax::MatchResult::Ok(expr)
+    }
+
     pub fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
-        Expr::parse_op_cmp(stream)
+        Expr::parse_op_bool(stream)
     }
 }

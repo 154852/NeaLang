@@ -9,6 +9,7 @@ pub enum TokenKind {
     OpenCurly, CloseCurly, OpenParen, CloseParen, OpenBracket, CloseBracket,
     Colon, Semi, Dot, Comma, Add, Mul, Div, Sub, Eq,
     DblEq, NotEq, Lt, Gt, Le, Ge,
+    BoolAnd, BoolOr,
     Whitespace
 }
 
@@ -28,7 +29,9 @@ impl syntax::TokenMatcher<TokenKind> for Matcher {
             "==" => TokenKind::DblEq,
             "!=" => TokenKind::NotEq,
             "<=" => TokenKind::Le,
-            ">=" => TokenKind::Ge
+            ">=" => TokenKind::Ge,
+            "&&" => TokenKind::BoolAnd,
+            "||" => TokenKind::BoolOr
         );
 
         syntax::exact!(string, offset, 

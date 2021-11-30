@@ -316,6 +316,22 @@ impl TranslationContext {
                 ins.push(x86::Ins::CmpRegReg(a, b));
                 ins.push(x86::Ins::ConditionalSet(x86::Condition::GreaterOrEqual, a.class()));
             },
+            ir::Ins::BoolAnd => {
+                let b = ftc.stack().pop().u8();
+                let a = ftc.stack().peek().u8();
+                // a = a & b
+                ins.push(x86::Ins::AndRegReg(
+                    a, b,
+                ));
+            },
+            ir::Ins::BoolOr => {
+                let b = ftc.stack().pop().u8();
+                let a = ftc.stack().peek().u8();
+                // a = a + b
+                ins.push(x86::Ins::OrRegReg(
+                    a, b,
+                ));
+            },
             ir::Ins::Loop(body, condition, increment) => {
                 let start = ftc.new_local_symbol();
                 ins.push(x86::Ins::LocalSymbol(start));

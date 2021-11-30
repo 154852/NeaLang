@@ -38,6 +38,17 @@ pub enum Ins {
     /// A <- A + B
     AddMemImm(Size, Mem, u64),
 
+    /// A <- A & B
+    AndRegReg(Reg, Reg),
+    /// A <- A & B
+    AndRegMem(Reg, Mem),
+    /// A <- A & B
+    AndMemReg(Mem, Reg),
+    /// A <- A & B
+    AndRegImm(Reg, u64),
+    /// A <- A & B
+    AndMemImm(Size, Mem, u64),
+
     // Call A
     CallGlobalSymbol(GlobalSymbolID),
 
@@ -102,6 +113,17 @@ pub enum Ins {
     // A <- Zero extended B
     MovzxRegMem(Size, Reg, Mem),
 
+    /// A <- A | B
+    OrRegReg(Reg, Reg),
+    /// A <- A | B
+    OrRegMem(Reg, Mem),
+    /// A <- A | B
+    OrMemReg(Mem, Reg),
+    /// A <- A | B
+    OrRegImm(Reg, u64),
+    /// A <- A | B
+    OrMemImm(Size, Mem, u64),
+
     /// Pop A
     PopReg(Reg),
     /// Pop A
@@ -149,6 +171,13 @@ impl Ins {
             Ins::AddMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x00 } else { 0x01 }).rm(r, m).to(data),
             Ins::AddRegImm(r, i) => Encoder::new(if r.size() == Size::Byte { 0x80 } else { 0x81 }).rn(r, 0).immn(i as u32, r.size()).to(data),
             Ins::AddMemImm(s, ref m, i) => Encoder::new(if s == Size::Byte { 0x80 } else { 0x81 }).mn(s, m, 0).immn(i as u32, s).to(data),
+
+            // https://www.felixcloutier.com/x86/and
+            Ins::AndRegReg(a, b) => Encoder::new(if a.size() == Size::Byte { 0x20 } else { 0x21 }).rr(b, a).to(data),
+            Ins::AndRegMem(r, ref m) => Encoder::new(if r.size() == Size::Byte { 0x22 } else { 0x23 }).rm(r, m).to(data),
+            Ins::AndMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x20 } else { 0x21 }).rm(r, m).to(data),
+            Ins::AndRegImm(r, i) => Encoder::new(if r.size() == Size::Byte { 0x80 } else { 0x81 }).rn(r, 4).immn(i as u32, r.size()).to(data),
+            Ins::AndMemImm(s, ref m, i) => Encoder::new(if s == Size::Byte { 0x80 } else { 0x81 }).mn(s, m, 4).immn(i as u32, s).to(data),
 
             // https://www.felixcloutier.com/x86/call
             Ins::CallGlobalSymbol(id) => {
@@ -235,6 +264,13 @@ impl Ins {
                 Size::Word => Encoder::new_long([0x0f, 0xb7]).rm(r, m).to(data),
                 _ => panic!("Cannot zero extend from 8 or 16 bits")
             },
+
+            // https://www.felixcloutier.com/x86/or
+            Ins::OrRegReg(a, b) => Encoder::new(if a.size() == Size::Byte { 0x08 } else { 0x09 }).rr(b, a).to(data),
+            Ins::OrRegMem(r, ref m) => Encoder::new(if r.size() == Size::Byte { 0x0a } else { 0x0b }).rm(r, m).to(data),
+            Ins::OrMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x08 } else { 0x09 }).rm(r, m).to(data),
+            Ins::OrRegImm(r, i) => Encoder::new(if r.size() == Size::Byte { 0x80 } else { 0x81 }).rn(r, 1).immn(i as u32, r.size()).to(data),
+            Ins::OrMemImm(s, ref m, i) => Encoder::new(if s == Size::Byte { 0x80 } else { 0x81 }).mn(s, m, 1).immn(i as u32, s).to(data),
 
             // https://www.felixcloutier.com/x86/pop
             Ins::PopReg(r) => Encoder::new(0x58).offset(r.class().u32()).to(data),
