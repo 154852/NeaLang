@@ -7,6 +7,7 @@ pub enum IrGenErrorKind {
     UnknownType,
     VariableDoesNotExist(String),
     FunctionDoesNotExist(String),
+    MethodNotStatic,
     InvalidInteger,
     BinaryOpTypeMismatch,
     AssignmentTypeMismatch,
@@ -68,6 +69,7 @@ impl IrGenError {
             IrGenErrorKind::StdLinkError => format!("Not linked with std, try importing std"),
             IrGenErrorKind::UnknownAnnotation(name) => format!("Unknown annotation '{}'", name),
             IrGenErrorKind::InvalidAnnotationExpression(name) => format!("Invalid annotation, expected {}", name),
+            IrGenErrorKind::MethodNotStatic => format!("Method is not static"),
         }
     }
 }

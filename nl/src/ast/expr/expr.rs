@@ -121,6 +121,13 @@ impl Expr {
                     name
                 })
             },
+            Some(TokenKind::SelfKeyword) => {
+                stream.step();
+                Expr::Name(NameExpr {
+                    span: syntax::Span::new(start, stream.tell_start()),
+                    name: String::from("self")
+                })
+            },
             Some(TokenKind::NewKeyword) => {
                 stream.step();
                 

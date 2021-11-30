@@ -21,18 +21,43 @@ impl CallExpr {
                 }
             },
             Expr::MemberAccess(member_access) => {
-                let v = member_access.object.resultant_type(ctx, None)?;
-                match v {
-                    ir::ValueType::Ref(r) => match r.as_ref() {
-                        ir::StorableType::Compound(c) => {
-                            match ctx.ir_unit.find_method_index(c.clone(), &member_access.prop) {
-                                Some(idx) => ctx.ir_unit.get_function(idx).unwrap(),
+                let static_result = match member_access.object.as_ref() {
+                    Expr::Name(name) => {
+                        if let Some(compound_type) = ctx.ir_unit.find_type(&name.name) {
+                            match ctx.ir_unit.find_method_index(compound_type.clone(), &member_access.prop) {
+                                Some(idx) => {
+                                    let func = ctx.ir_unit.get_function(idx).unwrap();
+                                    if func.is_virtual() {
+                                        return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::MethodNotStatic))
+                                    }
+                                    Some(func)
+                                },
                                 _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist(member_access.prop.clone()))),
                             }
-                        },
-                        _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
+                        } else {
+                            None
+                        }
                     },
-                    _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS))
+                    _ => None
+                };
+
+
+                if let Some(static_result) = static_result {
+                    static_result
+                } else {
+                    let v = member_access.object.resultant_type(ctx, None)?;
+                    match v {
+                        ir::ValueType::Ref(r) => match r.as_ref() {
+                            ir::StorableType::Compound(c) => {
+                                match ctx.ir_unit.find_method_index(c.clone(), &member_access.prop) {
+                                    Some(idx) => ctx.ir_unit.get_function(idx).unwrap(),
+                                    _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist(member_access.prop.clone()))),
+                                }
+                            },
+                            _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
+                        },
+                        _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS))
+                    }
                 }
             },
             _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS))
@@ -54,19 +79,47 @@ impl CallExpr {
                 }
             },
             Expr::MemberAccess(member_access) => {
-                // Also acts as first argument
-                let v = member_access.object.append_ir_value(ctx, target, None)?;
-                match v {
-                    ir::ValueType::Ref(r) => match r.as_ref() {
-                        ir::StorableType::Compound(c) => {
-                            match ctx.ir_unit.find_method_index(c.clone(), &member_access.prop) {
-                                Some(x) => (x, ctx.ir_unit.get_function(x).unwrap()),
+                let static_result = match member_access.object.as_ref() {
+                    Expr::Name(name) => {
+                        if let Some(compound_type) = ctx.ir_unit.find_type(&name.name) {
+                            match ctx.ir_unit.find_method_index(compound_type.clone(), &member_access.prop) {
+                                Some(idx) => {
+                                    let func = ctx.ir_unit.get_function(idx).unwrap();
+                                    if func.is_virtual() {
+                                        return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::MethodNotStatic))
+                                    }
+                                    Some((idx, func))
+                                },
                                 _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist(member_access.prop.clone()))),
                             }
-                        },
-                        _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
+                        } else {
+                            None
+                        }
                     },
-                    _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS))
+                    _ => None
+                };
+
+                if let Some(static_result) = static_result {
+                    static_result
+                } else {
+                    // Also acts as first argument
+                    let v = member_access.object.append_ir_value(ctx, target, None)?;
+                    match v {
+                        ir::ValueType::Ref(r) => match r.as_ref() {
+                            ir::StorableType::Compound(c) => {
+                                match ctx.ir_unit.find_method_index(c.clone(), &member_access.prop) {
+                                    Some(x) => {
+                                        let func = ctx.ir_unit.get_function(x).unwrap();
+                                        if func.is_static() { target.push(ir::Ins::Drop); }
+                                        (x, func)
+                                    },
+                                    _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::FunctionDoesNotExist(member_access.prop.clone()))),
+                                }
+                            },
+                            _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS)),
+                        },
+                        _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS))
+                    }
                 }
             },
             _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS))
@@ -76,7 +129,7 @@ impl CallExpr {
             return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallNotOneReturnInExpr));
         }
         
-        if func.method_of().is_some() {
+        if func.is_virtual() {
             if self.args.len() + 1 != func.signature().param_count() {
                 return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::CallArgParamCountMismatch(self.args.len() + 1, func.signature().param_count())));
             }

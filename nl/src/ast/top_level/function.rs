@@ -28,7 +28,8 @@ pub struct Function {
     pub params: Vec<FunctionParam>,
     pub code: Option<Vec<Code>>,
     pub annotations: Vec<FunctionAnnotation>,
-    pub return_types: Vec<TypeExpr>
+    pub return_types: Vec<TypeExpr>,
+    pub is_static: bool
 }
 
 impl Function {
@@ -52,11 +53,6 @@ impl Function {
     }
 
     pub fn to_ir_base(&self, ir_unit: &ir::TranslationUnit, _unit: &TranslationUnit) -> Result<ir::Function, IrGenError> {
-        let mut params = Vec::with_capacity(self.params.len());
-        for param in &self.params {
-            params.push(param.param_type.to_ir_value_type(ir_unit)?);
-        }
-
         let mut returns = Vec::with_capacity(self.return_types.len());
         for return_type in &self.return_types {
             returns.push(return_type.to_ir_value_type(ir_unit)?);
@@ -69,12 +65,33 @@ impl Function {
                 None => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::UnknownType))
             };
 
-            if self.code.is_some() {
-                ir::Function::new_method(&self.name, ir::Signature::new(params, returns), ctr)
+            let mut params = Vec::with_capacity(self.params.len() + if self.is_static { 0 } else { 1 });
+            
+            if !self.is_static {
+                params.push(ir::ValueType::Ref(Box::new(ir::StorableType::Compound(ctr.clone()))));
+            }
+
+            for param in &self.params {
+                params.push(param.param_type.to_ir_value_type(ir_unit)?);
+            }
+
+            let method_data = if self.is_static {
+                ir::MethodData::new_static(ctr)
             } else {
-                ir::Function::new_extern_method(&self.name, ir::Signature::new(params, returns), ctr)
+                ir::MethodData::new_virtual(ctr)
+            };
+
+            if self.code.is_some() {
+                ir::Function::new_method(&self.name, ir::Signature::new(params, returns), method_data)
+            } else {
+                ir::Function::new_extern_method(&self.name, ir::Signature::new(params, returns), method_data)
             }
         } else {
+            let mut params = Vec::with_capacity(self.params.len());
+            for param in &self.params {
+                params.push(param.param_type.to_ir_value_type(ir_unit)?);
+            }
+
             if self.code.is_some() {
                 ir::Function::new(&self.name, ir::Signature::new(params, returns))
             } else {
@@ -108,6 +125,12 @@ impl Function {
             function_idx: idx,
             local_map: HashMap::new()
         };
+
+        if !self.is_static {
+            ctx.push_local("self", ir::StorableType::Value(
+                ir::ValueType::Ref(Box::new(ir::StorableType::Compound(ctx.func().method_of().unwrap())))
+            ));
+        }
 
         for param in &self.params {
             let vt = param.param_type.to_ir_value_type(ctx.ir_unit)?;
@@ -161,12 +184,18 @@ impl Function {
 
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::OpenParen), stream.error("Expected '('"));
 
+        let mut is_static = true;
+
         let mut params = Vec::new();
         loop {
-            params.push(match syntax::parse!(stream, FunctionParam::parse) {
-                Some(x) => x,
-                None => break
-            });
+            if params.len() == 0 && is_static && path.len() > 0 && syntax::tk_iss!(stream, TokenKind::SelfKeyword) {
+                is_static = false;
+            } else {
+                params.push(match syntax::parse!(stream, FunctionParam::parse) {
+                    Some(x) => x,
+                    None => break
+                });
+            }
 
             if !syntax::tk_iss!(stream, TokenKind::Comma) { break }
         }
@@ -215,7 +244,8 @@ impl Function {
             span: syntax::Span::new(start, end),
             path, name, params, code,
             return_types: returns,
-            annotations
+            annotations,
+            is_static
         })
     }
 }

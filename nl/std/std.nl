@@ -15,11 +15,18 @@ struct String {
 	data: u8[]
 }
 
-func String.len(self: String): uptr {
+func String.empty(): String {
+	var string: String = new String;
+	string.data = new u8[0];
+
+	return string;
+}
+
+func String.len(self): uptr {
 	return self.data.length;
 }
 
-func String.at(self: String, idx: uptr): u8 {
+func String.at(self, idx: uptr): u8 {
 	return self.data[idx];
 }
 

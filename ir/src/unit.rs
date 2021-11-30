@@ -199,12 +199,46 @@ pub enum FunctionAttr {
 }
 
 #[derive(Debug)]
+pub struct MethodData {
+    compound_type: CompoundTypeRef,
+    is_static: bool
+}
+
+impl MethodData {
+    pub fn new_virtual(compound_type: CompoundTypeRef) -> MethodData {
+        MethodData {
+            compound_type,
+            is_static: false
+        }
+    }
+
+    pub fn new_static(compound_type: CompoundTypeRef) -> MethodData {
+        MethodData {
+            compound_type,
+            is_static: true
+        }
+    }
+
+    pub fn compound_type(&self) -> CompoundTypeRef {
+        self.compound_type.clone()
+    }
+
+    pub fn is_static(&self) -> bool {
+        self.is_static
+    }
+
+    pub fn is_virtual(&self) -> bool {
+        !self.is_static
+    }
+}
+
+#[derive(Debug)]
 pub struct Function {
     name: String,
     locals: Vec<Local>,
     signature: Signature,
     code: Option<Vec<Ins>>,
-    method_of: Option<CompoundTypeRef>,
+    method_data: Option<MethodData>,
     
     attrs: Vec<FunctionAttr>
 }
@@ -216,18 +250,18 @@ impl Function {
             locals: Vec::new(),
             signature,
             code: Some(Vec::new()),
-            method_of: None,
+            method_data: None,
             attrs: Vec::new(),
         }
     }
 
-    pub fn new_method<T: Into<String>>(name: T, signature: Signature, ctr: CompoundTypeRef) -> Function {
+    pub fn new_method<T: Into<String>>(name: T, signature: Signature, method_data: MethodData) -> Function {
         Function {
             name: name.into(),
             locals: Vec::new(),
             signature,
             code: Some(Vec::new()),
-            method_of: Some(ctr),
+            method_data: Some(method_data),
             attrs: Vec::new(),
         }
     }
@@ -238,18 +272,18 @@ impl Function {
             locals: Vec::new(),
             signature,
             code: None,
-            method_of: None,
+            method_data: None,
             attrs: Vec::new(),
         }
     }
 
-    pub fn new_extern_method<T: Into<String>>(name: T, signature: Signature, ctr: CompoundTypeRef) -> Function {
+    pub fn new_extern_method<T: Into<String>>(name: T, signature: Signature, method_data: MethodData) -> Function {
         Function {
             name: name.into(),
             locals: Vec::new(),
             signature,
             code: None,
-            method_of: Some(ctr),
+            method_data: Some(method_data),
             attrs: Vec::new(),
         }
     }
@@ -310,7 +344,30 @@ impl Function {
     }
 
     pub fn method_of(&self) -> Option<CompoundTypeRef> {
-        self.method_of.clone()
+        match &self.method_data {
+            Some(data) => Some(data.compound_type()),
+            None => None
+        }
+    }
+
+    pub fn method_data(&self) -> Option<&MethodData> {
+        self.method_data.as_ref()
+    }
+
+    pub fn is_virtual(&self) -> bool {
+        if let Some(method_data) = &self.method_data {
+            method_data.is_virtual()
+        } else {
+            false
+        }
+    }
+
+    pub fn is_static(&self) -> bool {
+        if let Some(method_data) = &self.method_data {
+            method_data.is_static()
+        } else {
+            false
+        }
     }
 
     pub fn name(&self) -> &str {

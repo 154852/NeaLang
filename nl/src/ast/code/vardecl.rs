@@ -43,20 +43,7 @@ impl VarDeclaration {
 
     pub fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
         let expected_type = if let Some(var_type) = &self.var_type {
-            let var_type = var_type.to_ir_storable_type(ctx.ir_unit)?;
-
-            match var_type {
-                ir::StorableType::Value(v) => Some(v),
-                ir::StorableType::Compound(ct) => {
-                    ctx.push_local(&self.name, ir::StorableType::Value(ir::ValueType::Ref(Box::new(ir::StorableType::Compound(ct)))));
-                    return Ok(());
-                },
-                ir::StorableType::Slice(st) => {
-                    ctx.push_local(&self.name, ir::StorableType::Value(ir::ValueType::Ref(Box::new(ir::StorableType::Slice(st)))));
-                    return Ok(());
-                }
-                ir::StorableType::SliceData(_) => unreachable!()
-            }
+            Some(var_type.to_ir_value_type(ctx.ir_unit)?)
         } else {
             None
         };

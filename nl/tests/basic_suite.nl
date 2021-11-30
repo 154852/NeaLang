@@ -142,6 +142,16 @@ func test_op_order() {
 	test_fail("test_op_order");
 }
 
+func test_static() {
+	var x = String.empty();
+
+	if x.len() == 0 {
+		test_pass("test_static");
+	} else {
+		test_fail("test_static");
+	}
+}
+
 func [entry] main() {
 	test_if();
 	test_if_else();
@@ -153,4 +163,5 @@ func [entry] main() {
 	test_for();
 	test_div();
 	test_op_order();
+	test_static();
 }
