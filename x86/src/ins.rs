@@ -73,6 +73,11 @@ pub enum Ins {
     ConditionalSet(Condition, RegClass),
 
     // eax <- eax / A
+    DivReg(Reg),
+    // eax <- eax / A
+    DivMem(Size, Mem),
+
+    // eax <- eax / A
     IDivReg(Reg),
     // eax <- eax / A
     IDivMem(Size, Mem),
@@ -204,6 +209,10 @@ impl Ins {
 
             // https://www.felixcloutier.com/x86/setcc
             Ins::ConditionalSet(c, r) => Encoder::new_long([0x0f, 0x90 + c.base()]).rn(r.u8(), 0).to(data),
+
+            // https://www.felixcloutier.com/x86/div
+            Ins::DivReg(a) => Encoder::new(if a.size() == Size::Byte { 0xf6 } else { 0xf7 }).rn(a, 6).to(data),
+            Ins::DivMem(s, ref m) => Encoder::new(if s == Size::Byte { 0xf6 } else { 0xf7 }).mn(s, m, 6).to(data),
 
             // https://www.felixcloutier.com/x86/idiv
             Ins::IDivReg(a) => Encoder::new(if a.size() == Size::Byte { 0xf6 } else { 0xf7 }).rn(a, 7).to(data),

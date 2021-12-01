@@ -89,6 +89,8 @@ impl ForStmt {
         let mut condition_body = IrGenCodeTarget::new();
         if let Some(condition) = &self.condition {
             condition.append_ir_value(ctx, &mut condition_body, Some(&ir::ValueType::Bool))?;
+        } else {
+            condition_body.push(ir::Ins::PushLiteral(ir::ValueType::Bool, 1));
         }
 
         target.push(ir::Ins::Loop(

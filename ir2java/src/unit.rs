@@ -73,8 +73,36 @@ impl<'a> TranslationContext<'a> {
             if func.is_extern() { continue; }
 
             let mut insns = InstructionTarget::new(0);
-            let mut path_stack = PathStack::new();
             let mut stack_map = StackMapBuilder::new(func);
+
+            for (l, local) in func.locals()[func.signature().param_count()..].iter().enumerate() {
+                match local.local_type() {
+                    ir::StorableType::Compound(_) => {
+                        insns.push(java::Ins::AConstNull);
+                        insns.push(java::Ins::AStore { local: (l + func.signature().param_count()) as u8 });
+                    },
+                    ir::StorableType::Value(val) =>
+                        match val {
+                            ir::ValueType::Ref(_) => {
+                                insns.push(java::Ins::AConstNull);
+                                insns.push(java::Ins::AStore { local: (l + func.signature().param_count()) as u8 });
+                            },
+                            _ => {
+                                insns.push(java::Ins::IConst0);
+                                insns.push(java::Ins::IStore { local: (l + func.signature().param_count()) as u8 });
+                            }
+                        },
+                    ir::StorableType::Slice(_) => {
+                        insns.push(java::Ins::AConstNull);
+                        insns.push(java::Ins::AStore { local: (l + func.signature().param_count()) as u8 });
+                    },
+                    ir::StorableType::SliceData(_) => panic!(),
+                }
+
+                stack_map.accessed_local(ir::LocalIndex::new(l + func.signature().param_count()));
+            }
+
+            let mut path_stack = PathStack::new();
             for ins in func.code() {
                 ctx.translate_ins(func, ins, &mut path_stack, &mut insns, &mut stack_map, &mut classfile);
             }

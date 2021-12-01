@@ -54,7 +54,7 @@ impl Path {
             },
             Path::Global(idx, _desc) => {
                 stack_map.stack_pop();
-                insns.push(java::Ins::PutStatic { index: *idx })
+                insns.push(java::Ins::PutStatic { index: *idx });
             },
             Path::Slice(desc) => {
                 stack_map.stack_pop();
@@ -108,9 +108,14 @@ impl InstructionTarget {
         }
     }
 
-    fn push(&mut self, ins: java::Ins) {
+    pub(crate) fn push(&mut self, ins: java::Ins) -> usize {
         self.size += ins.size(self.size);
         self.insns.push(ins);
+        self.insns.len() - 1
+    }
+
+    fn at_mut(&mut self, idx: usize) -> &mut java::Ins {
+        &mut self.insns[idx]
     }
 
     fn extend(&mut self, target: InstructionTarget, overlap: usize) {
@@ -148,7 +153,7 @@ impl<'a> StackMapBuilder<'a> {
         }
     }
 
-    fn accessed_local(&mut self, local: ir::LocalIndex) {
+    pub(crate) fn accessed_local(&mut self, local: ir::LocalIndex) {
         if local.idx() >= self.first_unused_local {
             self.first_unused_local = local.idx() + 1;
         }
@@ -177,6 +182,8 @@ impl<'a> StackMapBuilder<'a> {
 
     fn prepare_frame(&mut self, addr: usize, class: &mut java::ClassFile) -> Option<java::StackMapFrame> {
         if addr == self.offset { return None; }
+
+        assert!(addr > self.offset);
 
         let delta = self.delta_to(addr);
         self.offset = addr;
@@ -235,7 +242,7 @@ impl<'a> StackMapBuilder<'a> {
 }
 
 impl<'a> TranslationContext<'a> {
-    pub(crate) fn translate_ins(&self, func: &ir::Function, ins: &ir::Ins, path_stack: &mut PathStack, insns: &mut InstructionTarget, stack_map: &mut StackMapBuilder, class: &mut java::ClassFile) {
+    pub(crate) fn translate_ins(&self, func: &ir::Function, ins: &ir::Ins, path_stack: &mut PathStack, insns: &mut InstructionTarget, stack_map: &mut StackMapBuilder, class: &mut java::ClassFile) -> bool {
         macro_rules! icmp {
             ($op:ident) => {
                 {
@@ -253,6 +260,8 @@ impl<'a> TranslationContext<'a> {
                     stack_map.stack_push(java::VerificationTypeInfo::Integer);
                     let frame = stack_map.prepare_frame(insns.tell(), class).unwrap();
                     stack_map.push_frame(frame);
+
+                    false
                 }
             };
         }
@@ -304,15 +313,19 @@ impl<'a> TranslationContext<'a> {
                 }
             
                 path_stack.push(path);
+                false
             },
             ir::Ins::Push(_) => {
                 path_stack.pop().push(stack_map, insns, class);
+                false
             },
             ir::Ins::Pop(_) => {
                 path_stack.pop().pop(stack_map, insns, class);
+                false
             },
             ir::Ins::Index(_) => {
                 // Do nothing
+                false
             },
             ir::Ins::New(st) => {
                 let name = match st {
@@ -331,6 +344,7 @@ impl<'a> TranslationContext<'a> {
                 insns.push(java::Ins::InvokeSpecial { index: method });
 
                 stack_map.stack_push(java::VerificationTypeInfo::Object(class_index));
+                false
             },
             ir::Ins::NewSlice(st) => {
                 stack_map.stack_pop();
@@ -347,6 +361,7 @@ impl<'a> TranslationContext<'a> {
                     ir::StorableType::Slice(_) => todo!(),
                     ir::StorableType::SliceData(_) => panic!(),
                 }
+                false
             },
             ir::Ins::Convert(from, to) => {
                 stack_map.stack_pop();
@@ -354,6 +369,8 @@ impl<'a> TranslationContext<'a> {
                 if let Some(ins) = java::opt::ins::conv(&crate::util::value_type_to_descriptor(from, class), &crate::util::value_type_to_descriptor(to, class)) {
                     insns.push(ins);
                 }
+
+                false
             },
             ir::Ins::Call(idx) => {
                 let call_func = self.unit().get_function(*idx).unwrap();
@@ -373,6 +390,8 @@ impl<'a> TranslationContext<'a> {
                 }
 
                 insns.push(java::Ins::InvokeStatic { index: method_ref });
+
+                false
             },
             ir::Ins::Ret => {
                 if let Some(ret_type) = func.signature().returns().get(0) {
@@ -381,32 +400,40 @@ impl<'a> TranslationContext<'a> {
                 } else {
                     insns.push(java::Ins::Return);
                 }
+
+                true
             },
             ir::Ins::Inc(_, _) => todo!(),
             ir::Ins::Dec(_, _) => todo!(),
             ir::Ins::Add(vt) => {
                 insns.push(java::opt::ins::add(&crate::util::value_type_to_descriptor(vt, class)));
                 stack_map.stack_pop();
+                false
             },
             ir::Ins::Mul(vt) => {
                 insns.push(java::opt::ins::mul(&crate::util::value_type_to_descriptor(vt, class)));
                 stack_map.stack_pop();
+                false
             },
             ir::Ins::Div(vt) => {
                 insns.push(java::opt::ins::div(&crate::util::value_type_to_descriptor(vt, class)));
                 stack_map.stack_pop();
+                false
             }
             ir::Ins::Sub(vt) => {
                 insns.push(java::opt::ins::sub(&crate::util::value_type_to_descriptor(vt, class)));
                 stack_map.stack_pop();
+                false
             }
             ir::Ins::BoolAnd => {
                 insns.push(java::Ins::IAnd);
                 stack_map.stack_pop();
+                false
             },
             ir::Ins::BoolOr => {
                 insns.push(java::Ins::IOr);
                 stack_map.stack_pop();
+                false
             },
             ir::Ins::Eq(vt) =>
                 match vt {
@@ -473,6 +500,8 @@ impl<'a> TranslationContext<'a> {
 
                 let frame = stack_map.prepare_frame(insns.tell(), class).unwrap();
                 stack_map.push_frame(frame);
+
+                false
             },
             ir::Ins::If(true_then, condition) => {
                 let mut condition_branch = InstructionTarget::new(insns.tell());
@@ -502,43 +531,48 @@ impl<'a> TranslationContext<'a> {
                     stack_map.stack_pop();
                     insns.push(java::Ins::Pop);
                 }
+
+                false
             },
             ir::Ins::IfElse(true_then, false_then, condition) => {
-                let mut condition_branch = InstructionTarget::new(insns.tell());
-                for ins in condition { self.translate_ins(func, ins, path_stack, &mut condition_branch, stack_map, class); }
-                let condition_branch_size = condition_branch.tell() - insns.tell();
+                for ins in condition { self.translate_ins(func, ins, path_stack, insns, stack_map, class); }
 
-                // Ifeq jump to false_then - 3 bytes
+                let false_then_branch_loc = insns.tell();
+                let false_then_branch = insns.push(java::Ins::IfEq { branch: 0 as i16 });
                 stack_map.stack_pop();
 
-                let mut true_branch = InstructionTarget::new(insns.tell() + condition_branch_size + 3);
-                for ins in true_then { self.translate_ins(func, ins, path_stack, &mut true_branch, stack_map, class); }
-                let true_branch_size = true_branch.tell() - condition_branch_size - 3 - insns.tell();
+                let mut unreachable = false;
+                for ins in true_then {
+                    unreachable = unreachable || self.translate_ins(func, ins, path_stack, insns, stack_map, class);
+                }
 
-                let false_frame = stack_map.prepare_frame(insns.tell() + condition_branch_size + 3 + true_branch_size + 3, class);
-
-                let mut false_branch = InstructionTarget::new(insns.tell() + condition_branch_size + 3 + true_branch_size + 3);
-                for ins in false_then { self.translate_ins(func, ins, path_stack, &mut false_branch, stack_map, class); }
-                let false_branch_size = false_branch.tell() - condition_branch_size - 3 - true_branch_size - 3 - insns.tell();
-
-                let overlap = insns.tell();
+                let end_branch_loc = insns.tell();
+                let end_branch = if !unreachable {
+                    Some(insns.push(java::Ins::Goto { branch: 0 as i16 }))
+                } else {
+                    None
+                };
                 
-                insns.extend(condition_branch, overlap);
-                insns.push(java::Ins::IfEq { branch: (true_branch_size + 3 + 3) as i16 });
-                insns.extend(true_branch, overlap + condition_branch_size + 3);
-                insns.push(java::Ins::Goto { branch: (false_branch_size + 3) as i16 });
-                if let Some(false_frame) = false_frame { stack_map.push_frame(false_frame); }
-                insns.extend(false_branch, overlap + condition_branch_size + 6 + true_branch_size);
-
+                *insns.at_mut(false_then_branch) = java::Ins::IfEq { branch: (insns.tell() - false_then_branch_loc) as i16 };
                 if let Some(frame) = stack_map.prepare_frame(insns.tell(), class) { stack_map.push_frame(frame); }
+
+                for ins in false_then { self.translate_ins(func, ins, path_stack, insns, stack_map, class); }
+
+                if let Some(end_branch) = end_branch {
+                    *insns.at_mut(end_branch) = java::Ins::Goto { branch: (insns.tell() - end_branch_loc) as i16 };
+                    if let Some(frame) = stack_map.prepare_frame(insns.tell(), class) { stack_map.push_frame(frame); }
+                }
+
+                false
             },
             ir::Ins::Break(_) => todo!(),
             ir::Ins::Continue(_) => todo!(),
             ir::Ins::PushLiteral(vt, i) => 
                 match vt {
-                    ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::U16 | ir::ValueType::I16 | ir::ValueType::U32 | ir::ValueType::I32 => {
-                        insns.push(java::Ins::SIPush { value: *i as i16 });
+                    ir::ValueType::UPtr | ir::ValueType::IPtr | ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::U16 | ir::ValueType::I16 | ir::ValueType::U32 | ir::ValueType::I32 | ir::ValueType::Bool => {
+                        insns.push(java::opt::ins::iconst(*i as i32, class));
                         stack_map.stack_push(java::VerificationTypeInfo::Integer);
+                        false
                     },
                     ir::ValueType::U64 | ir::ValueType::I64 => todo!(),
                     _ => panic!(),
@@ -546,6 +580,7 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::Drop => {
                 insns.push(java::Ins::Pop);
                 stack_map.stack_pop();
+                false
             },
         }
     }
