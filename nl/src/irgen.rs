@@ -24,7 +24,8 @@ pub enum IrGenErrorKind {
     NonValueCast,
     StdLinkError,
     UnknownAnnotation(String),
-    InvalidAnnotationExpression(String)
+    InvalidAnnotationExpression(String),
+    NonConstExprInSlice
 }
 
 pub struct IrGenError {
@@ -70,6 +71,7 @@ impl IrGenError {
             IrGenErrorKind::UnknownAnnotation(name) => format!("Unknown annotation '{}'", name),
             IrGenErrorKind::InvalidAnnotationExpression(name) => format!("Invalid annotation, expected {}", name),
             IrGenErrorKind::MethodNotStatic => format!("Method is not static"),
+            IrGenErrorKind::NonConstExprInSlice => format!("Slice literals can only take compile time known expressions"),
         }
     }
 }

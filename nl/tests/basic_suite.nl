@@ -152,6 +152,16 @@ func test_static() {
 	}
 }
 
+func test_slice_literal() {
+	var x = [1, 2, 3, 4];
+
+	if x.length == 4 && x[0] == 1 && x[2] == 3 {
+		test_pass("test_slice_literal");
+	} else {
+		test_fail("test_slice_literal");
+	}
+}
+
 func [entry] main() {
 	test_if();
 	test_if_else();
@@ -164,4 +174,5 @@ func [entry] main() {
 	test_div();
 	test_op_order();
 	test_static();
+	test_slice_literal();
 }

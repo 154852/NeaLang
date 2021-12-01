@@ -78,15 +78,17 @@ fn print_error_range(mut start: usize, mut end: usize, source: &str, path: &Path
 pub struct BuildContext {
     linked_paths: Vec<PathBuf>,
     target_arch_name: &'static str,
-    search_dirs: Vec<PathBuf>
+    search_dirs: Vec<PathBuf>,
+    emit_ast: bool
 }
 
 impl BuildContext {
-    pub fn new(linked_paths: &Vec<String>, target_arch_name: &'static str, search_dirs: &Vec<String>) -> BuildContext {
+    pub fn new(linked_paths: &Vec<String>, target_arch_name: &'static str, search_dirs: &Vec<String>, emit_ast: bool) -> BuildContext {
         BuildContext {
             linked_paths: linked_paths.iter().map(|x| Path::new(x).canonicalize().expect("Invalid path")).collect(),
             target_arch_name,
-            search_dirs: search_dirs.iter().map(|x| Path::new(x).canonicalize().expect("Invalid path")).collect()
+            search_dirs: search_dirs.iter().map(|x| Path::new(x).canonicalize().expect("Invalid path")).collect(),
+            emit_ast
         }
     }
 
@@ -141,6 +143,10 @@ impl BuildContext {
             },
             _ => unreachable!()
         };
+
+        if self.emit_ast {
+            println!("{:#?}", unit);
+        }
 
         for node in &unit.nodes {
             match node {
@@ -236,7 +242,7 @@ fn build(build_opts: &BuildOpts) {
             std::process::exit(1);
         }
     };
-    let ir_unit = BuildContext::new(&build_opts.path, arch.short_name(), &build_opts.include).build();
+    let ir_unit = BuildContext::new(&build_opts.path, arch.short_name(), &build_opts.include, build_opts.emit_ast).build();
 
     if build_opts.emit_ir {
         for (idx, func) in ir_unit.functions().iter().enumerate() {

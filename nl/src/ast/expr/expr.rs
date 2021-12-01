@@ -17,6 +17,7 @@ pub enum Expr {
     Index(IndexExpr),
     As(AsExpr),
     StringLit(StringLitExpr),
+    SliceLit(SliceLitExpr),
     NewExpr(NewExpr)
 }
 
@@ -33,6 +34,7 @@ impl Expr {
             Expr::As(a) => &a.span,
             Expr::StringLit(str) => &str.span,
             Expr::NewExpr(expr) => &expr.span,
+            Expr::SliceLit(expr) => &expr.span,
         }
     }
 }
@@ -50,6 +52,7 @@ impl Expr {
             Expr::As(as_expr) => as_expr.append_ir(ctx, target, prefered),
             Expr::StringLit(string_expr) => string_expr.append_ir_value(ctx, target, prefered),
             Expr::NewExpr(new_expr) => new_expr.append_ir_value(ctx, target, prefered),
+            Expr::SliceLit(slice_lit_expr) => slice_lit_expr.append_ir_value(ctx, target, prefered),
         }
     }
 
@@ -65,6 +68,7 @@ impl Expr {
             Expr::As(as_expr) => as_expr.resultant_type(ctx, prefered),
             Expr::StringLit(string_expr) => string_expr.resultant_type(ctx, prefered),
             Expr::NewExpr(new_expr) => new_expr.resultant_type(ctx, prefered),
+            Expr::SliceLit(slice_lit_expr) => slice_lit_expr.resultant_type(ctx, prefered),
         }
     }
 
@@ -80,6 +84,32 @@ impl Expr {
             Expr::As(as_expr) => return Err(IrGenError::new(as_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
             Expr::StringLit(string_expr) => return Err(IrGenError::new(string_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
             Expr::NewExpr(new_expr) => return Err(IrGenError::new(new_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
+            Expr::SliceLit(slice_lit_expr) => return Err(IrGenError::new(slice_lit_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
+        }
+    }
+
+    pub fn as_value(&self, ir_unit: &ir::TranslationUnit, value_type: &ir::ValueType) -> Result<ir::Value, IrGenError> {
+        match self {
+            Expr::NumberLit(num) =>
+                Ok(match value_type {
+                    ir::ValueType::U8 => ir::Value::U8(num.number.parse().unwrap()),
+                    ir::ValueType::I8 => ir::Value::I8(num.number.parse().unwrap()),
+                    ir::ValueType::U16 => ir::Value::U16(num.number.parse().unwrap()),
+                    ir::ValueType::I16 => ir::Value::I16(num.number.parse().unwrap()),
+                    ir::ValueType::U32 => ir::Value::U32(num.number.parse().unwrap()),
+                    ir::ValueType::I32 => ir::Value::I32(num.number.parse().unwrap()),
+                    ir::ValueType::U64 => ir::Value::U64(num.number.parse().unwrap()),
+                    ir::ValueType::I64 => ir::Value::I64(num.number.parse().unwrap()),
+                    _ => ir::Value::I32(num.number.parse().unwrap()),
+                }),
+            Expr::As(as_expr) => {
+                if as_expr.new_type.to_ir_value_type(ir_unit)? != *value_type {
+                    return Err(IrGenError::new(as_expr.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
+                }
+
+                return as_expr.expr.as_value(ir_unit, value_type);
+            },
+            _ => Err(IrGenError::new(self.span().clone(), IrGenErrorKind::NonConstExprInSlice))
         }
     }
 
@@ -95,6 +125,26 @@ impl Expr {
                 Expr::Closed(ClosedExpr {
                     span: syntax::Span::new(start, stream.tell_start()),
                     expr
+                })
+            },
+            Some(TokenKind::OpenBracket) => {
+                stream.step();
+                
+                let mut values = Vec::new();
+                loop {
+                    values.push(match syntax::parse!(stream, Expr::parse) {
+                        Some(x) => x,
+                        None => break
+                    });
+        
+                    if !syntax::tk_iss!(stream, TokenKind::Comma) { break }
+                }
+                
+                syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::CloseBracket), stream.error("Expected ']'"));
+
+                Expr::SliceLit(SliceLitExpr {
+                    span: syntax::Span::new(start, stream.tell_start()),
+                    values
                 })
             },
             Some(TokenKind::Number(s)) => {

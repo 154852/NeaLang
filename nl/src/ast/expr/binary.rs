@@ -57,6 +57,9 @@ impl BinaryExpr {
             BinaryOp::BoolOr => ir::Ins::BoolOr,
         });
 
-        Ok(left)
+        match self.op {
+            BinaryOp::Add | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Sub => Ok(left),
+            _ => Ok(ir::ValueType::Bool)
+        }
     }
 }
