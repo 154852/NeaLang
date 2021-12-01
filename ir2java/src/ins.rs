@@ -162,6 +162,19 @@ impl<'a> StackMapBuilder<'a> {
         self.stack.pop().expect("Could not pop");
     }
 
+    fn generate_full_frame(&self, delta: u16, class: &mut java::ClassFile) -> java::StackMapFrame {
+        let mut locals = Vec::new();
+        for i in 0..self.first_unused_local {
+            locals.push(crate::util::verification_type_for_storable(self.func.locals()[i].local_type(), class));
+        }
+
+        java::StackMapFrame::FullFrame {
+            offset: delta,
+            locals,
+            stack: self.stack.clone()
+        }
+    }
+
     fn prepare_frame(&mut self, addr: usize, class: &mut java::ClassFile) -> Option<java::StackMapFrame> {
         if addr == self.offset { return None; }
 
@@ -169,30 +182,24 @@ impl<'a> StackMapBuilder<'a> {
         self.offset = addr;
 
         if self.first_unused_local != self.previous_first_unused_local {
-            let mut locals = Vec::new();
-            for i in self.previous_first_unused_local..self.first_unused_local {
-                locals.push(crate::util::verification_type_for_storable(self.func.locals()[i].local_type(), class));
-            }
-
-            self.previous_first_unused_local = self.first_unused_local;
-
-            if locals.len() > 3 {
-                Some(java::StackMapFrame::FullFrame {
-                    offset: delta,
-                    locals,
-                    stack: self.stack.clone()
-                })
+            if self.first_unused_local - self.previous_first_unused_local > 3 {
+                self.previous_first_unused_local = self.first_unused_local;
+                Some(self.generate_full_frame(delta, class))
             } else if self.stack.len() == 0 {
+                let mut locals = Vec::new();
+                for i in self.previous_first_unused_local..self.first_unused_local {
+                    locals.push(crate::util::verification_type_for_storable(self.func.locals()[i].local_type(), class));
+                }
+
+                self.previous_first_unused_local = self.first_unused_local;
+
                 Some(java::StackMapFrame::AppendFrame {
                     offset: delta,
                     locals
                 })
             } else {
-                Some(java::StackMapFrame::FullFrame {
-                    offset: delta,
-                    locals,
-                    stack: self.stack.clone()
-                })
+                self.previous_first_unused_local = self.first_unused_local;
+                Some(self.generate_full_frame(delta, class))
             }
         } else {
             if self.stack.len() == 0 {
@@ -205,11 +212,7 @@ impl<'a> StackMapBuilder<'a> {
                     stack: self.stack[0]
                 })
             } else {
-                Some(java::StackMapFrame::FullFrame {
-                    offset: delta,
-                    locals: vec![],
-                    stack: self.stack.clone()
-                })
+                Some(self.generate_full_frame(delta, class))
             }
         }
     }
