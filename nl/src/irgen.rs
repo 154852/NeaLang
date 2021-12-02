@@ -25,7 +25,8 @@ pub enum IrGenErrorKind {
     StdLinkError,
     UnknownAnnotation(String),
     InvalidAnnotationExpression(String),
-    NonConstExprInSlice
+    NonConstExprInSlice,
+    InvalidDropType(String)
 }
 
 pub struct IrGenError {
@@ -72,6 +73,7 @@ impl IrGenError {
             IrGenErrorKind::InvalidAnnotationExpression(name) => format!("Invalid annotation, expected {}", name),
             IrGenErrorKind::MethodNotStatic => format!("Method is not static"),
             IrGenErrorKind::NonConstExprInSlice => format!("Slice literals can only take compile time known expressions"),
+            IrGenErrorKind::InvalidDropType(name) => format!("Cannot drop value of type {}", name),
         }
     }
 }

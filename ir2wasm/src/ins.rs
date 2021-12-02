@@ -126,6 +126,18 @@ impl<'a> TranslationContext<'a> {
                     self.function_index(self.unit().find_alloc_slice().expect("Not linked with std")).unwrap()
                 ));
             },
+            ir::Ins::Free(st) => {
+                insns.push(wasm::Ins::ConstI32(crate::util::size_for_storable_type(st) as i32));
+                insns.push(wasm::Ins::Call(
+                    self.function_index(self.unit().find_free().expect("Not linked with std")).unwrap()
+                ));
+            },
+            ir::Ins::FreeSlice(slice_type) => {
+                insns.push(wasm::Ins::ConstI32(crate::util::size_for_storable_type(slice_type) as i32));
+                insns.push(wasm::Ins::Call(
+                    self.function_index(self.unit().find_free_slice().expect("Not linked with std")).unwrap()
+                ));
+            },
             ir::Ins::PushLiteral(vt, i) => {
                 insns.push(match vt {
                     ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::I16 | ir::ValueType::U16 | ir::ValueType::I32 | ir::ValueType::U32 =>

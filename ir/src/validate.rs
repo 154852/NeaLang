@@ -273,6 +273,12 @@ impl Ins {
                 pop!(stack, ValueType::UPtr);
                 stack.push(ValueType::Ref(Box::new(StorableType::Slice(Box::new(slice_type.clone())))));
             }),
+            Ins::Free(object_type) => Ok({
+                pop!(stack, ValueType::Ref(target) if target.as_ref() == object_type);
+            }),
+            Ins::FreeSlice(slice_type) => Ok({
+                pop!(stack, ValueType::Ref(target) if matches!(target.as_ref(), StorableType::Slice(target_slice_type) if target_slice_type.as_ref() == slice_type));
+            }),
             Ins::Convert(from, to) => Ok({
                 if !from.is_num() || !to.is_num() {
                     return Err(ValidationError::StackNotValue)

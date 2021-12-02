@@ -75,7 +75,7 @@ func test_math() {
 		if 3 * 4 == 12 {
 			if 6 / 3 == 2 {
 				if 9 - 8 == 1 {
-					print("test_math");
+					test_pass("test_math");
 					return;
 				}
 			}
@@ -190,6 +190,16 @@ func test_bubble_sort() {
 	}
 }
 
+func test_drop() {
+	var x = new String;
+	drop x;
+
+	var y = new u8[7];
+	drop y;
+
+	test_pass("test_drop");
+}
+
 func [entry] main() {
 	test_if();
 	test_if_else();
@@ -205,4 +215,5 @@ func [entry] main() {
 	test_slice_literal();
 	test_binary_search();
 	test_bubble_sort();
+	test_drop();
 }

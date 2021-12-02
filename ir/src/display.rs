@@ -74,6 +74,8 @@ impl std::fmt::Display for Ins {
             Ins::Index(vt) => f.write_fmt(format_args!("index %{}", vt)),
             Ins::New(st) => f.write_fmt(format_args!("new {}", st)),
             Ins::NewSlice(st) => f.write_fmt(format_args!("newslice {}", st)),
+            Ins::Free(st) => f.write_fmt(format_args!("free {}", st)),
+            Ins::FreeSlice(st) => f.write_fmt(format_args!("freeslice {}", st)),
             Ins::Convert(from, to) => f.write_fmt(format_args!("conv {}, {}", from, to)),
             Ins::Call(idx) => f.write_fmt(format_args!("call #fn({})", idx)),
             Ins::Ret => f.write_str("ret"),

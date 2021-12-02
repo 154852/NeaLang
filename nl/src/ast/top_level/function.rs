@@ -104,6 +104,8 @@ impl Function {
                 "entry" => func.push_attr(ir::FunctionAttr::Entry),
                 "alloc" => func.push_attr(ir::FunctionAttr::Alloc),
                 "alloc_slice" => func.push_attr(ir::FunctionAttr::AllocSlice),
+                "free" => func.push_attr(ir::FunctionAttr::Free),
+                "free_slice" => func.push_attr(ir::FunctionAttr::FreeSlice),
                 "location" =>
                     match &annotation.value {
                         Some(Expr::StringLit(string)) => {

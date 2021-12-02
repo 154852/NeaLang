@@ -53,6 +53,20 @@ impl TranslationUnit {
         None
     }
 
+    pub fn find_free(&self) -> Option<FunctionIndex> {
+        for (f, function) in self.functions.iter().enumerate() {
+            if function.is_free() { return Some(FunctionIndex::new(f)); }
+        }
+        None
+    }
+
+    pub fn find_free_slice(&self) -> Option<FunctionIndex> {
+        for (f, function) in self.functions.iter().enumerate() {
+            if function.is_free_slice() { return Some(FunctionIndex::new(f)); }
+        }
+        None
+    }
+
     pub fn globals(&self) -> &Vec<Global> {
         &self.globals
     }
@@ -194,6 +208,12 @@ pub enum FunctionAttr {
     /// Marks function as being the implementation for new slice
     AllocSlice,
 
+    /// Marks function as being the implementation for free
+    Free,
+
+    /// Marks function as being the implementation for free slice
+    FreeSlice,
+
     /// Specifies the location for an extern function - used for example to specify module in wasm and class in java
     ExternLocation(String)
 }
@@ -324,6 +344,24 @@ impl Function {
     pub fn is_alloc_slice(&self) -> bool {
         for attr in &self.attrs {
             if matches!(attr, FunctionAttr::AllocSlice) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn is_free(&self) -> bool {
+        for attr in &self.attrs {
+            if matches!(attr, FunctionAttr::Free) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn is_free_slice(&self) -> bool {
+        for attr in &self.attrs {
+            if matches!(attr, FunctionAttr::FreeSlice) {
                 return true;
             }
         }

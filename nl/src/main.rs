@@ -254,6 +254,8 @@ fn build(build_opts: &BuildOpts) {
                         ir::FunctionAttr::Entry => print!("@entry"),
                         ir::FunctionAttr::Alloc => print!("@alloc"),
                         ir::FunctionAttr::AllocSlice => print!("@alloc_slice"),
+                        ir::FunctionAttr::Free => print!("@free"),
+                        ir::FunctionAttr::FreeSlice => print!("@free_slice"),
                         ir::FunctionAttr::ExternLocation(location) => print!("@extern({:?})", location),
                     }
                 }

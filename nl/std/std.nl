@@ -2,11 +2,15 @@ func [arch="x86"] exit(code: i32) extern
 func [arch="x86"] putchar(chr: u32) extern
 func [arch="x86", alloc] nl_new_object(size: uptr): uptr extern
 func [arch="x86", alloc_slice] nl_new_slice(count: uptr, size: uptr): uptr extern
+func [arch="x86", free] nl_drop_object(object: uptr, size: uptr) extern
+func [arch="x86", free_slice] nl_drop_slice(slice: uptr, element_size: uptr) extern
 
 func [arch="wasm", location="core"] exit(code: i32) extern
 func [arch="wasm", location="core"] putchar(chr: u32) extern
 func [arch="wasm", location="core", alloc] new_object(size: uptr): uptr extern
 func [arch="wasm", location="core", alloc_slice] new_slice(count: uptr, size: uptr): uptr extern
+func [arch="wasm", location="core", free] drop_object(object: uptr, size: uptr) extern
+func [arch="wasm", location="core", free_slice] drop_slice(slice: uptr, element_size: uptr) extern
 
 func [arch="java", location="nl/std/Std"] exit(code: i32) extern
 func [arch="java", location="nl/std/Std"] putchar(b: u32) extern

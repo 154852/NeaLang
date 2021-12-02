@@ -16,3 +16,11 @@ struct slice_t* nl_new_slice(size_t length, size_t size) {
 	slice->len = length;
 	return slice;
 }
+
+void nl_drop_object(void* object, size_t size) {
+	free(object);
+}
+
+void nl_drop_slice(struct slice_t* slice, size_t element_size) {
+	free(slice);
+}

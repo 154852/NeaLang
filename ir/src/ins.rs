@@ -53,14 +53,14 @@ impl ValuePath {
 
 #[derive(Debug)]
 pub enum Ins {
-    // Push the given path to the path stack, popping from the stack as needed to get references / indices etc
+    /// Push the given path to the path stack, popping from the stack as needed to get references / indices etc
     PushPath(ValuePath, ValueType),
-    // Pop a path from the path stack and push the value it points to
+    /// Pop a path from the path stack and push the value it points to
     Push(ValueType),
-    // Pop a path from the path stack, and pop the value it should point to
+    /// Pop a path from the path stack, and pop the value it should point to
     Pop(ValueType),
 
-    // Pop a uptr and push an Index in it's place
+    /// Pop a uptr and push an Index in it's place
     Index(StorableType),
 
     /// Allocates a value of the given type, and pushes a reference to it
@@ -68,6 +68,12 @@ pub enum Ins {
 
     /// Pops a uptr, then allocates a slice of the given type of the given length, and pushes a reference to it
     NewSlice(StorableType),
+
+    /// Pops a reference to an object of the given storable type and frees it, if possible
+    Free(StorableType),
+
+    /// Pops a reference to a slice of the given storable type and frees it, if possible
+    FreeSlice(StorableType),
 
     /// Convert from one valuetype to another. All conversions must be numeric or boolean.
     /// Longer -> Smaller  truncates the higher bits 

@@ -363,6 +363,14 @@ impl<'a> TranslationContext<'a> {
                 }
                 false
             },
+            ir::Ins::Free(_) => {
+                // Does nothing
+                false
+            },
+            ir::Ins::FreeSlice(_) => {
+                // Does nothing
+                false
+            },
             ir::Ins::Convert(from, to) => {
                 stack_map.stack_pop();
                 stack_map.stack_push(java::VerificationTypeInfo::from_descriptor(&crate::util::value_type_to_descriptor(to, class), class));

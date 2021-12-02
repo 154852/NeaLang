@@ -144,6 +144,20 @@ impl TranslationContext {
 
                 self.insert_call(ftc.unit().find_alloc_slice().expect("No alloc slice implementation included"), ftc, ins);
             },
+            ir::Ins::Free(st) => {
+                ins.push(x86::Ins::MovRegImm(
+                    ftc.stack().push_ptr(),
+                    crate::util::size_for_storable_type(st, self.mode) as u64
+                ));
+                self.insert_call(ftc.unit().find_free().expect("No free implementation included"), ftc, ins);
+            },
+            ir::Ins::FreeSlice(st) => {
+                ins.push(x86::Ins::MovRegImm(
+                    ftc.stack().push_ptr(),
+                    crate::util::size_for_storable_type(st, self.mode) as u64
+                ));
+                self.insert_call(ftc.unit().find_free_slice().expect("No free slice implementation included"), ftc, ins);
+            },
             ir::Ins::Convert(from, to) => {
                 let size_a = crate::util::size_for_value_type(from, self.mode);
                 let size_b = crate::util::size_for_value_type(to, self.mode);

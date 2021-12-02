@@ -12,6 +12,12 @@ class Heap {
         this.offset += size;
         return this.offset - size;
     }
+
+    free(addr, size) {
+        if (addr + size == this.offset) {
+            this.offset -= size;
+        }
+    }
 }
 
 (async function() {
@@ -21,6 +27,7 @@ class Heap {
     const core = {
         exit: (code) => process.exit(code),
         putchar: (char) => process.stdout.write(String.fromCharCode(char)),
+        
         new_object: (size) => heap.alloc(size),
         new_slice: (length, size) => {
             let addr = heap.alloc(8);
@@ -38,6 +45,16 @@ class Heap {
             sliced[addr + 4 + 3] = (length >> 24) & 0xff;
 
             return addr;
+        },
+
+        drop_object: (addr, size) => heap.free(addr, size),
+        drop_slice: (slice, size) => {
+            let sliced = new Uint8Array(mem.buffer);
+            let data_addr = sliced[slice] | (sliced[slice + 1] << 8) | (sliced[slice + 2] << 16) | (sliced[slice + 3] << 24);
+            let slice_length = sliced[slice + 4] | (sliced[slice + 4 + 1] << 8) | (sliced[slice + 4 + 2] << 16) | (sliced[slice + 4 + 3] << 24);
+
+            heap.free(data_addr, slice_length * size);
+            heap.free(slice, 8);
         }
     };
     

@@ -2,7 +2,7 @@ use crate::ast::Expr;
 use crate::irgen::{IrGenCodeTarget, IrGenError, IrGenFunctionContext};
 use crate::lexer::{TokenKind, TokenStream};
 
-use super::{Assignment, ForStmt, IfStmt, ReturnStmt, VarDeclaration};
+use super::{Assignment, ForStmt, IfStmt, ReturnStmt, VarDeclaration, DropStmt};
 
 #[derive(Debug)]
 pub enum Code {
@@ -11,7 +11,8 @@ pub enum Code {
     ExprStmt(Expr),
     Assignment(Assignment),
     IfStmt(IfStmt),
-    ForStmt(ForStmt)
+    ForStmt(ForStmt),
+    DropStmt(DropStmt)
 }
 
 impl Code {
@@ -27,6 +28,7 @@ impl Code {
             Some(TokenKind::VarKeyword) => Code::VarDeclaration(syntax::parse!(stream, VarDeclaration::parse, terminated).unwrap()),
             Some(TokenKind::IfKeyword) => Code::IfStmt(syntax::parse!(stream, IfStmt::parse).unwrap()),
             Some(TokenKind::ForKeyword) => Code::ForStmt(syntax::parse!(stream, ForStmt::parse).unwrap()),
+            Some(TokenKind::DropKeyword) => Code::DropStmt(syntax::parse!(stream, DropStmt::parse, terminated).unwrap()),
             
             _ => {
                 let expr = syntax::ex!(syntax::parse!(stream, Expr::parse));
@@ -76,7 +78,8 @@ impl Code {
             },
             Code::Assignment(assignment) => assignment.append_ir(ctx, target),
             Code::IfStmt(if_stmt) => if_stmt.append_ir(ctx, target),
-            Code::ForStmt(for_stmt) => for_stmt.append_ir(ctx, target)
+            Code::ForStmt(for_stmt) => for_stmt.append_ir(ctx, target),
+            Code::DropStmt(drop_stmt) => drop_stmt.append_ir(ctx, target)
         }
     }
 }
