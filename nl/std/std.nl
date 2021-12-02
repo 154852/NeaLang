@@ -68,3 +68,43 @@ func test_fail(name: String) {
 	colour_clear();
 	print("\n");
 }
+
+func binary_search(sorted_slice: i32[], target: i32): uptr {
+	var start = 0 as uptr;
+	var end = sorted_slice.length - 1;
+
+	for {
+		var middle = (start + end) / 2;
+		var element = sorted_slice[middle];
+		if element == target {
+			return middle;
+		} else if element > target {
+			end = middle;
+		} else {
+			start = middle;
+		}
+
+		if middle == start { return sorted_slice.length; }
+	}
+
+	return 0 as uptr;
+}
+
+func bubble_sort(slice: i32[]) {
+	var n = slice.length;
+	
+	for n > 1 {
+		var new_n: uptr = 0;
+		for var i: uptr = 1; i <= n - 1; i = i + 1 {
+			if slice[i - 1] > slice[i] {
+				var tmp = slice[i - 1];
+				slice[i - 1] = slice[i];
+				slice[i] = tmp;
+
+				new_n = i;
+			}
+		}
+
+		n = new_n;
+	}
+}

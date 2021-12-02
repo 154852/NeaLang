@@ -18,7 +18,8 @@ pub enum Expr {
     As(AsExpr),
     StringLit(StringLitExpr),
     SliceLit(SliceLitExpr),
-    NewExpr(NewExpr)
+    NewExpr(NewExpr),
+    BoolLit(BoolLitExpr)
 }
 
 impl Expr {
@@ -35,6 +36,7 @@ impl Expr {
             Expr::StringLit(str) => &str.span,
             Expr::NewExpr(expr) => &expr.span,
             Expr::SliceLit(expr) => &expr.span,
+            Expr::BoolLit(expr) => &expr.span,
         }
     }
 }
@@ -53,6 +55,7 @@ impl Expr {
             Expr::StringLit(string_expr) => string_expr.append_ir_value(ctx, target, prefered),
             Expr::NewExpr(new_expr) => new_expr.append_ir_value(ctx, target, prefered),
             Expr::SliceLit(slice_lit_expr) => slice_lit_expr.append_ir_value(ctx, target, prefered),
+            Expr::BoolLit(bool_lit_expr) => bool_lit_expr.append_ir_value(ctx, target, prefered),
         }
     }
 
@@ -69,6 +72,7 @@ impl Expr {
             Expr::StringLit(string_expr) => string_expr.resultant_type(ctx, prefered),
             Expr::NewExpr(new_expr) => new_expr.resultant_type(ctx, prefered),
             Expr::SliceLit(slice_lit_expr) => slice_lit_expr.resultant_type(ctx, prefered),
+            Expr::BoolLit(bool_lit_expr) => bool_lit_expr.resultant_type(ctx, prefered),
         }
     }
 
@@ -85,6 +89,7 @@ impl Expr {
             Expr::StringLit(string_expr) => return Err(IrGenError::new(string_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
             Expr::NewExpr(new_expr) => return Err(IrGenError::new(new_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
             Expr::SliceLit(slice_lit_expr) => return Err(IrGenError::new(slice_lit_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
+            Expr::BoolLit(bool_lit_expr) => return Err(IrGenError::new(bool_lit_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
         }
     }
 
@@ -176,6 +181,20 @@ impl Expr {
                 Expr::Name(NameExpr {
                     span: syntax::Span::new(start, stream.tell_start()),
                     name: String::from("self")
+                })
+            },
+            Some(TokenKind::TrueKeyword) => {
+                stream.step();
+                Expr::BoolLit(BoolLitExpr {
+                    span: syntax::Span::new(start, stream.tell_start()),
+                    value: true
+                })
+            },
+            Some(TokenKind::FalseKeyword) => {
+                stream.step();
+                Expr::BoolLit(BoolLitExpr {
+                    span: syntax::Span::new(start, stream.tell_start()),
+                    value: false
                 })
             },
             Some(TokenKind::NewKeyword) => {

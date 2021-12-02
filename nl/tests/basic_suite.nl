@@ -162,34 +162,31 @@ func test_slice_literal() {
 	}
 }
 
-func binary_search(sorted_slice: i32[], target: i32): uptr {
-	var start = 0 as uptr;
-	var end = sorted_slice.length - 1;
-
-	for {
-		var middle = (start + end) / 2;
-		var element = sorted_slice[middle];
-		if element == target {
-			return middle;
-		} else {
-			if element > target {
-				end = middle;
-			} else {
-				start = middle;
-			}
-		}
-
-		if middle == start { return sorted_slice.length; }
-	}
-
-	return 0 as uptr;
-}
-
 func test_binary_search() {
 	if binary_search([1, 2, 3, 4, 5, 6, 7], 4) == 3 && binary_search([1, 2, 3, 4, 5, 6, 7], 1) == 0 {
 		test_pass("test_binary_search");
 	} else {
 		test_fail("test_binary_search");
+	}
+}
+
+func test_bubble_sort() {
+	var a = [6, 4, 3, 2, 1, 5];
+	var b = [1, 2, 3, 4, 5, 6];
+	
+	bubble_sort(a);
+
+	var is_ok = true;
+	for var i: uptr = 0; i < a.length; i = i + 1 {
+		if a[i] != b[i] {
+			is_ok = false;
+		}
+	}
+
+	if is_ok {
+		test_pass("test_bubble_sort");
+	} else {
+		test_fail("test_bubble_sort");
 	}
 }
 
@@ -207,4 +204,5 @@ func [entry] main() {
 	test_static();
 	test_slice_literal();
 	test_binary_search();
+	test_bubble_sort();
 }

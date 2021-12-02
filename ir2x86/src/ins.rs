@@ -209,112 +209,63 @@ impl TranslationContext {
                 }
             },
             ir::Ins::Div(vt) => {
+                let b = ftc.stack().pop_vt(vt);
+                let a = ftc.stack().peek_vt(vt);
+                
+                ins.push(x86::Ins::PushReg(x86::Reg::Rax));
+                
+                let uses_rdx = ftc.stack().uses(x86::RegClass::Edx);
+                if uses_rdx { ins.push(x86::Ins::PushReg(x86::Reg::Rdx)); }
+
+                let uses_rcx = ftc.stack().uses(x86::RegClass::Ecx);
+                if uses_rcx { ins.push(x86::Ins::PushReg(x86::Reg::Rcx)); }
+
+                // ecx = b
+                ins.push(x86::Ins::MovRegReg(
+                    crate::util::reg_for_value_type(vt, self.mode, x86::RegClass::Ecx), b
+                ));
+
+                // eax = a 
+                ins.push(x86::Ins::MovRegReg(
+                    crate::util::reg_for_value_type(vt, self.mode, x86::RegClass::Eax), a
+                ));
+                ins.push(x86::Ins::Cdq(a.size()));
+                // eax = eax / ecx
                 if vt.is_signed() {
-                    let b = ftc.stack().pop_vt(vt);
-                    let a = ftc.stack().peek_vt(vt);
-                    
-                    ins.push(x86::Ins::PushReg(x86::Reg::Rax));
-                    
-                    let uses_rdx = ftc.stack().uses(x86::RegClass::Edx);
-                    if uses_rdx { ins.push(x86::Ins::PushReg(x86::Reg::Rdx)); }
-
-                    let uses_rcx = ftc.stack().uses(x86::RegClass::Ecx);
-                    if uses_rcx { ins.push(x86::Ins::PushReg(x86::Reg::Rcx)); }
-
-                    // ecx = b
-                    ins.push(x86::Ins::MovRegReg(
-                        crate::util::reg_for_value_type(vt, self.mode, x86::RegClass::Ecx), b
-                    ));
-
-                    // eax = a 
-                    ins.push(x86::Ins::MovRegReg(
-                        crate::util::reg_for_value_type(vt, self.mode, x86::RegClass::Eax), a
-                    ));
-                    ins.push(x86::Ins::Cdq(a.size()));
-                    // eax = eax / ecx
-                    ins.push(x86::Ins::IDivReg(
+                        ins.push(x86::Ins::IDivReg(
                         crate::util::reg_for_value_type(vt, self.mode, x86::RegClass::Ecx)
                     ));
-
-                    // a = eax
-                    ins.push(x86::Ins::MovRegReg(
-                        a, crate::util::reg_for_value_type(vt, self.mode, x86::RegClass::Eax)
-                    ));
-
-                    if uses_rcx {
-                        if a.class() == x86::RegClass::Ecx {
-                            ins.push(x86::Ins::AddRegImm(x86::Reg::Rsp, self.mode.ptr_size() as u64));
-                        } else {
-                            ins.push(x86::Ins::PopReg(x86::Reg::Rcx));
-                        }
-                    }
-
-                    if uses_rdx {
-                        if a.class() == x86::RegClass::Edx {
-                            ins.push(x86::Ins::AddRegImm(x86::Reg::Rsp, self.mode.ptr_size() as u64));
-                        } else {
-                            ins.push(x86::Ins::PopReg(x86::Reg::Rdx));
-                        }
-                    }
-
-                    if a.class() == x86::RegClass::Eax {
-                        ins.push(x86::Ins::AddRegImm(x86::Reg::Rsp, self.mode.ptr_size() as u64));
-                    } else {
-                        ins.push(x86::Ins::PopReg(x86::Reg::Rax));
-                    }
                 } else {
-                    let b = ftc.stack().pop_vt(vt);
-                    let a = ftc.stack().peek_vt(vt);
-                    
-                    ins.push(x86::Ins::PushReg(x86::Reg::Rax));
-                    
-                    let uses_rdx = ftc.stack().uses(x86::RegClass::Edx);
-                    if uses_rdx { ins.push(x86::Ins::PushReg(x86::Reg::Rdx)); }
-
-                    let uses_rcx = ftc.stack().uses(x86::RegClass::Ecx);
-                    if uses_rcx { ins.push(x86::Ins::PushReg(x86::Reg::Rcx)); }
-
-                    // ecx = b
-                    ins.push(x86::Ins::MovRegReg(
-                        crate::util::reg_for_value_type(vt, self.mode, x86::RegClass::Ecx), b
-                    ));
-
-                    // eax = a 
-                    ins.push(x86::Ins::MovRegReg(
-                        crate::util::reg_for_value_type(vt, self.mode, x86::RegClass::Eax), a
-                    ));
-                    ins.push(x86::Ins::Cdq(a.size()));
-                    // eax = eax / ecx
                     ins.push(x86::Ins::DivReg(
                         crate::util::reg_for_value_type(vt, self.mode, x86::RegClass::Ecx)
                     ));
+                }
 
-                    // a = eax
-                    ins.push(x86::Ins::MovRegReg(
-                        a, crate::util::reg_for_value_type(vt, self.mode, x86::RegClass::Eax)
-                    ));
+                // a = eax
+                ins.push(x86::Ins::MovRegReg(
+                    a, crate::util::reg_for_value_type(vt, self.mode, x86::RegClass::Eax)
+                ));
 
-                    if uses_rcx {
-                        if a.class() == x86::RegClass::Ecx {
-                            ins.push(x86::Ins::AddRegImm(x86::Reg::Rsp, self.mode.ptr_size() as u64));
-                        } else {
-                            ins.push(x86::Ins::PopReg(x86::Reg::Rcx));
-                        }
-                    }
-
-                    if uses_rdx {
-                        if a.class() == x86::RegClass::Edx {
-                            ins.push(x86::Ins::AddRegImm(x86::Reg::Rsp, self.mode.ptr_size() as u64));
-                        } else {
-                            ins.push(x86::Ins::PopReg(x86::Reg::Rdx));
-                        }
-                    }
-
-                    if a.class() == x86::RegClass::Eax {
+                if uses_rcx {
+                    if a.class() == x86::RegClass::Ecx {
                         ins.push(x86::Ins::AddRegImm(x86::Reg::Rsp, self.mode.ptr_size() as u64));
                     } else {
-                        ins.push(x86::Ins::PopReg(x86::Reg::Rax));
+                        ins.push(x86::Ins::PopReg(x86::Reg::Rcx));
                     }
+                }
+
+                if uses_rdx {
+                    if a.class() == x86::RegClass::Edx {
+                        ins.push(x86::Ins::AddRegImm(x86::Reg::Rsp, self.mode.ptr_size() as u64));
+                    } else {
+                        ins.push(x86::Ins::PopReg(x86::Reg::Rdx));
+                    }
+                }
+
+                if a.class() == x86::RegClass::Eax {
+                    ins.push(x86::Ins::AddRegImm(x86::Reg::Rsp, self.mode.ptr_size() as u64));
+                } else {
+                    ins.push(x86::Ins::PopReg(x86::Reg::Rax));
                 }
             },
             ir::Ins::Sub(vt) => {

@@ -22,6 +22,12 @@ pub struct SliceLitExpr {
     pub values: Vec<Expr>
 }
 
+#[derive(Debug)]
+pub struct BoolLitExpr {
+    pub span: Span,
+    pub value: bool
+}
+
 impl StringLitExpr {
     pub fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
         let st = ir::StorableType::Compound(match ctx.ir_unit.find_type("String") {
@@ -172,5 +178,16 @@ impl SliceLitExpr {
         target.push(ir::Ins::Push(ir::ValueType::Ref(Box::new(slice.clone()))));
 
         Ok(ir::ValueType::Ref(Box::new(slice)))
+    }
+}
+
+impl BoolLitExpr {
+    pub fn resultant_type<'a>(&'a self, _ctx: &IrGenFunctionContext<'a>, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+        Ok(ir::ValueType::Bool)
+    }
+
+    pub fn append_ir_value<'a>(&'a self, _ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+        target.push(ir::Ins::PushLiteral(ir::ValueType::Bool, if self.value { 1 } else { 0 }));
+        Ok(ir::ValueType::Bool)
     }
 }
