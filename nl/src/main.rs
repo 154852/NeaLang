@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 use clap::{AppSettings, Clap};
 use ir2triple;
 
+// Use https://docs.rs/clap to parse command line arguments
+
 #[derive(Clap)]
 #[clap(setting = AppSettings::ColoredHelp)]
 struct Opts {
@@ -21,26 +23,35 @@ enum SubCommand {
 
 #[derive(Clap, Debug)]
 struct BuildOpts {
+    /// Paths to root source file
     path: Vec<String>,
 
+    /// Add directories to import search path
     #[clap(short='I')]
     include: Vec<String>,
 
+    /// Set name of output binary (or main class, in the case of Java)
     #[clap(short, long, default_value = "a.out")]
     output: String,
 
+    /// Target triple. Value values are linux-elf-x86_64, wasm, java and none.
     #[clap(long, short, default_value = "linux-elf-x86_64")]
     triple: String,
 
+    /// Make the target file relocatable.
     #[clap(short = 'c')]
     relocatable: bool,
 
+    /// Emit the parsed AST to stdout for each file after it is parsed
     #[clap(long)]
     emit_ast: bool,
+
+    // Emit the generated IR to stdout
     #[clap(long)]
     emit_ir: bool,
 }
 
+/// Pretty prints an error to stderr caused at the given location, with a message.
 fn print_error_range(mut start: usize, mut end: usize, source: &str, path: &Path, message: &str) {
     while start < source.len() - 1 && source.as_bytes()[start].is_ascii_whitespace() {
         start += 1;
@@ -75,6 +86,7 @@ fn print_error_range(mut start: usize, mut end: usize, source: &str, path: &Path
     }
 }
 
+/// Characterises the build system for NL, primarily is concerned with resolving imports and constructing one large IR translation unit
 pub struct BuildContext {
     linked_paths: Vec<PathBuf>,
     target_arch_name: &'static str,
@@ -92,7 +104,9 @@ impl BuildContext {
         }
     }
 
+    /// Searches for an import, or None if none is found.
     fn find_import(&self, working: PathBuf, name: &Vec<String>) -> Option<PathBuf> {
+        // Construct a path relative to the working directory by joining the import components and adding '.nl., e.g. 'import a.b.c' -> 'a/b/c.nl' (or 'a\b\c.nl' for windows)
         let mut child_path = working;
         for element in name {
             child_path = child_path.join(element);
@@ -101,6 +115,7 @@ impl BuildContext {
         child_path = child_path.with_extension("nl");
         if child_path.exists() { return Some(child_path); }
 
+        // If that fails, try the same for self.search_dirs
         for search_dir in &self.search_dirs {
             let mut child_path = search_dir.clone();
             for element in name {
@@ -111,17 +126,19 @@ impl BuildContext {
             if child_path.exists() { return Some(child_path); }            
         }
 
+        // No matching file was found
         None
     }
 
+    /// Parses and does IRGen for the given path, pushing the result to ir_unit.
     fn append_at_path(&self, ir_unit: &mut ir::TranslationUnit, path: &PathBuf, visited_paths: &mut Vec<PathBuf>) {
         let path = path.canonicalize().expect("Invalid path");
 
+        // Check we have not already processed this path - this prevents infinite import loops
         if visited_paths.iter().position(|x| x == &path).is_some() {
             return;
         }
-
-        visited_paths.push(path.clone());
+        visited_paths.push(path.clone()); // Pushed before we start parsing, otherwise doesn't prevent loops
 
         let content = match std::fs::read_to_string(&path) {
             Ok(x) => x,
@@ -132,7 +149,7 @@ impl BuildContext {
         };
 
         let mut matcher = crate::lexer::TokenStream::new(&content, Box::new(lexer::Matcher {}));
-        matcher.step();
+        matcher.step(); // Focus on the first token
 
         let unit = match ast::TranslationUnit::parse(&mut matcher) {
             ::syntax::MatchResult::Ok(code) => code,
@@ -148,6 +165,7 @@ impl BuildContext {
             println!("{:#?}", unit);
         }
 
+        // Resolve imports
         for node in &unit.nodes {
             match node {
                 ast::TopLevelNode::Import(import_stmt) => {
@@ -164,6 +182,8 @@ impl BuildContext {
             }
         }
 
+        // If this file is `linked` (i.e. it was in the list of source files given on the command line) then the actual code of functions needs to be added to the IR unit.
+        // Otherwise, all functions can be made extern.
         if self.linked_paths.iter().position(|x| x == &path).is_some() {
             match unit.to_ir_on(ir_unit, self.target_arch_name) {
                 Ok(_) => {},
@@ -185,6 +205,7 @@ impl BuildContext {
         }
     }
 
+    /// Root build method of BuildContext, will create, populate and return the TranslationUnit
     pub fn build(&mut self) -> ir::TranslationUnit {
         let mut ir_unit = ir::TranslationUnit::new();
 
@@ -197,6 +218,7 @@ impl BuildContext {
     }
 }
 
+/// Represents the possible triples provided by the user on the command line
 enum Arch {
     X86,
     Wasm,
@@ -205,6 +227,7 @@ enum Arch {
 }
 
 impl Arch {
+    /// Convert from a string triple name to an Arch, or None otherwise
     pub fn parse_triple(triple: &str) -> Option<Arch> {
         match triple {
             "linux-elf-x86_64" => Some(Arch::X86),
@@ -224,6 +247,7 @@ impl Arch {
         }
     }
 
+    /// Invokes the relevant ir2triple module for this triple
     pub fn encode(&self, ir_unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Result<(), String> {
         match self {
             Arch::X86 => ir2triple::linux_elf::encode(&ir_unit, path, relocatable) ,
@@ -234,7 +258,9 @@ impl Arch {
     }
 }
 
+/// Entry point of the build subcommand
 fn build(build_opts: &BuildOpts) {
+    // Parse the triple, or fail of it is invalid
     let arch = match Arch::parse_triple(&build_opts.triple) {
         Some(a) => a,
         None => {
@@ -242,6 +268,8 @@ fn build(build_opts: &BuildOpts) {
             std::process::exit(1);
         }
     };
+
+    // Parse and build the IR Unit
     let ir_unit = BuildContext::new(&build_opts.path, arch.short_name(), &build_opts.include, build_opts.emit_ast).build();
 
     if build_opts.emit_ir {
@@ -264,6 +292,7 @@ fn build(build_opts: &BuildOpts) {
         }
     }
 
+    // Does not *strictly* need to be here, but good for debugging
     ir_unit.validate().expect("Could not validate IR");
 
     match arch.encode(&ir_unit, &build_opts.output, build_opts.relocatable) {

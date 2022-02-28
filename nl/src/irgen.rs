@@ -2,31 +2,32 @@ use std::collections::HashMap;
 use ir;
 use syntax::Span;
 
+/// Represents a specific kind of error, and any necessary metadata it needs to show a nice error message
 #[derive(Debug)]
 pub enum IrGenErrorKind {
     UnknownType,
-    VariableDoesNotExist(String),
-    FunctionDoesNotExist(String),
+    VariableDoesNotExist(String), // Variable name
+    FunctionDoesNotExist(String), // Function name
     MethodNotStatic,
     InvalidInteger,
     BinaryOpTypeMismatch,
     AssignmentTypeMismatch,
     CannotInferType,
-    CallArgParamCountMismatch(usize, usize),
-    CallArgTypeMismatch(String, String),
+    CallArgParamCountMismatch(usize, usize), // Found, expected
+    CallArgTypeMismatch(String, String), // Expected type, found type
     CallNotOneReturnInExpr,
     InvalidLHS,
     InvalidRHS,
     CompositeTypeOnStack,
-    PropDoesNotExist(String, String),
+    PropDoesNotExist(String, String), // Prop name, type name
     IllegalIndexObject,
     IllegalIndexValue,
     NonValueCast,
     StdLinkError,
-    UnknownAnnotation(String),
-    InvalidAnnotationExpression(String),
+    UnknownAnnotation(String), // Annotation name
+    InvalidAnnotationExpression(String), // Annotation string
     NonConstExprInSlice,
-    InvalidDropType(String)
+    InvalidDropType(String) // Type name
 }
 
 pub struct IrGenError {
@@ -78,6 +79,7 @@ impl IrGenError {
     }
 }
 
+/// Convert a storable type to a user displayable name
 pub fn storable_type_to_string(st: &ir::StorableType) -> String {
     match st {
         ir::StorableType::Compound(ct) => ct.name().to_string(),
@@ -91,6 +93,7 @@ pub fn storable_type_to_string(st: &ir::StorableType) -> String {
     }
 }
 
+/// Convert a value type to a user displayable name
 pub fn value_type_to_string(vt: &ir::ValueType) -> String {
     match vt {
         ir::ValueType::U8 => "u8".to_string(),
@@ -109,6 +112,7 @@ pub fn value_type_to_string(vt: &ir::ValueType) -> String {
     }
 }
 
+/// Represents the function level context while generating IR, is aware of locals (and their names), and which function this is
 pub struct IrGenFunctionContext<'a> {
     pub ir_unit: &'a mut ir::TranslationUnit,
     pub function_idx: ir::FunctionIndex,
@@ -133,6 +137,7 @@ impl<'a> IrGenFunctionContext<'a> {
     }
 }
 
+/// A generic target for IR code - acts as a bridge to a Vec<Ins> for now, but may carry more information on the current block in future
 pub struct IrGenCodeTarget {
     ins: Vec<ir::Ins>
 }
