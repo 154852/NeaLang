@@ -2,7 +2,7 @@ use syntax::Span;
 
 use crate::ast::Expr;
 use crate::lexer::{TokenKind, TokenStream};
-use crate::irgen::{IrGenCodeTarget, IrGenError, IrGenFunctionContext};
+use crate::irgen::{IrGenCodeTarget, IrGenError, IrGenFunctionContext, IrGenErrorKind};
 
 use super::Code;
 
@@ -19,8 +19,10 @@ impl IfStmt {
         let start = stream.tell_start();
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::IfKeyword));
 
+        // Parse the condition
         let expr = syntax::ex!(syntax::parse!(stream, Expr::parse));
 
+        // Parse the code - either it is 0+ lines surrounded by curly brackets or it is 1 line without
         let code = if syntax::tk_iss!(stream, TokenKind::OpenCurly) {
             let mut code = Vec::new();
             loop {
@@ -39,6 +41,7 @@ impl IfStmt {
             ]
         };
 
+        // If there is an else, parse it as for the body
         let else_code = if syntax::tk_iss!(stream, TokenKind::ElseKeyword) {
             if syntax::tk_iss!(stream, TokenKind::OpenCurly) {
                 let mut code = Vec::new();
@@ -69,14 +72,19 @@ impl IfStmt {
     }
 
     pub fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
+        // 1. Load the condition
         let mut cond = IrGenCodeTarget::new();
-        self.condition.append_ir_value(ctx, &mut cond, Some(&ir::ValueType::Bool))?;
+        if self.condition.append_ir_value(ctx, &mut cond, Some(&ir::ValueType::Bool))? != ir::ValueType::Bool {
+            return Err(IrGenError::new(self.condition.span().clone(), IrGenErrorKind::NotABool));
+        }
 
+        // 2. Load the true then code
         let mut true_then = IrGenCodeTarget::new();
         for code in &self.code {
             code.append_ir(ctx, &mut true_then)?;
         }
 
+        // 3. If there is else code, load it and emit an IfElse...
         if let Some(else_code) = &self.else_code {
             let mut false_then = IrGenCodeTarget::new();
             for code in else_code {
@@ -89,6 +97,7 @@ impl IfStmt {
                 cond.take()
             ));
         } else {
+            // ...otherwise a simple If will suffice
             target.push(ir::Ins::If(
                 true_then.take(),
                 cond.take()

@@ -2,3 +2,6 @@ target
 **/.DS_Store
 .replit
 **/out
+.gitpod.yml
+basic_suite*
+BasicSuiteJava*

@@ -10,6 +10,7 @@ pub struct Assignment {
     pub right: Expr
 }
 
+// NOTE: Parsing is handled in Code, since Assignment is tightly bound with expression parsing.
 impl Assignment {
     pub fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
         match &self.left {
@@ -18,43 +19,51 @@ impl Assignment {
                     // Only valid local indices go in the local_map, so safe to unwrap
                     let local = ctx.func().get_local(*local_idx).unwrap();
 
+                    // Check that the local type is a ValueType
                     let expected = match local.local_type() {
                         ir::StorableType::Value(t) => t.clone(),
                         _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS)),
                     };
 
+                    // 1. Push a path to the target, in this case a local
                     target.push(ir::Ins::PushPath(ir::ValuePath::new_origin_only(
                         ir::ValuePathOrigin::Local(*local_idx, ir::StorableType::Value(expected.clone())),
                     ), expected.clone()));
 
+                    // 2. Push the value...
                     let vt = self.right.append_ir_value(ctx, target, Some(&expected))?;
-                    if vt != expected {
+                    if vt != expected { // ... and check it is the right type
                         return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
                     }
 
+                    // 3. Pop
                     target.push(ir::Ins::Pop(vt));
                 } else {
                     return Err(IrGenError::new(name.span.clone(), IrGenErrorKind::VariableDoesNotExist(name.name.clone())));
                 }
             },
-            _ => {                
+            _ => {
+                // 1. Construct a path to the target
                 let (st, path) = self.left.construct_path_to(ctx, target, None)?;
 
+                // Check that the type that the path references is storable
                 let st_v = match st {
                     ir::StorableType::Value(x) => x.clone(),
                     _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidLHS))
                 };
 
+                // 2. Push the path
                 target.push(ir::Ins::PushPath(
                     path, st_v.clone()
                 ));
 
+                // 3. Append the value...
                 let vt = self.right.append_ir_value(ctx, target, Some(&st_v))?;
-
-                if st_v != vt {
+                if st_v != vt { // ... and check it is the right type
                     return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
                 }
 
+                // 4. Pop
                 target.push(ir::Ins::Pop(vt));
             }
         }

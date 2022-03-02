@@ -16,6 +16,7 @@ pub enum Code {
 }
 
 impl Code {
+    /// Parse a code statement. terminated is a flag indicating whether or not the line should end with a ';' - used by for loops
     pub fn parse<'a>(stream: &mut TokenStream<'a>, terminated: bool) -> syntax::MatchResult<Code> {
         if terminated {
             while syntax::tk_iss!(stream, TokenKind::Semi) {}
@@ -30,9 +31,14 @@ impl Code {
             Some(TokenKind::ForKeyword) => Code::ForStmt(syntax::parse!(stream, ForStmt::parse).unwrap()),
             Some(TokenKind::DropKeyword) => Code::DropStmt(syntax::parse!(stream, DropStmt::parse, terminated).unwrap()),
             
+            // Special case for ExprStmt / Assignment
             _ => {
+                // 1. Parse an expression
                 let expr = syntax::ex!(syntax::parse!(stream, Expr::parse));
+
+                // 2. If the next token is an equal, it is an assignment...
                 if syntax::tk_iss!(stream, TokenKind::Eq) {
+                    // Parse the RHS
                     let right = syntax::ex!(syntax::parse!(stream, Expr::parse), stream.error("Expected RHS"));
                     
                     if terminated { syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'")); }
@@ -43,6 +49,7 @@ impl Code {
                         right
                     })
                 } else {
+                    // 3. ... otherwise it is just an expression statement
                     if terminated { syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::Semi), stream.error("Expected ';'")); }
 
                     Code::ExprStmt(expr)

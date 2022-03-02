@@ -98,6 +98,13 @@ impl NumberLitExpr {
         
         if let Ok(num) = i32::from_str(&self.number) {
             let vt = match prefered {
+                Some(ir::ValueType::Bool) => {
+                    if num == 0 || num == 1 {
+                        &ir::ValueType::Bool
+                    } else {
+                        &ir::ValueType::I32
+                    }
+                },
                 Some(vt) if vt.is_num() => vt,
                 _ => &ir::ValueType::I32
             };

@@ -27,7 +27,11 @@ pub enum IrGenErrorKind {
     UnknownAnnotation(String), // Annotation name
     InvalidAnnotationExpression(String), // Annotation string
     NonConstExprInSlice,
-    InvalidDropType(String) // Type name
+    InvalidDropType(String), // Type name
+    NotABool,
+    NoReturnValue,
+    ReturnValueWhenVoid,
+    IncorrectReturnType(String, String)
 }
 
 pub struct IrGenError {
@@ -75,6 +79,10 @@ impl IrGenError {
             IrGenErrorKind::MethodNotStatic => format!("Method is not static"),
             IrGenErrorKind::NonConstExprInSlice => format!("Slice literals can only take compile time known expressions"),
             IrGenErrorKind::InvalidDropType(name) => format!("Cannot drop value of type {}", name),
+            IrGenErrorKind::NotABool => format!("Expected a bool for condition"),
+            IrGenErrorKind::NoReturnValue => format!("Expected a value in return"),
+            IrGenErrorKind::ReturnValueWhenVoid => format!("No value expected in return for void function"),
+            IrGenErrorKind::IncorrectReturnType(found, expected) => format!("Return type mismatch, found {}, expected {}", found, expected)
         }
     }
 }
