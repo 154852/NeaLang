@@ -34,11 +34,16 @@ impl BinaryExpr {
     }
 
     pub fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+        // 1. Load LHS
         let left = self.left.append_ir_value(ctx, target, if self.op.is_num() { prefered } else { None })?;
+        
+        // 2. Load RHS
         let right = self.right.append_ir_value(ctx, target, if self.op.is_num() { prefered } else { Some(&left) })?;
 
+        // If they don't have the same type, throw an error
         if left != right { return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::BinaryOpTypeMismatch)) }
 
+        // 3. Do the operation
         target.push(match self.op {
             BinaryOp::Add => ir::Ins::Add(left.clone()),
             BinaryOp::Mul => ir::Ins::Mul(left.clone()),

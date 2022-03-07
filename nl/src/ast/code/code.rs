@@ -69,16 +69,12 @@ impl Code {
             Code::ReturnStmt(stmt) => stmt.append_ir(ctx, target),
             Code::VarDeclaration(vardecl) => vardecl.append_ir(ctx, target),
             Code::ExprStmt(expr) => {
-                let drop_count = match expr {
+                match expr {
                     Expr::Call(call_expr) => call_expr.append_ir_out_expr(ctx, target)?,
                     _ => {
                         expr.append_ir_value(ctx, target, None)?;
-                        1
+                        target.push(ir::Ins::Drop); // Drop result as it's not used
                     }
-                };
-
-                for _ in 0..drop_count {
-                    target.push(ir::Ins::Drop);
                 }
 
                 Ok(())

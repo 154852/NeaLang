@@ -23,6 +23,10 @@ pub enum Expr {
 }
 
 impl Expr {
+    // This is quite unpleasant - After compilation the matches are fast (simple jump tables, so effectively equivalent to a vtable in speed),
+    // but they are ugly to write regardless - unfortuantely this is the cost of the high level of safety rust provides, since using traits
+    // and built in iheritence would never allow any upcasts
+
     pub fn span(&self) -> &Span {
         match self {
             Expr::BinaryExpr(be) => &be.span,
@@ -39,9 +43,8 @@ impl Expr {
             Expr::BoolLit(expr) => &expr.span,
         }
     }
-}
 
-impl Expr {
+    /// Build the IR that references this value
     pub fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
         match self {
             Expr::BinaryExpr(binary_expr) => binary_expr.append_ir(ctx, target, prefered),
@@ -59,6 +62,8 @@ impl Expr {
         }
     }
 
+    /// Predicts the type of the object without building an IR - should always match the result of append_ir_value.
+    /// This *DOES NOT* necessarily verify that the code is semantically correct, append_ir_value and construct_path do that
     pub fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
         match self {
             Expr::BinaryExpr(binary_expr) => binary_expr.resultant_type(ctx, prefered),
@@ -76,6 +81,7 @@ impl Expr {
         }
     }
 
+    /// Builds a path to the location that the expression returns to - allows it to be written to.
     pub fn construct_path_to<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, prefered: Option<&ir::ValueType>) -> Result<(ir::StorableType, ir::ValuePath), IrGenError> {
         match self {
             Expr::BinaryExpr(binary_expr) => return Err(IrGenError::new(binary_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
@@ -93,6 +99,7 @@ impl Expr {
         }
     }
 
+    /// Will convert an expression in a Value of a given ValueType (if possible)
     pub fn as_value(&self, ir_unit: &ir::TranslationUnit, value_type: &ir::ValueType) -> Result<ir::Value, IrGenError> {
         match self {
             Expr::NumberLit(num) =>
@@ -114,13 +121,28 @@ impl Expr {
 
                 return as_expr.expr.as_value(ir_unit, value_type);
             },
+            // FIXME we don't *technically* know this is a slice
+            // TODO handle compile time known expressions, e.g. 1 + 2
             _ => Err(IrGenError::new(self.span().clone(), IrGenErrorKind::NonConstExprInSlice))
         }
     }
 
+    // Operand precedence is implemented in NL via the parser:
+    //      1. Primaries have the greatest precedence, these includes ClosedExprs, literals, member access CallExpr and so on
+    //      2. Then * and / are parsed
+    //      3. Followed by + and -
+    //      4. Then >, >=, <, <=
+    //      5. Finally && and ||
+    // Doing this means that
+    //      5*4 - 3/2 > 3 || a <= b + c
+    // is equivalent to
+    //      (((5*4) - (3/2)) > 3) || (a <= (b + c))
+    // as expected
+
     fn parse_primary<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
         let start = stream.tell_start();
 
+        // 1. Match a single (non-repeating) expression
         let mut expr = match stream.token_kind() {
             Some(TokenKind::OpenParen) => {
                 stream.step();
@@ -210,6 +232,7 @@ impl Expr {
             _ => return syntax::MatchResult::Fail
         };
 
+        // 2. Then match 0+ added expressions, such as function calls, indexing, member access or type conversions
         loop {
             match stream.token_kind() {
                 Some(TokenKind::OpenParen) => {

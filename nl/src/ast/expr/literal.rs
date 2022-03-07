@@ -96,10 +96,12 @@ impl NumberLitExpr {
     pub fn append_ir<'a>(&'a self, _ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
         use std::str::FromStr;
         
+        // FIXME: What if the type is less than 32 bits? More?
         if let Ok(num) = i32::from_str(&self.number) {
+            // This is the only place that the prefered type is used
             let vt = match prefered {
                 Some(ir::ValueType::Bool) => {
-                    if num == 0 || num == 1 {
+                    if num == 0 || num == 1 { // Only 0 and 1 are valid in casting to a boolean
                         &ir::ValueType::Bool
                     } else {
                         &ir::ValueType::I32

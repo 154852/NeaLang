@@ -30,10 +30,12 @@ impl IndexExpr {
     }
 
     pub fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {        
+        // 1. Load the index as a uptr
         if self.arg.append_ir_value(ctx, target, Some(&ir::ValueType::UPtr))? != ir::ValueType::UPtr {
             return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexValue));
         }
 
+        // 2. Convert it into an index
         target.push(ir::Ins::Index(match self.object.resultant_type(ctx, None)? {
             ir::ValueType::Ref(st) => match st.as_ref() {
                 ir::StorableType::Slice(t) => t.as_ref().clone(),
@@ -42,6 +44,7 @@ impl IndexExpr {
             _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::IllegalIndexObject))
         }));
 
+        // 3. Load the slice reference
         let el = match self.object.append_ir_value(ctx, target, None)? {
             ir::ValueType::Ref(st) => match st.as_ref() {
                 ir::StorableType::Slice(t) => t.clone(),
@@ -57,6 +60,7 @@ impl IndexExpr {
             _ => return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::InvalidRHS))
         };
 
+        // 4. Create a path to access it
         target.push(ir::Ins::PushPath(ir::ValuePath::new(
             ir::ValuePathOrigin::Deref(ir::StorableType::Slice(el.clone())),
             vec![
@@ -64,6 +68,7 @@ impl IndexExpr {
             ]
         ), vt.clone()));
 
+        // 5. Derefence it
         target.push(ir::Ins::Push(vt.clone()));
 
         Ok(vt.clone())

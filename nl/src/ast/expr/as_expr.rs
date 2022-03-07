@@ -28,6 +28,7 @@ impl AsExpr {
 
         let curr_type = self.expr.append_ir_value(ctx, target, Some(&desired_type))?;
 
+        // Only numbers can be cast, over values cannot be
         if !curr_type.is_num() || !desired_type.is_num() {
             return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::NonValueCast));
         }
