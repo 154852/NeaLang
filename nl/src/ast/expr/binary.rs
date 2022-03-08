@@ -29,16 +29,16 @@ impl BinaryOp {
 }
 
 impl BinaryExpr {
-    pub fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
-        self.left.resultant_type(ctx, if self.op.is_num() { prefered } else { None })
+    pub fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, preferred: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+        self.left.resultant_type(ctx, if self.op.is_num() { preferred } else { None })
     }
 
-    pub fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+    pub fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, preferred: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
         // 1. Load LHS
-        let left = self.left.append_ir_value(ctx, target, if self.op.is_num() { prefered } else { None })?;
+        let left = self.left.append_ir_value(ctx, target, if self.op.is_num() { preferred } else { None })?;
         
         // 2. Load RHS
-        let right = self.right.append_ir_value(ctx, target, if self.op.is_num() { prefered } else { Some(&left) })?;
+        let right = self.right.append_ir_value(ctx, target, if self.op.is_num() { preferred } else { Some(&left) })?;
 
         // If they don't have the same type, throw an error
         if left != right { return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::BinaryOpTypeMismatch)) }

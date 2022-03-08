@@ -9,6 +9,8 @@ pub struct ImportStmt {
 }
 
 impl ImportStmt {
+    // No irgen since this never goes to ir, it is handled during parsing
+
     pub fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<ImportStmt> {
         let start = stream.tell_start();
         syntax::reqs!(stream, syntax::tk_is!(stream, TokenKind::ImportKeyword));

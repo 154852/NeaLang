@@ -45,52 +45,52 @@ impl Expr {
     }
 
     /// Build the IR that references this value
-    pub fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+    pub fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, preferred: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
         match self {
-            Expr::BinaryExpr(binary_expr) => binary_expr.append_ir(ctx, target, prefered),
-            Expr::Name(name_expr) => name_expr.append_ir_value(ctx, target, prefered),
-            Expr::Closed(closed_expr) => closed_expr.expr.append_ir_value(ctx, target, prefered),
-            Expr::NumberLit(number_lit) => number_lit.append_ir(ctx, target, prefered),
-            Expr::Call(call_expr) => call_expr.append_ir_in_expr(ctx, target, prefered),
-            Expr::MemberAccess(member_access) => member_access.append_ir_value(ctx, target, prefered),
-            Expr::Index(index_expr) => index_expr.append_ir_value(ctx, target, prefered),
-            Expr::As(as_expr) => as_expr.append_ir(ctx, target, prefered),
-            Expr::StringLit(string_expr) => string_expr.append_ir_value(ctx, target, prefered),
-            Expr::NewExpr(new_expr) => new_expr.append_ir_value(ctx, target, prefered),
-            Expr::SliceLit(slice_lit_expr) => slice_lit_expr.append_ir_value(ctx, target, prefered),
-            Expr::BoolLit(bool_lit_expr) => bool_lit_expr.append_ir_value(ctx, target, prefered),
+            Expr::BinaryExpr(binary_expr) => binary_expr.append_ir(ctx, target, preferred),
+            Expr::Name(name_expr) => name_expr.append_ir_value(ctx, target, preferred),
+            Expr::Closed(closed_expr) => closed_expr.expr.append_ir_value(ctx, target, preferred),
+            Expr::NumberLit(number_lit) => number_lit.append_ir(ctx, target, preferred),
+            Expr::Call(call_expr) => call_expr.append_ir_in_expr(ctx, target, preferred),
+            Expr::MemberAccess(member_access) => member_access.append_ir_value(ctx, target, preferred),
+            Expr::Index(index_expr) => index_expr.append_ir_value(ctx, target, preferred),
+            Expr::As(as_expr) => as_expr.append_ir(ctx, target, preferred),
+            Expr::StringLit(string_expr) => string_expr.append_ir_value(ctx, target, preferred),
+            Expr::NewExpr(new_expr) => new_expr.append_ir_value(ctx, target, preferred),
+            Expr::SliceLit(slice_lit_expr) => slice_lit_expr.append_ir_value(ctx, target, preferred),
+            Expr::BoolLit(bool_lit_expr) => bool_lit_expr.append_ir_value(ctx, target, preferred),
         }
     }
 
     /// Predicts the type of the object without building an IR - should always match the result of append_ir_value.
     /// This *DOES NOT* necessarily verify that the code is semantically correct, append_ir_value and construct_path do that
-    pub fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+    pub fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, preferred: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
         match self {
-            Expr::BinaryExpr(binary_expr) => binary_expr.resultant_type(ctx, prefered),
-            Expr::Name(name_expr) => name_expr.resultant_type(ctx, prefered),
-            Expr::Closed(closed_expr) => closed_expr.expr.resultant_type(ctx, prefered),
-            Expr::NumberLit(number_lit) => number_lit.resultant_type(ctx, prefered),
-            Expr::Call(call_expr) => call_expr.resultant_type(ctx, prefered),
-            Expr::MemberAccess(member_access) => member_access.resultant_type(ctx, prefered),
-            Expr::Index(index_expr) => index_expr.resultant_type(ctx, prefered),
-            Expr::As(as_expr) => as_expr.resultant_type(ctx, prefered),
-            Expr::StringLit(string_expr) => string_expr.resultant_type(ctx, prefered),
-            Expr::NewExpr(new_expr) => new_expr.resultant_type(ctx, prefered),
-            Expr::SliceLit(slice_lit_expr) => slice_lit_expr.resultant_type(ctx, prefered),
-            Expr::BoolLit(bool_lit_expr) => bool_lit_expr.resultant_type(ctx, prefered),
+            Expr::BinaryExpr(binary_expr) => binary_expr.resultant_type(ctx, preferred),
+            Expr::Name(name_expr) => name_expr.resultant_type(ctx, preferred),
+            Expr::Closed(closed_expr) => closed_expr.expr.resultant_type(ctx, preferred),
+            Expr::NumberLit(number_lit) => number_lit.resultant_type(ctx, preferred),
+            Expr::Call(call_expr) => call_expr.resultant_type(ctx, preferred),
+            Expr::MemberAccess(member_access) => member_access.resultant_type(ctx, preferred),
+            Expr::Index(index_expr) => index_expr.resultant_type(ctx, preferred),
+            Expr::As(as_expr) => as_expr.resultant_type(ctx, preferred),
+            Expr::StringLit(string_expr) => string_expr.resultant_type(ctx, preferred),
+            Expr::NewExpr(new_expr) => new_expr.resultant_type(ctx, preferred),
+            Expr::SliceLit(slice_lit_expr) => slice_lit_expr.resultant_type(ctx, preferred),
+            Expr::BoolLit(bool_lit_expr) => bool_lit_expr.resultant_type(ctx, preferred),
         }
     }
 
     /// Builds a path to the location that the expression returns to - allows it to be written to.
-    pub fn construct_path_to<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, prefered: Option<&ir::ValueType>) -> Result<(ir::StorableType, ir::ValuePath), IrGenError> {
+    pub fn construct_path_to<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, preferred: Option<&ir::ValueType>) -> Result<(ir::StorableType, ir::ValuePath), IrGenError> {
         match self {
             Expr::BinaryExpr(binary_expr) => return Err(IrGenError::new(binary_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
-            Expr::Name(name_expr) => name_expr.construct_path_to(ctx, target, prefered),
-            Expr::Closed(closed_expr) => closed_expr.expr.construct_path_to(ctx, target, prefered),
+            Expr::Name(name_expr) => name_expr.construct_path_to(ctx, target, preferred),
+            Expr::Closed(closed_expr) => closed_expr.expr.construct_path_to(ctx, target, preferred),
             Expr::NumberLit(number_lit) => return Err(IrGenError::new(number_lit.span.clone(), IrGenErrorKind::InvalidLHS)),
             Expr::Call(call_expr) => return Err(IrGenError::new(call_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
-            Expr::MemberAccess(member_access) => member_access.construct_path_to(ctx, target, prefered),
-            Expr::Index(index_expr) => index_expr.construct_path_to(ctx, target, prefered),
+            Expr::MemberAccess(member_access) => member_access.construct_path_to(ctx, target, preferred),
+            Expr::Index(index_expr) => index_expr.construct_path_to(ctx, target, preferred),
             Expr::As(as_expr) => return Err(IrGenError::new(as_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
             Expr::StringLit(string_expr) => return Err(IrGenError::new(string_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
             Expr::NewExpr(new_expr) => return Err(IrGenError::new(new_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
@@ -99,7 +99,7 @@ impl Expr {
         }
     }
 
-    /// Will convert an expression in a Value of a given ValueType (if possible)
+    /// Will convert an expression to a Value of a given ValueType (if possible)
     pub fn as_value(&self, ir_unit: &ir::TranslationUnit, value_type: &ir::ValueType) -> Result<ir::Value, IrGenError> {
         match self {
             Expr::NumberLit(num) =>

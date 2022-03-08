@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use clap::{AppSettings, Clap};
 use ir2triple;
 
-// Use https://docs.rs/clap to parse command line arguments
+// Uses https://docs.rs/clap to parse command line arguments
 
 #[derive(Clap)]
 #[clap(setting = AppSettings::ColoredHelp)]

@@ -29,11 +29,13 @@ impl ReturnStmt {
     }
 
     pub fn append_ir<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget) -> Result<(), IrGenError> {
+        // FIXME: More than one return type
+        assert!(ctx.func().signature().return_count() <= 1);
+
         // 1. Load the expression, if there is one
         if let Some(expr) = &self.expr {
             let result = expr.append_ir_value(ctx, target, None)?;
-
-            // Not possible to have more than 1 in NL
+            
             if let Some(return_type) = ctx.func().signature().returns().get(0) {
                 if return_type != &result {
                     return Err(IrGenError::new(expr.span().clone(), IrGenErrorKind::IncorrectReturnType(value_type_to_string(&result), value_type_to_string(return_type))));

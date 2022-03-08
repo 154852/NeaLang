@@ -23,29 +23,28 @@ impl std::fmt::Display for GlobalIndex {
 pub struct Global {
     name: Option<String>,
     global_type: StorableType,
-    writable: bool,
     default: Option<StorableValue>
 }
 
 impl Global {
-    pub fn new<T: Into<String>>(name: Option<T>, global_type: StorableType, writable: bool) -> Global {
+    pub fn new<T: Into<String>>(name: Option<T>, global_type: StorableType) -> Global {
         Global {
             name: match name {
                 Some(x) => Some(x.into()),
                 None => None
             },
-            global_type, writable,
+            global_type,
             default: None
         }
     }
 
-    pub fn new_default<T: Into<String>>(name: Option<T>, global_type: StorableType, writable: bool, default: StorableValue) -> Global {
+    pub fn new_default<T: Into<String>>(name: Option<T>, global_type: StorableType, default: StorableValue) -> Global {
         Global {
             name: match name {
                 Some(x) => Some(x.into()),
                 None => None
             },
-            global_type, writable,
+            global_type,
             default: Some(default)
         }
     }

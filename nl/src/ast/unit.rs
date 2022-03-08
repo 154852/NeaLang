@@ -22,7 +22,9 @@ impl TranslationUnit {
 }
 
 impl TranslationUnit {
+    /// Defines this unit in the ir, but does not append function code
     pub fn to_extern_ir_on(&self, unit: &mut ir::TranslationUnit, target_arch_name: &str) -> Result<(), IrGenError> {
+        // 1. Declare all the types - must be done first so function signatures can use these types
         for node in &self.nodes {
             match node {
                 TopLevelNode::StructDeclaration(decl) => {
@@ -33,9 +35,11 @@ impl TranslationUnit {
             }
         }
 
+        // 2. Then insert function bases
         for node in &self.nodes {
             match node {
                 TopLevelNode::Function(func) => {
+                    // Filter out functions not of the correct arch
                     if !func.arch_matches(target_arch_name)? { continue; }
                     
                     let mut func = func.to_ir_base(unit, self)?;
@@ -49,7 +53,9 @@ impl TranslationUnit {
         Ok(())
     }
 
+    /// Both defines the unit and appends function code - to_extern_ir_on should *not* have been called first.
     pub fn to_ir_on(&self, unit: &mut ir::TranslationUnit, target_arch_name: &str) -> Result<(), IrGenError> {
+        // 1. Declare all the types - must be done first so function signatures can use these types
         for node in &self.nodes {
             match node {
                 TopLevelNode::StructDeclaration(decl) => {
@@ -60,10 +66,12 @@ impl TranslationUnit {
             }
         }
 
+        // 2. Add the function bases - must be done before adding code so that the code can use other functions
         let mut first_index = None;
         for node in &self.nodes {
             match node {
                 TopLevelNode::Function(func) => {
+                    // Filter out functions not of the correct arch
                     if !func.arch_matches(target_arch_name)? { continue; }
 
                     let func = func.to_ir_base(unit, self)?;
@@ -76,6 +84,7 @@ impl TranslationUnit {
             }
         }
 
+        // 3. Then add code
         let mut id = 0;
         for node in &self.nodes {
             match node {

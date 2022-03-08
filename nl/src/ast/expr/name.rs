@@ -9,7 +9,12 @@ pub struct NameExpr {
 }
 
 impl NameExpr {
-    pub fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+    // Currently names (when considered on their own), refer only to locals,
+    // in the future they may refer to globals
+    // Note that when a type of function is referenced, it is also a NameExpr in the AST,
+    // but it will be treated differently by the parent Node, e.g. MemberAccess or Call
+
+    pub fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, _preferred: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
         if let Some(idx) = ctx.local_map.get(self.name.as_str()) {
             let st = ctx.func().get_local(*idx).unwrap().local_type();
 
@@ -24,7 +29,7 @@ impl NameExpr {
         }
     }
 
-    pub fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+    pub fn append_ir_value<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _preferred: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
         if let Some(idx) = ctx.local_map.get(self.name.as_str()) {
             let idx = *idx;
             
@@ -48,7 +53,7 @@ impl NameExpr {
         }
     }
 
-    pub fn construct_path_to<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, _target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<(ir::StorableType, ir::ValuePath), IrGenError> {
+    pub fn construct_path_to<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, _target: &mut IrGenCodeTarget, _preferred: Option<&ir::ValueType>) -> Result<(ir::StorableType, ir::ValuePath), IrGenError> {
         if let Some(idx) = ctx.local_map.get(self.name.as_str()) {
             let idx = *idx;
             

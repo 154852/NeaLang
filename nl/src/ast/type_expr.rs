@@ -15,6 +15,8 @@ pub struct TypeExpr {
 impl TypeExpr {
     pub fn parse<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<TypeExpr> {
         let start = stream.tell_start();
+
+        // 1. Parse the type path
         let mut path = Vec::new();
         loop {
             path.push(syntax::ex!(syntax::tk_v!(stream, TokenKind::Ident), stream.error("Expected identifier")).to_owned());
@@ -23,6 +25,7 @@ impl TypeExpr {
             if !syntax::tk_iss!(stream, TokenKind::Dot) { break }
         }
 
+        // 2. Optionally followed by [] or [expr] to indicate slices or any dimension.
         let mut slice_lengths = Vec::new();
         while syntax::tk_iss!(stream, TokenKind::OpenBracket) {
             if syntax::tk_iss!(stream, TokenKind::CloseBracket) {
@@ -40,6 +43,7 @@ impl TypeExpr {
     }
 
     pub fn to_ir_base_storable_type(&self, ir_unit: &ir::TranslationUnit) -> Result<ir::StorableType, IrGenError> {
+        // 1. Attempt to match the name with an iternal type
         // There must be a first item, or else this shouldn't have parsed
         match self.path.get(0).unwrap().as_str() {
             "u8" => return Ok(ir::StorableType::Value(ir::ValueType::U8)),
@@ -55,6 +59,7 @@ impl TypeExpr {
             _ => {}
         }
 
+        // 2. If that fails, look for the type in the unit
         if let Some(ct) = ir_unit.find_type(&self.path.get(0).unwrap()) {
             return Ok(ir::StorableType::Compound(ct));
         }
@@ -72,6 +77,7 @@ impl TypeExpr {
         Ok(st)
     }
 
+    /// This is where NL feels more like java or python that C, in that objects are always treated as pointers.
     pub fn to_ir_value_type(&self, ir_unit: &ir::TranslationUnit) -> Result<ir::ValueType, IrGenError> {
         match self.to_ir_storable_type(ir_unit)? {
             ir::StorableType::Compound(ct) => Ok(ir::ValueType::Ref(Box::new(ir::StorableType::Compound(ct)))),

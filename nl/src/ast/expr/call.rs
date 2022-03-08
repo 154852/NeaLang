@@ -66,7 +66,7 @@ impl CallExpr {
         Ok(func_idx)
     }
 
-    pub fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+    pub fn resultant_type<'a>(&'a self, ctx: &IrGenFunctionContext<'a>, _preferred: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
         let func = ctx.ir_unit.get_function(self.find_function_index(ctx)?).unwrap();
 
         // Check return count, but does not check arguments since we are only trying to determine the type - nothing more
@@ -132,7 +132,7 @@ impl CallExpr {
         Ok(func_id)
     }
 
-    pub fn append_ir_in_expr<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _prefered: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
+    pub fn append_ir_in_expr<'a>(&'a self, ctx: &mut IrGenFunctionContext<'a>, target: &mut IrGenCodeTarget, _preferred: Option<&ir::ValueType>) -> Result<ir::ValueType, IrGenError> {
         let index = self.append_ir(ctx, target, true)?;
         Ok(ctx.ir_unit.get_function(index).unwrap().signature().returns()[0].clone())
     }
