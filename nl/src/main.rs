@@ -42,6 +42,14 @@ struct BuildOpts {
     #[clap(short = 'c')]
     relocatable: bool,
 
+    /// Link the binary using CC (only applies to linux-elf-x86_64 on linux-elf-x86_64 systems)
+    #[clap(long)]
+    link: bool,
+
+    /// Add files to pass to CC, only applies if --link is enabled
+    #[clap(short='T')]
+    ldinc: Vec<String>,
+
     /// Emit the parsed AST to stdout for each file after it is parsed
     #[clap(long)]
     emit_ast: bool,
@@ -248,11 +256,32 @@ impl Arch {
     }
 
     /// Invokes the relevant ir2triple module for this triple
-    pub fn encode(&self, ir_unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Result<(), String> {
+    pub fn encode(&self, ir_unit: &ir::TranslationUnit, build_opts: &BuildOpts) -> Result<(), String> {
         match self {
-            Arch::X86 => ir2triple::linux_elf::encode(&ir_unit, path, relocatable) ,
-            Arch::Wasm => ir2triple::wasm::encode(&ir_unit, path, relocatable),
-            Arch::Java => ir2triple::java::encode(&ir_unit, path, relocatable),
+            Arch::X86 if build_opts.link && build_opts.relocatable => {
+                let mut tmp = std::env::temp_dir();
+                tmp.push("nl-build.o");
+                ir2triple::linux_elf::encode(&ir_unit, tmp.to_str().unwrap(), true)?;
+
+                match std::process::Command::new("cc")
+                    .args(&build_opts.ldinc)
+                    .arg(&tmp)
+                    .arg("-o").arg(&build_opts.output)
+                    .status() {
+                    Ok(_) => {},
+                    Err(err) => return Err(format!("{}", err))
+                }
+
+                match std::fs::remove_file(tmp) {
+                    Ok(_) => {},
+                    Err(e) => return Err(format!("{}", e))
+                }
+                
+                Ok(())
+            },
+            Arch::X86 => ir2triple::linux_elf::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
+            Arch::Wasm => ir2triple::wasm::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
+            Arch::Java => ir2triple::java::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
             Arch::None => Ok(()) // Do nothing
         }
     }
@@ -295,7 +324,7 @@ fn build(build_opts: &BuildOpts) {
     // Does not *strictly* need to be here, but good for debugging
     ir_unit.validate().expect("Could not validate IR");
 
-    match arch.encode(&ir_unit, &build_opts.output, build_opts.relocatable) {
+    match arch.encode(&ir_unit, &build_opts) {
         Ok(_) => (),
         Err(e) => {
             eprintln!("EncodeError: {}", e);
