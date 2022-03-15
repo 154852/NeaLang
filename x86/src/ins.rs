@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::{Encoder, GlobalSymbolID, LocalSymbolID, Mem, Reg, RegClass, Relocation, Size};
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Condition {
     Zero,
     NotZero,
@@ -20,6 +20,17 @@ impl Condition {
             Condition::LessOrEqual => 0xe,
             Condition::Greater => 0xf,
             Condition::GreaterOrEqual => 0xd,
+        }
+    }
+
+    pub fn inv(&self) -> Condition {
+        match self {
+            Condition::Zero => Condition::NotZero,
+            Condition::NotZero => Condition::Zero,
+            Condition::Less => Condition::GreaterOrEqual,
+            Condition::GreaterOrEqual => Condition::Less,
+            Condition::Greater => Condition::LessOrEqual,
+            Condition::LessOrEqual => Condition::Greater,
         }
     }
 }
