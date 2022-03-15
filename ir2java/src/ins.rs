@@ -433,6 +433,10 @@ impl<'a> TranslationContext<'a> {
                 stack_map.stack_pop();
                 false
             }
+            ir::Ins::Neg(vt) => {
+                insns.push(java::opt::ins::neg(&crate::util::value_type_to_descriptor(vt, class)));
+                false
+            }
             ir::Ins::BoolAnd => {
                 insns.push(java::Ins::IAnd);
                 stack_map.stack_pop();

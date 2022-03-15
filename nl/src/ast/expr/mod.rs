@@ -8,6 +8,7 @@ mod literal;
 mod member_access;
 mod name;
 mod new;
+mod unary;
 
 pub use as_expr::*;
 pub use binary::*;
@@ -19,3 +20,4 @@ pub use literal::*;
 pub use member_access::*;
 pub use name::*;
 pub use new::*;
+pub use unary::*;

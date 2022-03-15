@@ -309,4 +309,15 @@ pub mod ins {
 			Descriptor::Void => panic!("Cannot div void"),
 		}
 	}
+
+	pub fn neg(desc: &Descriptor) -> Ins {
+		match desc {
+			Descriptor::Byte | Descriptor::Char | Descriptor::Int | Descriptor::Short | Descriptor::Boolean => Ins::INeg,
+			Descriptor::Double => Ins::DNeg,
+			Descriptor::Float => Ins::FNeg,
+			Descriptor::Long => Ins::LNeg,
+			Descriptor::Reference(_) | Descriptor::Array(_, _) => panic!("Cannot neg references"),
+			Descriptor::Void => panic!("Cannot neg void"),
+		}
+	}
 }

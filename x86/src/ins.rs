@@ -118,6 +118,11 @@ pub enum Ins {
     // A <- Zero extended B
     MovzxRegMem(Size, Reg, Mem),
 
+    /// A <- -A
+    NegReg(Reg),
+    /// A <- -A
+    NegMem(Size, Mem),
+
     /// A <- A | B
     OrRegReg(Reg, Reg),
     /// A <- A | B
@@ -273,6 +278,10 @@ impl Ins {
                 Size::Word => Encoder::new_long([0x0f, 0xb7]).rm(r, m).to(data),
                 _ => panic!("Cannot zero extend from 8 or 16 bits")
             },
+
+            // https://www.felixcloutier.com/x86/neg
+            Ins::NegReg(r) => Encoder::new(if r.size() == Size::Byte { 0xf6 } else { 0xf7 }).rn(r, 3).to(data),
+            Ins::NegMem(s, ref m) => Encoder::new(if s == Size::Byte { 0xf6 } else { 0xf7 }).mn(s, m, 3).to(data),
 
             // https://www.felixcloutier.com/x86/or
             Ins::OrRegReg(a, b) => Encoder::new(if a.size() == Size::Byte { 0x08 } else { 0x09 }).rr(b, a).to(data),

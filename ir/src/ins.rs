@@ -185,6 +185,9 @@ pub enum Ins {
     /// ```
     Sub(ValueType),
 
+    /// Negates the top value on the stack
+    Neg(ValueType),
+
     /// Pushes 1 if the last two items on the stack are equal, and 0 otherwise. The two items must both have the given value type, and the result will be a bool.
     /// # Examples
     /// ```

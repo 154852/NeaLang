@@ -40,6 +40,41 @@ func print(string: String) {
 	}
 }
 
+func println(string: String) {
+	print(string);
+	putchar(10);
+}
+
+func printi(i: i32) {
+	if i == 0 {
+		print("0");
+		return;
+	}
+
+	if i < 0 {
+		print("-");
+		i = -i;
+	}
+
+	var pow = 1;
+	for pow <= i {
+		pow = pow * 10;
+	}
+
+	pow = pow / 10;
+
+	for pow > 0 {
+		putchar(48 + (i / pow) as u32);
+		i = i - ((i / pow) * pow);
+		pow = pow / 10;
+	}
+}
+
+func printiln(i: i32) {
+	printi(i);
+	putchar(10);
+}
+
 func colour_green() {
 	putchar(27);
 	print("[32m");
@@ -83,12 +118,12 @@ func binary_search(sorted_slice: i32[], target: i32): uptr {
 		if element == target {
 			return middle;
 		} else if element > target {
-			end = middle;
+			end = middle - 1;
 		} else {
-			start = middle;
+			start = middle + 1;
 		}
 
-		if middle == start { return sorted_slice.length; }
+		if end < start { return sorted_slice.length; }
 	}
 
 	return 0 as uptr;

@@ -319,6 +319,10 @@ impl Ins {
                 if !vt.is_num() { return Err(ValidationError::StackNotNum) }
                 peek!(stack, 0, = vt);
             }),
+            Ins::Neg(vt) => Ok({
+                if !vt.is_num() { return Err(ValidationError::StackNotNum) }
+                peek!(stack, 0, = vt);
+            }),
             Ins::Add(operand_type) | Ins::Mul(operand_type) | Ins::Div(operand_type) | Ins::Sub(operand_type) => Ok({
                 if !operand_type.is_num() { return Err(ValidationError::StackNotNum) }
                 pop!(stack, = *operand_type);

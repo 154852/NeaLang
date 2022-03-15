@@ -152,6 +152,17 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::Mul(vt) => insns.push(wasm::Ins::Mul(crate::util::value_type_to_num_type(vt))),
             ir::Ins::Div(vt) => insns.push(wasm::Ins::Div(crate::util::value_type_to_num_type(vt), vt.is_signed())),
             ir::Ins::Sub(vt) => insns.push(wasm::Ins::Sub(crate::util::value_type_to_num_type(vt))),
+            ir::Ins::Neg(vt) => {
+                insns.push(match vt {
+                    ir::ValueType::U8 | ir::ValueType::I8 | ir::ValueType::I16 | ir::ValueType::U16 | ir::ValueType::I32 | ir::ValueType::U32 =>
+                        wasm::Ins::ConstI32(-1),
+                    ir::ValueType::U64 | ir::ValueType::I64 => wasm::Ins::ConstI64(-1),
+                    ir::ValueType::UPtr | ir::ValueType::IPtr =>  wasm::Ins::ConstI32(-1),
+                    ir::ValueType::Bool =>  wasm::Ins::ConstI32(-1),
+                    ir::ValueType::Ref(_) | ir::ValueType::Index(_) => panic!(),
+                });
+                insns.push(wasm::Ins::Mul(crate::util::value_type_to_num_type(vt)));
+            }
             ir::Ins::Lt(vt) => insns.push(wasm::Ins::Lt(crate::util::value_type_to_num_type(vt), vt.is_signed())),
             ir::Ins::Le(vt) => insns.push(wasm::Ins::Le(crate::util::value_type_to_num_type(vt), vt.is_signed())),
             ir::Ins::Gt(vt) => insns.push(wasm::Ins::Gt(crate::util::value_type_to_num_type(vt), vt.is_signed())),

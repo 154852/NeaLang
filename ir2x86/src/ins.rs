@@ -290,6 +290,13 @@ impl TranslationContext {
                     a, b,
                 ));
             },
+            ir::Ins::Neg(vt) => {
+                let a = ftc.stack().peek_vt(vt);
+                // a = -a
+                ins.push(x86::Ins::NegReg(
+                    a
+                ));
+            },
             ir::Ins::Eq(vt) => {
                 let b = ftc.stack().pop_vt(vt);
                 let a = ftc.stack().peek_vt(vt);

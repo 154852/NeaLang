@@ -85,6 +85,7 @@ impl std::fmt::Display for Ins {
             Ins::Mul(vt) => f.write_fmt(format_args!("mul %{}", vt)),
             Ins::Div(vt) => f.write_fmt(format_args!("div %{}", vt)),
             Ins::Sub(vt) => f.write_fmt(format_args!("sub %{}", vt)),
+            Ins::Neg(vt) => f.write_fmt(format_args!("neg %{}", vt)),
             Ins::Eq(vt) => f.write_fmt(format_args!("eq %{}", vt)),
             Ins::Ne(vt) => f.write_fmt(format_args!("ne %{}", vt)),
             Ins::Lt(vt) => f.write_fmt(format_args!("lt %{}", vt)),

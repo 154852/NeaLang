@@ -200,6 +200,14 @@ func test_drop() {
 	test_pass("test_drop");
 }
 
+func test_neg() {
+	if (-(-4) != 4) || (-4 + 4 != 0) || (-3 * 2 != -6) {
+		test_fail("test_neg");
+	} else {
+		test_pass("test_neg");
+	}
+}
+
 func [entry] main() {
 	test_if();
 	test_if_else();
@@ -216,4 +224,5 @@ func [entry] main() {
 	test_binary_search();
 	test_bubble_sort();
 	test_drop();
+	test_neg();
 }

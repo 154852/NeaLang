@@ -19,7 +19,8 @@ pub enum Expr {
     StringLit(StringLitExpr),
     SliceLit(SliceLitExpr),
     NewExpr(NewExpr),
-    BoolLit(BoolLitExpr)
+    BoolLit(BoolLitExpr),
+    Unary(UnaryExpr)
 }
 
 impl Expr {
@@ -41,6 +42,7 @@ impl Expr {
             Expr::NewExpr(expr) => &expr.span,
             Expr::SliceLit(expr) => &expr.span,
             Expr::BoolLit(expr) => &expr.span,
+            Expr::Unary(expr) => &expr.span
         }
     }
 
@@ -59,6 +61,7 @@ impl Expr {
             Expr::NewExpr(new_expr) => new_expr.append_ir_value(ctx, target, preferred),
             Expr::SliceLit(slice_lit_expr) => slice_lit_expr.append_ir_value(ctx, target, preferred),
             Expr::BoolLit(bool_lit_expr) => bool_lit_expr.append_ir_value(ctx, target, preferred),
+            Expr::Unary(unary) => unary.append_ir(ctx, target, preferred)
         }
     }
 
@@ -78,6 +81,7 @@ impl Expr {
             Expr::NewExpr(new_expr) => new_expr.resultant_type(ctx, preferred),
             Expr::SliceLit(slice_lit_expr) => slice_lit_expr.resultant_type(ctx, preferred),
             Expr::BoolLit(bool_lit_expr) => bool_lit_expr.resultant_type(ctx, preferred),
+            Expr::Unary(unary) => unary.resultant_type(ctx, preferred)
         }
     }
 
@@ -96,6 +100,7 @@ impl Expr {
             Expr::NewExpr(new_expr) => return Err(IrGenError::new(new_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
             Expr::SliceLit(slice_lit_expr) => return Err(IrGenError::new(slice_lit_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
             Expr::BoolLit(bool_lit_expr) => return Err(IrGenError::new(bool_lit_expr.span.clone(), IrGenErrorKind::InvalidLHS)),
+            Expr::Unary(unary) => return Err(IrGenError::new(unary.span.clone(), IrGenErrorKind::InvalidLHS)),
         }
     }
 
@@ -172,6 +177,17 @@ impl Expr {
                 Expr::SliceLit(SliceLitExpr {
                     span: syntax::Span::new(start, stream.tell_start()),
                     values
+                })
+            },
+            Some(TokenKind::Sub) => {
+                stream.step();
+                
+                let right = Box::new(syntax::ex!(syntax::parse!(stream, Expr::parse_primary), stream.error("Expected expression after unary op")));
+                
+                Expr::Unary(UnaryExpr {
+                    span: syntax::Span::new(start, stream.tell_start()),
+                    right,
+                    op: UnaryOp::Neg
                 })
             },
             Some(TokenKind::Number(s)) => {
