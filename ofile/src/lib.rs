@@ -1,5 +1,6 @@
 pub mod elf;
 pub mod elfbuilder;
+pub mod macho;
 
 // Alignment is the actual number (e.g. 1 << 12) not the order (in this case 12)
 pub fn align_up<T: std::ops::Rem<Output = T> + std::ops::Sub<Output = T> + std::ops::Add<Output = T> + Eq + Default + Copy>(value: T, alignment: T) -> T {
