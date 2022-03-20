@@ -20,7 +20,16 @@ impl TranslationContext {
             ));
         }
 
+        // FIXME: 32 bit
+        if ftc.should_align_16_byte() && old_stack_size % 2 != 0 {
+            insns.push(x86::Ins::SubRegImm(x86::Reg::Rsp, 8));
+        }
+
         insns.push(x86::Ins::CallGlobalSymbol(ftc.symbol_id_for_function(idx)));
+
+        if ftc.should_align_16_byte() && old_stack_size % 2 != 0 {
+            insns.push(x86::Ins::AddRegImm(x86::Reg::Rsp, 8));
+        }
 
         // Move return values to new places on stack
         for (i, ret) in ftc.unit().get_function(idx).unwrap().signature().returns().iter().enumerate() {

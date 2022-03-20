@@ -60,7 +60,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
         let gid = gid_allocator.global_id_of_global(ir::GlobalIndex::new(i));
 
         if let Some(name) = global.name() {
-            let pushed = ctx.translate_global(global, unit, &gid_allocator, &mut relocs, gid, data.len(), 0);
+            let pushed = ctx.translate_global(global, unit, &gid_allocator, &mut relocs, data.len(), 0);
             gid_allocator.push_global_symbol_mapping(gid, elf.push_symbol(elfbuilder::Symbol::Object(
                 name.to_string(),
                 data_base + data.len() as u64,
@@ -68,7 +68,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
             )), 0);
             data.extend(pushed);
         } else {
-            let pushed = ctx.translate_global(global, unit, &gid_allocator, &mut relocs, gid, data.len(), 0);
+            let pushed = ctx.translate_global(global, unit, &gid_allocator, &mut relocs, data.len(), 0);
             gid_allocator.push_global_symbol_mapping(gid, data_base_symbol, data.len() as i64);
             data.extend(pushed);
         }

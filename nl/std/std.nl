@@ -1,9 +1,16 @@
-func [arch="x86"] exit(code: i32) extern
-func [arch="x86"] putchar(chr: u32) extern
-func [arch="x86", alloc] nl_new_object(size: uptr): uptr extern
-func [arch="x86", alloc_slice] nl_new_slice(count: uptr, size: uptr): uptr extern
-func [arch="x86", free] nl_drop_object(object: uptr, size: uptr) extern
-func [arch="x86", free_slice] nl_drop_slice(slice: uptr, element_size: uptr) extern
+func [arch="linux-x86"] exit(code: i32) extern
+func [arch="linux-x86"] putchar(chr: u32) extern
+func [arch="linux-x86", alloc] nl_new_object(size: uptr): uptr extern
+func [arch="linux-x86", alloc_slice] nl_new_slice(count: uptr, size: uptr): uptr extern
+func [arch="linux-x86", free] nl_drop_object(object: uptr, size: uptr) extern
+func [arch="linux-x86", free_slice] nl_drop_slice(slice: uptr, element_size: uptr) extern
+
+func [arch="macos-x86"] exit(code: i32) extern
+func [arch="macos-x86"] putchar(chr: u32) extern
+func [arch="macos-x86", alloc] nl_new_object(size: uptr): uptr extern
+func [arch="macos-x86", alloc_slice] nl_new_slice(count: uptr, size: uptr): uptr extern
+func [arch="macos-x86", free] nl_drop_object(object: uptr, size: uptr) extern
+func [arch="macos-x86", free_slice] nl_drop_slice(slice: uptr, element_size: uptr) extern
 
 func [arch="wasm", location="core"] exit(code: i32) extern
 func [arch="wasm", location="core"] putchar(chr: u32) extern

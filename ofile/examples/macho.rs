@@ -41,15 +41,15 @@ fn main() {
 				attrs: macho::SECTION_PURE_INS | macho::SECTION_SOME_INS
 			},
 			macho::Section {
-				sectname: String::from("__cstring"),
-				segname: String::from("__TEXT"),
+				sectname: String::from("__data"),
+				segname: String::from("__DATA"),
 				addr: text_data.len() as u64,
 				size: cstring_data.len() as u64,
 				offset: 0,
 				align: 0,
 				reloff: 0,
 				nreloc: 0,
-				sectype: macho::SectionType::CStringLiterals,
+				sectype: macho::SectionType::Regular,
 				attrs: 0
 			}
 		],

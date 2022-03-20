@@ -553,7 +553,7 @@ impl<I: EncodableInt> Builder<I> {
 
 	pub fn push_symbol(&mut self, symbol: Symbol) -> u32 {
 		self.symbols.push(symbol);
-		self.symbols.len() as u32
+		self.symbols.len() as u32 - 1
 	}
 
 	pub fn push_reloc(&mut self, reloc: Reloc) -> usize {

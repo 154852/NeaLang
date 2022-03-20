@@ -228,7 +228,8 @@ impl BuildContext {
 
 /// Represents the possible triples provided by the user on the command line
 enum Arch {
-    X86,
+    LinuxX86,
+    MacosX86,
     Wasm,
     Java,
     None
@@ -238,7 +239,8 @@ impl Arch {
     /// Convert from a string triple name to an Arch, or None otherwise
     pub fn parse_triple(triple: &str) -> Option<Arch> {
         match triple {
-            "linux-elf-x86_64" => Some(Arch::X86),
+            "linux-elf-x86_64" => Some(Arch::LinuxX86),
+            "macos-macho-x86_64" => Some(Arch::MacosX86),
             "wasm" => Some(Arch::Wasm),
             "java" => Some(Arch::Java),
             "none" => Some(Arch::None),
@@ -248,7 +250,8 @@ impl Arch {
 
     pub fn short_name(&self) -> &'static str {
         match self {
-            Arch::X86 => "x86",
+            Arch::LinuxX86 => "linux-x86",
+            Arch::MacosX86 => "macos-x86",
             Arch::Wasm => "wasm",
             Arch::Java => "java",
             Arch::None => "none",
@@ -258,7 +261,7 @@ impl Arch {
     /// Invokes the relevant ir2triple module for this triple
     pub fn encode(&self, ir_unit: &ir::TranslationUnit, build_opts: &BuildOpts) -> Result<(), String> {
         match self {
-            Arch::X86 if build_opts.link && build_opts.relocatable => {
+            Arch::LinuxX86 if build_opts.link && build_opts.relocatable => {
                 let mut tmp = std::env::temp_dir();
                 tmp.push("nl-build.o");
                 ir2triple::linux_elf::encode(&ir_unit, tmp.to_str().unwrap(), true)?;
@@ -279,7 +282,29 @@ impl Arch {
                 
                 Ok(())
             },
-            Arch::X86 => ir2triple::linux_elf::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
+            Arch::LinuxX86 => ir2triple::linux_elf::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
+            Arch::MacosX86 if build_opts.link && build_opts.relocatable => {
+                let mut tmp = std::env::temp_dir();
+                tmp.push("nl-build.o");
+                ir2triple::macos_macho::encode(&ir_unit, tmp.to_str().unwrap(), true)?;
+
+                match std::process::Command::new("cc")
+                    .args(&build_opts.ldinc)
+                    .arg(&tmp)
+                    .arg("-o").arg(&build_opts.output)
+                    .status() {
+                    Ok(_) => {},
+                    Err(err) => return Err(format!("{}", err))
+                }
+
+                match std::fs::remove_file(tmp) {
+                    Ok(_) => {},
+                    Err(e) => return Err(format!("{}", e))
+                }
+                
+                Ok(())
+            },
+            Arch::MacosX86 => ir2triple::macos_macho::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
             Arch::Wasm => ir2triple::wasm::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
             Arch::Java => ir2triple::java::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
             Arch::None => Ok(()) // Do nothing
