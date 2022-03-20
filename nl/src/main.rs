@@ -34,8 +34,8 @@ struct BuildOpts {
     #[clap(short, long, default_value = "a.out")]
     output: String,
 
-    /// Target triple. Value values are linux-elf-x86_64, wasm, java and none.
-    #[clap(long, short, default_value = "linux-elf-x86_64")]
+    /// Target triple. Valid values are linux-elf-x86_64, macos-macho-x86_64, wasm, java, none and native - which infers the type from the calling system.
+    #[clap(long, short, default_value = "native")]
     triple: String,
 
     /// Make the target file relocatable.
@@ -181,7 +181,7 @@ impl BuildContext {
                         self.append_at_path(ir_unit, &child_path, visited_paths);
                     } else {
                         let error = format!("Could not resolve import {}", import_stmt.path.join("."));
-                        eprintln!("ImportError in {}: Could not resolve import {}", path.display(), error);
+                        eprintln!("ImportError in {}: {}", path.display(), error);
                         print_error_range(import_stmt.span.start, import_stmt.span.end, &content, &path, &error);
                         std::process::exit(1);
                     }
@@ -244,6 +244,12 @@ impl Arch {
             "wasm" => Some(Arch::Wasm),
             "java" => Some(Arch::Java),
             "none" => Some(Arch::None),
+            "native" =>
+                if cfg!(target_os = "macos") {
+                    Some(Arch::MacosX86)
+                } else {
+                    Some(Arch::LinuxX86)
+                },
             _ => None
         }
     }
