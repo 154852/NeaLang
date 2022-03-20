@@ -46,6 +46,10 @@ struct BuildOpts {
     #[clap(long)]
     link: bool,
 
+    /// Include std in the generated binary
+    #[clap(long)]
+    std: bool,
+
     /// Add files to pass to CC, only applies if --link is enabled
     #[clap(short='T')]
     ldinc: Vec<String>,
@@ -94,6 +98,9 @@ fn print_error_range(mut start: usize, mut end: usize, source: &str, path: &Path
     }
 }
 
+/// List of library dir locations, e.g. (/usr/lib/nl). For debugging purposes, we assume we are in the repository root
+const DIST_SEARCH_DIR: &'static str = "nl/std";
+
 /// Characterises the build system for NL, primarily is concerned with resolving imports and constructing one large IR translation unit
 pub struct BuildContext {
     linked_paths: Vec<PathBuf>,
@@ -110,6 +117,10 @@ impl BuildContext {
             search_dirs: search_dirs.iter().map(|x| Path::new(x).canonicalize().expect("Invalid path")).collect(),
             emit_ast
         }
+    }
+
+    pub fn append_linked_path(&mut self, path: PathBuf) {
+        self.linked_paths.push(path.canonicalize().expect("Invalid path"));
     }
 
     /// Searches for an import, or None if none is found.
@@ -133,6 +144,16 @@ impl BuildContext {
             child_path = child_path.with_extension("nl");
             if child_path.exists() { return Some(child_path); }            
         }
+
+        // If that fails, try the distrubution constant
+        let mut child_path = PathBuf::from(DIST_SEARCH_DIR);
+
+        for element in name {
+            child_path = child_path.join(element);
+        }
+
+        child_path = child_path.with_extension("nl");
+        if child_path.exists() { return Some(child_path); }            
 
         // No matching file was found
         None
@@ -264,6 +285,29 @@ impl Arch {
         }
     }
 
+    fn link(tmp: &PathBuf, build_opts: &BuildOpts) -> Result<(), String> {
+        if build_opts.std {
+            match std::process::Command::new("cc")
+                .args(&build_opts.ldinc)
+                .arg(tmp)
+                .arg(format!("{}/std.c", DIST_SEARCH_DIR))
+                .arg("-o").arg(&build_opts.output)
+                .status() {
+                Ok(_) => Ok(()),
+                Err(err) => return Err(format!("{}", err))
+            }
+        } else {
+            match std::process::Command::new("cc")
+                .args(&build_opts.ldinc)
+                .arg(tmp)
+                .arg("-o").arg(&build_opts.output)
+                .status() {
+                Ok(_) => Ok(()),
+                Err(err) => return Err(format!("{}", err))
+            }
+        }
+    }
+
     /// Invokes the relevant ir2triple module for this triple
     pub fn encode(&self, ir_unit: &ir::TranslationUnit, build_opts: &BuildOpts) -> Result<(), String> {
         match self {
@@ -272,14 +316,7 @@ impl Arch {
                 tmp.push("nl-build.o");
                 ir2triple::linux_elf::encode(&ir_unit, tmp.to_str().unwrap(), true)?;
 
-                match std::process::Command::new("cc")
-                    .args(&build_opts.ldinc)
-                    .arg(&tmp)
-                    .arg("-o").arg(&build_opts.output)
-                    .status() {
-                    Ok(_) => {},
-                    Err(err) => return Err(format!("{}", err))
-                }
+                Arch::link(&tmp, build_opts)?;
 
                 match std::fs::remove_file(tmp) {
                     Ok(_) => {},
@@ -294,14 +331,7 @@ impl Arch {
                 tmp.push("nl-build.o");
                 ir2triple::macos_macho::encode(&ir_unit, tmp.to_str().unwrap(), true)?;
 
-                match std::process::Command::new("cc")
-                    .args(&build_opts.ldinc)
-                    .arg(&tmp)
-                    .arg("-o").arg(&build_opts.output)
-                    .status() {
-                    Ok(_) => {},
-                    Err(err) => return Err(format!("{}", err))
-                }
+                Arch::link(&tmp, build_opts)?;
 
                 match std::fs::remove_file(tmp) {
                     Ok(_) => {},
@@ -330,7 +360,12 @@ fn build(build_opts: &BuildOpts) {
     };
 
     // Parse and build the IR Unit
-    let ir_unit = BuildContext::new(&build_opts.path, arch.short_name(), &build_opts.include, build_opts.emit_ast).build();
+    let mut ctx = BuildContext::new(&build_opts.path, arch.short_name(), &build_opts.include, build_opts.emit_ast);
+    if build_opts.std {
+        ctx.append_linked_path(PathBuf::from(format!("{}/std.nl", DIST_SEARCH_DIR)));
+    }
+
+    let ir_unit = ctx.build();
 
     if build_opts.emit_ir {
         for (idx, func) in ir_unit.functions().iter().enumerate() {
