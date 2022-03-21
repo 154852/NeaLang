@@ -98,15 +98,32 @@ fn print_error_range(mut start: usize, mut end: usize, source: &str, path: &Path
     }
 }
 
-/// List of library dir locations, e.g. (/usr/lib/nl). For debugging purposes, we assume we are in the repository root
-const DIST_SEARCH_DIR: &'static str = "nl/std";
+/// Inheritted from NL_ROOT environment variable e.g. (NL_ROOT=/usr/lib/nl).
+fn env_search_dir() -> Option<PathBuf> {
+    let var = match std::env::var("NL_ROOT") {
+        Ok(var) => var,
+        Err(_) => return None
+    };
+
+    match PathBuf::from(var).canonicalize() {
+        Ok(path) => Some(path),
+        Err(_) => None
+    }
+}
+
+fn env_search_dir_with(name: &str) -> Option<PathBuf> {
+    let mut path = env_search_dir()?;
+    path.push(name);
+    Some(path)
+}
 
 /// Characterises the build system for NL, primarily is concerned with resolving imports and constructing one large IR translation unit
 pub struct BuildContext {
     linked_paths: Vec<PathBuf>,
     target_arch_name: &'static str,
     search_dirs: Vec<PathBuf>,
-    emit_ast: bool
+    emit_ast: bool,
+    env_search_dir: Option<PathBuf>
 }
 
 impl BuildContext {
@@ -115,7 +132,8 @@ impl BuildContext {
             linked_paths: linked_paths.iter().map(|x| Path::new(x).canonicalize().expect("Invalid path")).collect(),
             target_arch_name,
             search_dirs: search_dirs.iter().map(|x| Path::new(x).canonicalize().expect("Invalid path")).collect(),
-            emit_ast
+            emit_ast,
+            env_search_dir: env_search_dir()
         }
     }
 
@@ -146,14 +164,16 @@ impl BuildContext {
         }
 
         // If that fails, try the distrubution constant
-        let mut child_path = PathBuf::from(DIST_SEARCH_DIR);
+        if let Some(ref dir) = self.env_search_dir {
+            let mut child_path = dir.clone();
 
-        for element in name {
-            child_path = child_path.join(element);
+            for element in name {
+                child_path = child_path.join(element);
+            }
+    
+            child_path = child_path.with_extension("nl");
+            if child_path.exists() { return Some(child_path); }            
         }
-
-        child_path = child_path.with_extension("nl");
-        if child_path.exists() { return Some(child_path); }            
 
         // No matching file was found
         None
@@ -290,7 +310,7 @@ impl Arch {
             match std::process::Command::new("cc")
                 .args(&build_opts.ldinc)
                 .arg(tmp)
-                .arg(format!("{}/std.c", DIST_SEARCH_DIR))
+                .arg(env_search_dir_with("std.c").expect("No NL_ROOT"))
                 .arg("-o").arg(&build_opts.output)
                 .status() {
                 Ok(_) => Ok(()),
@@ -362,7 +382,7 @@ fn build(build_opts: &BuildOpts) {
     // Parse and build the IR Unit
     let mut ctx = BuildContext::new(&build_opts.path, arch.short_name(), &build_opts.include, build_opts.emit_ast);
     if build_opts.std {
-        ctx.append_linked_path(PathBuf::from(format!("{}/std.nl", DIST_SEARCH_DIR)));
+        ctx.append_linked_path(PathBuf::from(env_search_dir_with("std.nl").expect("No NL_ROOT")));
     }
 
     let ir_unit = ctx.build();
