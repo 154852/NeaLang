@@ -371,21 +371,26 @@ impl Arch {
     pub fn run(&self, build_opts: &BuildOpts) -> Result<(), String> {
         match self {
             Arch::LinuxX86 | Arch::MacosX86 => {
-                match std::process::Command::new(&build_opts.output)
+                match std::process::Command::new(&PathBuf::from(&build_opts.output).canonicalize().unwrap())
                     .status() {
                         Ok(code) => {
-                            println!("Process exitted with code {}", code);
+                            if !code.success() {
+                                println!("Process exitted with code {}", code);
+                            }
                             Ok(())
                         }
                         Err(err) =>  Err(format!("{}", err))
                 }
             },
             Arch::Wasm => {
-                match std::process::Command::new(env_search_dir_with("wasm.js").expect("No NL_ROOT"))
+                match std::process::Command::new("node")
+                    .arg(&env_search_dir_with("wasm.js").expect("No NL_ROOT"))
                     .arg(&build_opts.output)
                     .status() {
                         Ok(code) => {
-                            println!("Process exitted with code {}", code);
+                            if !code.success() {
+                                println!("Process exitted with code {}", code);
+                            }
                             Ok(())
                         }
                         Err(err) =>  Err(format!("{}", err))

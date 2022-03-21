@@ -208,7 +208,7 @@ func test_neg() {
 	}
 }
 
-func [entry] main() {
+func [entry] main(): i32 {
 	test_if();
 	test_if_else();
 	test_bool_expr();
@@ -225,4 +225,6 @@ func [entry] main() {
 	test_bubble_sort();
 	test_drop();
 	test_neg();
+
+	return 0;
 }
