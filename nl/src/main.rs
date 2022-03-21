@@ -18,7 +18,8 @@ struct Opts {
 
 #[derive(Clap)]
 enum SubCommand {
-    Build(BuildOpts)
+    Build(BuildOpts),
+    Run(BuildOpts)
 }
 
 #[derive(Clap, Debug)]
@@ -366,10 +367,55 @@ impl Arch {
             Arch::None => Ok(()) // Do nothing
         }
     }
+
+    pub fn run(&self, build_opts: &BuildOpts) -> Result<(), String> {
+        match self {
+            Arch::LinuxX86 | Arch::MacosX86 => {
+                match std::process::Command::new(&build_opts.output)
+                    .status() {
+                        Ok(code) => {
+                            println!("Process exitted with code {}", code);
+                            Ok(())
+                        }
+                        Err(err) =>  Err(format!("{}", err))
+                }
+            },
+            Arch::Wasm => {
+                match std::process::Command::new(env_search_dir_with("wasm.js").expect("No NL_ROOT"))
+                    .arg(&build_opts.output)
+                    .status() {
+                        Ok(code) => {
+                            println!("Process exitted with code {}", code);
+                            Ok(())
+                        }
+                        Err(err) =>  Err(format!("{}", err))
+                }
+            },
+            Arch::Java => {
+                let classpath = PathBuf::from(&build_opts.output);
+
+                match std::process::Command::new("java")
+                    .arg(&classpath.file_stem().unwrap())
+                    .status() {
+                        Ok(code) => {
+                            if !code.success() {
+                                println!("Process exitted with {}", code);
+                            }
+                            Ok(())   
+                        }
+                        Err(err) =>  Err(format!("{}", err))
+                }
+            },
+            Arch::None => {
+                eprintln!("Nothing to run");
+                Ok(()) // Do nothing
+            }
+        }
+    }
 }
 
 /// Entry point of the build subcommand
-fn build(build_opts: &BuildOpts) {
+fn build_and_run(build_opts: &BuildOpts, run: bool) {
     // Parse the triple, or fail of it is invalid
     let arch = match Arch::parse_triple(&build_opts.triple) {
         Some(a) => a,
@@ -417,12 +463,23 @@ fn build(build_opts: &BuildOpts) {
             std::process::exit(1);
         }
     }
+
+    if run {
+        match arch.run(&build_opts) {
+            Ok(_) => (),
+            Err(e) => {
+                eprintln!("RunError: {}", e);
+                std::process::exit(1);
+            }   
+        }
+    }
 }
 
 fn main() {
     let opts = Opts::parse();
 
     match opts.cmd {
-        SubCommand::Build(build_opts) => build(&build_opts)
+        SubCommand::Build(build_opts) => build_and_run(&build_opts, false),
+        SubCommand::Run(build_opts) => build_and_run(&build_opts, true),
     }
 }
