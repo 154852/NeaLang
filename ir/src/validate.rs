@@ -159,7 +159,8 @@ pub enum ValidationError {
     NoFinalReturn,
     NotARef,
     LengthWrite,
-    PathUnderflow
+    PathUnderflow,
+    InvalidEntry
 }
 
 impl Ins {
@@ -415,6 +416,14 @@ fn ensure_returns(block: &Vec<Ins>) -> Result<(), ValidationError> {
 impl Function {
     pub fn validate(&self, unit: &TranslationUnit) -> Result<(), ValidationError> {
         if self.is_extern() { return Ok(()); }
+
+        if self.is_entry() && (
+            self.method_of().is_some() || 
+            self.signature().param_count() != 0 ||
+            self.signature().return_count() != 1 || self.signature().returns()[0] != ValueType::I32
+        ) {
+            return Err(ValidationError::InvalidEntry);
+        }
 
         let mut type_stack = TypeStack::new();
         let mut block_stack = BlockStack::new();

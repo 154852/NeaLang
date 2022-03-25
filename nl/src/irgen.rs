@@ -31,7 +31,9 @@ pub enum IrGenErrorKind {
     NotABool,
     NoReturnValue,
     ReturnValueWhenVoid,
-    IncorrectReturnType(String, String)
+    IncorrectReturnType(String, String),
+    InvalidEntryReturns,
+    InvalidEntryParams
 }
 
 pub struct IrGenError {
@@ -82,7 +84,9 @@ impl IrGenError {
             IrGenErrorKind::NotABool => format!("Expected a bool for condition"),
             IrGenErrorKind::NoReturnValue => format!("Expected a value in return"),
             IrGenErrorKind::ReturnValueWhenVoid => format!("No value expected in return for void function"),
-            IrGenErrorKind::IncorrectReturnType(found, expected) => format!("Return type mismatch, found {}, expected {}", found, expected)
+            IrGenErrorKind::IncorrectReturnType(found, expected) => format!("Return type mismatch, found {}, expected {}", found, expected),
+            IrGenErrorKind::InvalidEntryReturns => format!("Entry point must return an i32, and an i32 only"),
+            IrGenErrorKind::InvalidEntryParams => format!("Entry point must have no params")
         }
     }
 }

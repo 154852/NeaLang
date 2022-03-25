@@ -90,7 +90,7 @@ fn print_error_range(mut start: usize, mut end: usize, source: &str, path: &Path
         eprint!("\u{001b}[34m{:>4}\u{001b}[0m  ", l + 1);
         if l == main_line {
             eprintln!("{}\u{001b}[31m{}\u{001b}[0m{}", &source[idx..start], &source[start..end], &source[end..idx + line.len()]);
-            eprintln!("{}\u{001b}[33m^ {} here\u{001b}[0m", " ".repeat(source[idx..start].len() + 6), message);
+            eprintln!("{}\u{001b}[33m^ {}\u{001b}[0m", " ".repeat(source[idx..start].len() + 6), message);
         } else {
             eprintln!("{}", line);
         }

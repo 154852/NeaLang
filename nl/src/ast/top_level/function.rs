@@ -109,7 +109,15 @@ impl Function {
         // Push the function annotations to the ir
         for annotation in &self.annotations {
             match annotation.name.as_str() {
-                "entry" => func.push_attr(ir::FunctionAttr::Entry),
+                "entry" => {
+                    if func.signature().return_count() != 1 || func.signature().returns()[0] != ir::ValueType::I32 {
+                        return Err(IrGenError::new(annotation.span.clone(), IrGenErrorKind::InvalidEntryReturns))
+                    }
+                    if func.signature().param_count() != 0 {
+                        return Err(IrGenError::new(annotation.span.clone(), IrGenErrorKind::InvalidEntryParams))
+                    }
+                    func.push_attr(ir::FunctionAttr::Entry);
+                },
                 "alloc" => func.push_attr(ir::FunctionAttr::Alloc),
                 "alloc_slice" => func.push_attr(ir::FunctionAttr::AllocSlice),
                 "free" => func.push_attr(ir::FunctionAttr::Free),

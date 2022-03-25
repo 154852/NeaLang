@@ -123,13 +123,14 @@ impl<'a> TranslationContext<'a> {
         }
 
         if let Some(main_name) = main_name {
-            let target = classfile.const_method(&classfile.name().to_string(), &main_name, "()V");
+            let target = classfile.const_method(&classfile.name().to_string(), &main_name, "()I");
             
             let method = java::Method::new_on("main", "([Ljava/lang/String;)V", &mut classfile);
-            method.add_code(java::Code::new(0, 1, vec![
+            method.add_code(java::Code::new(1, 1, vec![
                 java::Ins::InvokeStatic {
                     index: target
                 },
+                java::Ins::Pop,
                 java::Ins::Return
             ]));
             method.set_access(java::MethodAccessFlags::from_bits(java::MethodAccessFlags::ACC_PUBLIC | java::MethodAccessFlags::ACC_STATIC));
