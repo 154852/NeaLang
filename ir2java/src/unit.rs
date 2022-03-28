@@ -23,7 +23,7 @@ impl<'a> TranslationContext<'a> {
             )
     }
 
-    pub fn translate_unit_types(unit: &ir::TranslationUnit, name: &str) -> Result<Vec<(String, java::ClassFile)>, String> {
+    pub fn translate_unit_types(unit: &ir::TranslationUnit, rootclassfile: &java::ClassFile, name: &str) -> Result<Vec<(String, java::ClassFile)>, String> {
         let mut classes = Vec::new();
 
         for compound_type in unit.compound_types() {
@@ -32,7 +32,7 @@ impl<'a> TranslationContext<'a> {
             match compound_type.content() {
                 ir::CompoundContent::Struct(struc) => {
                     for prop in struc.props() {
-                        let field = java::Field::new_on(prop.name(), crate::util::storable_type_to_descriptor(prop.prop_type(), &classfile).to_string(), &mut classfile);
+                        let field = java::Field::new_on(prop.name(), crate::util::storable_type_to_descriptor(prop.prop_type(), &rootclassfile).to_string(), &mut classfile);
                         field.set_access(java::FieldAccessFlags::from_bits(java::FieldAccessFlags::ACC_PUBLIC));
                     }
                 },

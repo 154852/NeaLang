@@ -227,9 +227,14 @@ impl<'a> TranslationContext<'a> {
                 }));
             },
             ir::Ins::Convert(from, to) => {
-                if crate::util::value_type_to_num_type(from) != crate::util::value_type_to_num_type(to) {
-                    todo!()
+                match (from, to) {
+                    (ir::ValueType::U64 | ir::ValueType::I64, ir::ValueType::U64 | ir::ValueType::I64) => {},
+                    (ir::ValueType::U64 | ir::ValueType::I64, _) => insns.push(wasm::Ins::WrapI64),
+                    (_, ir::ValueType::U64) => insns.push(wasm::Ins::Extend(false)),
+                    (_, ir::ValueType::I64) => insns.push(wasm::Ins::Extend(true)),
+                    _ => {}
                 }
+                
             },
             ir::Ins::Ret => {
                 insns.push(wasm::Ins::Return);

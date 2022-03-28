@@ -1,5 +1,6 @@
 pub mod ins {
-    use crate::{ClassFile, Constant, Descriptor, Ins, Integer};
+    use crate::Long;
+use crate::{ClassFile, Constant, Descriptor, Ins, Integer};
 
 	pub fn ldc(idx: usize, classfile: &ClassFile) -> Ins {
 		if classfile.constant_pool_index_to_encodable_index(idx) <= 0xff {
@@ -21,6 +22,17 @@ pub mod ins {
 			_ if i <= std::i16::MAX as i32 && i >= std::i16::MIN as i32 => Ins::SIPush { value: i as i16 },
 			_ => {
 				let idx = classfile.add_constant(Constant::Integer(Integer::new(i as u32)));
+				ldc(idx, classfile)
+			}
+		}
+	}
+
+	pub fn lconst(i: i64, classfile: &mut ClassFile) -> Ins {
+		match i {
+			0 => Ins::LConst0,
+			1 => Ins::LConst1,
+			_ => {
+				let idx = classfile.add_constant(Constant::Long(Long::new(i as u64)));
 				ldc(idx, classfile)
 			}
 		}

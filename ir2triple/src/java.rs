@@ -7,7 +7,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, _relocatable: bool) -> Res
     let class = ir2java::TranslationContext::translate_unit(unit, stem)?;
     std::fs::write(format!("{}.class", stem), class.encode()).expect("Could not write");
 
-    for (secondary_name, secondary_class) in ir2java::TranslationContext::translate_unit_types(unit, stem)? {
+    for (secondary_name, secondary_class) in ir2java::TranslationContext::translate_unit_types(unit, &class, stem)? {
         std::fs::write(format!("{}.class", secondary_name), secondary_class.encode()).expect("Could not write");
     }
 

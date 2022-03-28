@@ -243,6 +243,12 @@ pub struct Long {
 }
 
 impl Long {
+    pub fn new(value: u64) -> Long {
+        Long {
+            value
+        }
+    }
+
     fn encode(&self, writer: &mut BinaryWriter, _class: &ClassFile) {
         writer.u64(self.value);
     }

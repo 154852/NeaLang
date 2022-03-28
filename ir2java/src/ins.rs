@@ -586,7 +586,11 @@ impl<'a> TranslationContext<'a> {
                         stack_map.stack_push(java::VerificationTypeInfo::Integer);
                         false
                     },
-                    ir::ValueType::U64 | ir::ValueType::I64 => todo!(),
+                    ir::ValueType::U64 | ir::ValueType::I64 => {
+                        insns.push(java::opt::ins::lconst(*i as i64, class));
+                        stack_map.stack_push(java::VerificationTypeInfo::Long);
+                        false
+                    },
                     _ => panic!(),
                 },
             ir::Ins::Drop => {

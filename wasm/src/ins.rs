@@ -111,7 +111,10 @@ pub enum Ins {
     Rem(NumType, bool),
     And(NumType),
     Or(NumType),
-    Xor(NumType)
+    Xor(NumType),
+
+    WrapI64,
+    Extend(bool)
 }
 
 impl WasmEncodable for Ins {
@@ -427,6 +430,8 @@ impl WasmEncodable for Ins {
                 NumType::I64 => 0x85,
                 _ => panic!("Xor only exists on i32 and i64")
             }),
+            Ins::WrapI64 => data.push(0xa7),
+            Ins::Extend(signed) => data.push(if *signed { 0xac } else { 0xad })
         }
     }
 }
