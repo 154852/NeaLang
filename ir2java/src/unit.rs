@@ -75,31 +75,51 @@ impl<'a> TranslationContext<'a> {
             let mut insns = InstructionTarget::new(0);
             let mut stack_map = StackMapBuilder::new(func);
 
-            for (l, local) in func.locals()[func.signature().param_count()..].iter().enumerate() {
+            let mut params_locals_size = 0;
+            for param in &func.locals()[0..func.signature().param_count()] {
+                match param.local_type() {
+                    ir::StorableType::Value(ir::ValueType::U64 | ir::ValueType::I64) => params_locals_size += 2,
+                    _ => params_locals_size += 1,
+                }
+            }
+
+            let mut locals_size = 0;
+            for local in func.locals()[func.signature().param_count()..].iter() {
+                let prev_locals_size = params_locals_size + locals_size;
+
                 match local.local_type() {
                     ir::StorableType::Compound(_) => {
                         insns.push(java::Ins::AConstNull);
-                        insns.push(java::Ins::AStore { local: (l + func.signature().param_count()) as u8 });
+                        insns.push(java::Ins::AStore { local: prev_locals_size as u8 });
+                        locals_size += 1;
                     },
                     ir::StorableType::Value(val) =>
                         match val {
                             ir::ValueType::Ref(_) => {
                                 insns.push(java::Ins::AConstNull);
-                                insns.push(java::Ins::AStore { local: (l + func.signature().param_count()) as u8 });
+                                insns.push(java::Ins::AStore { local: prev_locals_size as u8 });
+                                locals_size += 1;
+                            },
+                            ir::ValueType::U64 | ir::ValueType::I64 => {
+                                insns.push(java::Ins::LConst0);
+                                insns.push(java::Ins::LStore { local: prev_locals_size as u8 });
+                                locals_size += 2;
                             },
                             _ => {
                                 insns.push(java::Ins::IConst0);
-                                insns.push(java::Ins::IStore { local: (l + func.signature().param_count()) as u8 });
+                                insns.push(java::Ins::IStore { local: prev_locals_size as u8 });
+                                locals_size += 1;
                             }
                         },
                     ir::StorableType::Slice(_) => {
                         insns.push(java::Ins::AConstNull);
-                        insns.push(java::Ins::AStore { local: (l + func.signature().param_count()) as u8 });
+                        insns.push(java::Ins::AStore { local: prev_locals_size as u8 });
+                        locals_size += 1;
                     },
                     ir::StorableType::SliceData(_) => panic!(),
                 }
 
-                stack_map.accessed_local(ir::LocalIndex::new(l + func.signature().param_count()));
+                stack_map.accessed_local(prev_locals_size);
             }
 
             let mut path_stack = PathStack::new();
@@ -110,7 +130,7 @@ impl<'a> TranslationContext<'a> {
             let method = java::Method::new_on(crate::util::name_for_function(func), TranslationContext::signature_as_descriptor(func.signature(), &classfile), &mut classfile);
 
             // TODO: Find correct max size
-            let mut code = java::Code::new(10, func.local_count() as u16, insns.take());
+            let mut code = java::Code::new(10, (params_locals_size + locals_size) as u16, insns.take());
             code.add_map(stack_map.take());
             method.add_code(code);
             method.set_access(java::MethodAccessFlags::from_bits(

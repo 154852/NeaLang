@@ -153,9 +153,9 @@ impl<'a> StackMapBuilder<'a> {
         }
     }
 
-    pub(crate) fn accessed_local(&mut self, local: ir::LocalIndex) {
-        if local.idx() >= self.first_unused_local {
-            self.first_unused_local = local.idx() + 1;
+    pub(crate) fn accessed_local(&mut self, local: usize) {
+        if local >= self.first_unused_local {
+            self.first_unused_local = local + 1;
         }
     }
 
@@ -270,8 +270,15 @@ impl<'a> TranslationContext<'a> {
             ir::Ins::PushPath(value_path, _) => {
                 let mut path = match value_path.origin() {
                     ir::ValuePathOrigin::Local(idx, st) => {
-                        stack_map.accessed_local(*idx);
-                        Path::Local(idx.idx(), crate::util::storable_type_to_descriptor(st, &class))
+                        let mut javaidx = 0;
+                        for i in 0..idx.idx() {
+                            match func.locals()[i].local_type() {
+                                ir::StorableType::Value(ir::ValueType::U64 | ir::ValueType::I64) => javaidx += 2,
+                                _ => javaidx += 1,
+                            }
+                        }
+                        stack_map.accessed_local(javaidx);
+                        Path::Local(javaidx, crate::util::storable_type_to_descriptor(st, &class))
                     },
                     ir::ValuePathOrigin::Global(idx, st) => {
                         let field_idx = class.const_field(
