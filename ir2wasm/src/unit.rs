@@ -3,7 +3,8 @@ use crate::ins::PathStack;
 
 pub struct TranslationContext<'a> {
     unit: &'a ir::TranslationUnit,
-    globals: Vec<i32>
+    globals: Vec<i32>,
+    imports_count: usize
 }
 
 impl<'a> TranslationContext<'a> {
@@ -69,7 +70,8 @@ impl<'a> TranslationContext<'a> {
 
         let mut ctx = TranslationContext {
             unit,
-            globals: Vec::new()
+            globals: Vec::new(),
+            imports_count: 0
         };
 
         // TODO: This is very order dependent, which may not always work
@@ -97,60 +99,89 @@ impl<'a> TranslationContext<'a> {
         ]), raw));
 
         for func in unit.functions() {
+            if !func.is_extern() { continue; }
+
             let wfunc = module.add_type(wasm::FunctionType::new(
                 func.signature().params().iter().map(|x| crate::util::value_type_to_val_type(x)).collect(),    
                 func.signature().returns().iter().map(|x| crate::util::value_type_to_val_type(x)).collect()
             ));
 
-            if !func.is_extern() {
-                module.add_function(wfunc);
-
-                let mut code = Vec::new();
-
-                let mut locals = Vec::new();
-                for param in &func.locals()[func.signature().param_count()..] {
-                    for vt in crate::util::value_types_for_storable_type(param.local_type()) {
-                        locals.push(crate::util::value_type_to_val_type(&vt));
-                    }
-                }
-
-                let mut path_stack = PathStack::new();
-
-                for ins in func.code() {
-                    ctx.translate_ins(func, &mut path_stack, ins, &mut code);
-                }
-        
-                module.add_code(wasm::Code::new(locals, wasm::Expr::with(code)));
-
-                module.add_export(wasm::Export::new(if let Some(method_of) = func.method_of() {
+            module.add_import(wasm::Import::new(
+                if let Some(location) = func.location() {
+                    location.to_string()
+                } else {
+                    "std".to_string()
+                },
+                if let Some(method_of) = func.method_of() {
                     format!("{}.{}", method_of.name(), func.name())
-                } else if func.is_entry() {
-                    "main".to_owned()
                 } else {
                     func.name().to_owned()
-                }, wasm::ExportDescriptor::Func(wfunc)));
-            } else {
-                module.add_import(wasm::Import::new(
-                    if let Some(location) = func.location() {
-                        location.to_string()
-                    } else {
-                        "std".to_string()
-                    },
-                    if let Some(method_of) = func.method_of() {
-                        format!("{}.{}", method_of.name(), func.name())
-                    } else {
-                        func.name().to_owned()
-                    },
-                    wasm::ImportDescriptor::Type(wfunc)
-                ));
+                },
+                wasm::ImportDescriptor::Type(wfunc)
+            ));
+
+            ctx.imports_count += 1;
+        }
+
+        for func in unit.functions() {
+            if func.is_extern() { continue; }
+
+            let wfunc = module.add_type(wasm::FunctionType::new(
+                func.signature().params().iter().map(|x| crate::util::value_type_to_val_type(x)).collect(),    
+                func.signature().returns().iter().map(|x| crate::util::value_type_to_val_type(x)).collect()
+            ));
+
+            module.add_function(wfunc);
+
+            let mut code = Vec::new();
+
+            let mut locals = Vec::new();
+            for param in &func.locals()[func.signature().param_count()..] {
+                for vt in crate::util::value_types_for_storable_type(param.local_type()) {
+                    locals.push(crate::util::value_type_to_val_type(&vt));
+                }
             }
+
+            let mut path_stack = PathStack::new();
+
+            for ins in func.code() {
+                ctx.translate_ins(func, &mut path_stack, ins, &mut code);
+            }
+    
+            module.add_code(wasm::Code::new(locals, wasm::Expr::with(code)));
+
+            module.add_export(wasm::Export::new(if let Some(method_of) = func.method_of() {
+                format!("{}.{}", method_of.name(), func.name())
+            } else if func.is_entry() {
+                "main".to_owned()
+            } else {
+                func.name().to_owned()
+            }, wasm::ExportDescriptor::Func(wfunc)));
         }
 
         Ok(module)
     }
 
     pub fn function_index(&self, ir_index: ir::FunctionIndex) -> Option<usize> {
-        Some(ir_index.idx()) // Identity map for now
+        let func = self.unit.get_function(ir_index)?;
+        let mut idx = 0;
+        
+        if func.is_extern() {
+            for other_func in &self.unit.functions()[0..ir_index.idx()] {
+                if other_func.is_extern() {
+                    idx += 1;
+                }
+            }
+        } else {
+            idx = self.imports_count;
+            for other_func in &self.unit.functions()[0..ir_index.idx()] {
+                if !other_func.is_extern() {
+                    idx += 1;
+                }
+            }
+        }
+
+        Some(idx)
     }
 
     pub fn unit(&self) -> &'a ir::TranslationUnit {
