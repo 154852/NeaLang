@@ -69,7 +69,7 @@ impl TypeStack {
 
         match self.types.get(self.types.len() - 1 - index) {
             Some(ValueOrPath::Value(v)) => Ok(v),
-            Some(ValueOrPath::Path(_)) => Err(ValidationError::StackIncorrectType),
+            Some(ValueOrPath::Path(_)) => Err(ValidationError::StackIsPath),
             None => Err(ValidationError::StackUnderflow)
         }
     }
@@ -77,7 +77,7 @@ impl TypeStack {
     fn pop(&mut self) -> Result<ValueType, ValidationError> {
         match self.types.pop() {
             Some(ValueOrPath::Value(v)) => Ok(v),
-            Some(ValueOrPath::Path(_)) => Err(ValidationError::StackIncorrectType),
+            Some(ValueOrPath::Path(_)) => Err(ValidationError::StackIsPath),
             None => Err(ValidationError::StackUnderflow)
         }
     }
@@ -89,7 +89,7 @@ impl TypeStack {
     fn pop_path(&mut self) -> Result<ValueType, ValidationError> {
         match self.types.pop() {
             Some(ValueOrPath::Path(v)) => Ok(v),
-            Some(ValueOrPath::Value(_)) => Err(ValidationError::StackIncorrectType),
+            Some(ValueOrPath::Value(_)) => Err(ValidationError::StackIsPath),
             None => Err(ValidationError::StackUnderflow)
         }
     }
@@ -146,6 +146,7 @@ pub enum ValidationError {
     StackNotNum,
     StackDepthNotZero,
     StackDepthNotOne,
+    StackIsPath,
     StackNotValue,
     PathIncorrectType,
     PathNotValue,
@@ -347,10 +348,10 @@ impl Ins {
                     for el in block { el.validate(stack, blocks, function, unit)?; }
                     Ok(())
                 })?;
-                if stack.depth() != 0 { return Err(ValidationError::StackDepthNotOne); }
+                if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
 
                 for el in inc { el.validate(stack, blocks, function, unit)?; }
-                if stack.depth() != 0 { return Err(ValidationError::StackDepthNotOne); }
+                if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
 
                 for el in condition { el.validate(stack, blocks, function, unit)?; }
                 if stack.depth() != 1 { return Err(ValidationError::StackDepthNotOne); }
@@ -361,6 +362,7 @@ impl Ins {
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
 
                 for el in cond { el.validate(stack, blocks, function, unit)?; }
+                if stack.depth() != 1 { return Err(ValidationError::StackDepthNotOne); }
                 pop!(stack, ValueType::Bool);
 
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
@@ -374,6 +376,7 @@ impl Ins {
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
 
                 for el in cond { el.validate(stack, blocks, function, unit)?; }
+                if stack.depth() != 1 { return Err(ValidationError::StackDepthNotOne); }
                 pop!(stack, ValueType::Bool);
                 
                 if stack.depth() != 0 { return Err(ValidationError::StackDepthNotZero); }
