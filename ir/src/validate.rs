@@ -64,6 +64,9 @@ impl TypeStack {
     }
 
     fn peek(&self, index: usize) -> Result<&ValueType, ValidationError> {
+        // Catches subtraction with overflow
+        if index + 1 > self.types.len() { return Err(ValidationError::StackUnderflow) }
+
         match self.types.get(self.types.len() - 1 - index) {
             Some(ValueOrPath::Value(v)) => Ok(v),
             Some(ValueOrPath::Path(_)) => Err(ValidationError::StackIncorrectType),
@@ -136,7 +139,7 @@ impl BlockStack {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ValidationError {
     StackUnderflow,
     StackIncorrectType,
@@ -430,6 +433,12 @@ impl Function {
 
         if self.signature().param_count() > self.local_count() {
             return Err(ValidationError::LocalUnderflow);
+        }
+
+        for (sig_param, local) in self.signature().params().iter().zip(self.locals()) {
+            if !matches!(local.local_type(), StorableType::Value(val) if val == sig_param) {
+                return Err(ValidationError::LocalIncorrectType);
+            }
         }
 
         for ins in self.code().iter() {
