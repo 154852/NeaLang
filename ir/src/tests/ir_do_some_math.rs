@@ -1,5 +1,6 @@
 use crate::*;
 
+/// Normal test - Verify that a valid program is considered valid by the checker
 #[test]
 fn correct() {
     let mut unit = TranslationUnit::new();
@@ -41,6 +42,7 @@ fn correct() {
     unit.validate().expect("Invalid IR");
 }
 
+/// Erroneous test - Verify that a program where not all parameter locals are initialised in considered invalid and given the correct error
 #[test]
 fn too_few_locals() {
     let mut unit = TranslationUnit::new();
@@ -81,6 +83,7 @@ fn too_few_locals() {
     assert_eq!(unit.validate().expect_err("Not incorrect"), ValidationError::LocalUnderflow);
 }
 
+/// Erroneous test - Verify that a program where an attempt to access a local with an incorrect given type is considered invalid
 #[test]
 fn incorrect_local_type_access() {
     let mut unit = TranslationUnit::new();
@@ -122,6 +125,7 @@ fn incorrect_local_type_access() {
     assert_eq!(unit.validate().expect_err("Not incorrect"), ValidationError::LocalIncorrectType);
 }
 
+/// Erroneous / boundary test - Verify that a program where an attempt to access a local which does not exist is considered invalid
 #[test]
 fn out_of_bounds_local_access() {
     let mut unit = TranslationUnit::new();
@@ -163,6 +167,7 @@ fn out_of_bounds_local_access() {
     assert_eq!(unit.validate().expect_err("Not incorrect"), ValidationError::LocalDoesNotExist);
 }
 
+/// Erroneous / boundary test - Verify that a program with one too few return values compared to it's signature is considered invalid
 #[test]
 fn too_small_return() {
     let mut unit = TranslationUnit::new();
@@ -204,6 +209,7 @@ fn too_small_return() {
     assert_eq!(unit.validate().expect_err("Not incorrect"), ValidationError::StackUnderflow);
 }
 
+/// Erroneous / boundary test - Verify that a program with one too many return values compared to it's signature is considered invalid
 #[test]
 fn too_big_return() {
     let mut unit = TranslationUnit::new();
@@ -243,6 +249,7 @@ fn too_big_return() {
     assert_eq!(unit.validate().expect_err("Not incorrect"), ValidationError::StackDepthNotZero);
 }
 
+/// Erroneous test - Verify that a program which attempts to take a an item off the stack with the incorrect type is considered invalid
 #[test]
 fn invalid_stack_access() {
     let mut unit = TranslationUnit::new();
@@ -284,6 +291,7 @@ fn invalid_stack_access() {
     assert_eq!(unit.validate().expect_err("Not incorrect"), ValidationError::StackIncorrectType);
 }
 
+/// Erroneous test - Verify that a program which attempts to operate on more items than there are on the stack is considered invalid
 #[test]
 fn stack_underflow() {
     let mut unit = TranslationUnit::new();

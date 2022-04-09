@@ -1,5 +1,6 @@
 use crate::*;
 
+/// Normal / boundary test - Verify that a valid program containing loops is considered valid by the checker
 #[test]
 fn loop_correct() {
     let mut unit = TranslationUnit::new();
@@ -56,6 +57,7 @@ fn loop_correct() {
     unit.validate().expect("Invalid IR");
 }
 
+/// Erroneous test - Verify that a program which attempts to use a number as appose to a boolean for a condition is considered invalid
 #[test]
 fn loop_not_a_bool_cond() {
     let mut unit = TranslationUnit::new();
@@ -107,6 +109,7 @@ fn loop_not_a_bool_cond() {
     assert_eq!(unit.validate().expect_err("Not incorrect"), ValidationError::StackIncorrectType);
 }
 
+/// Erroneous test - Verify that a program which attempts to loop with a non-empty stack is considered invalid
 #[test]
 fn loop_not_empty_stack() {
     let mut unit = TranslationUnit::new();
@@ -165,6 +168,7 @@ fn loop_not_empty_stack() {
     assert_eq!(unit.validate().expect_err("Not incorrect"), ValidationError::StackDepthNotZero);
 }
 
+/// Erroneous test - Verify that a program which attempts to loop within it's body with a non-empty stack is considered invalid
 #[test]
 fn loop_not_empty_stack_after_body() {
     let mut unit = TranslationUnit::new();
@@ -223,6 +227,7 @@ fn loop_not_empty_stack_after_body() {
     assert_eq!(unit.validate().expect_err("Not incorrect"), ValidationError::StackDepthNotZero);
 }
 
+/// Erroneous test - Verify that a program with more than one value in a loop condition is considered invalid
 #[test]
 fn loop_not_one_after_condition() {
     let mut unit = TranslationUnit::new();
@@ -280,6 +285,7 @@ fn loop_not_one_after_condition() {
     assert_eq!(unit.validate().expect_err("Not incorrect"), ValidationError::StackDepthNotOne);
 }
 
+/// Erroneous test - Verify that a program which does not terminate with a return is considered invalid
 #[test]
 fn loop_missing_ret() {
     let mut unit = TranslationUnit::new();
@@ -334,6 +340,7 @@ fn loop_missing_ret() {
     assert_eq!(unit.validate().expect_err("Not incorrect"), ValidationError::NoFinalReturn);
 }
 
+/// Normal / boundary test - Verify that a valid program containing nested if/if-else statements are considered correct
 #[test]
 fn if_correct() {
     let mut unit = TranslationUnit::new();
@@ -394,6 +401,7 @@ fn if_correct() {
     unit.validate().expect("Invalid IR");
 }
 
+/// Erroneous / boundary test - Verify that a program containing control paths without return statements is considered invalid
 #[test]
 fn if_no_return() {
     let mut unit = TranslationUnit::new();
@@ -452,6 +460,7 @@ fn if_no_return() {
     assert_eq!(unit.validate().expect_err("Not incorrect"), ValidationError::NoFinalReturn);
 }
 
+/// Erroneous - Verify that entering an if statement with a non-empty stack is erroneous
 #[test]
 fn if_non_empty_stack() {
     let mut unit = TranslationUnit::new();
