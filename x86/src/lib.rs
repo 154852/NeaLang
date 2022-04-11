@@ -7,6 +7,9 @@ mod reloc;
 pub mod opt;
 mod ctx;
 
+#[cfg(test)]
+mod tests;
+
 pub use reg::*;
 pub use encode::*;
 pub use ins::*;

@@ -190,8 +190,28 @@ impl Ins {
             Ins::AddRegReg(a, b) => Encoder::new(if a.size() == Size::Byte { 0x00 } else { 0x01 }).rr(b, a).to(data),
             Ins::AddRegMem(r, ref m) => Encoder::new(if r.size() == Size::Byte { 0x02 } else { 0x03 }).rm(r, m).to(data),
             Ins::AddMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x00 } else { 0x01 }).rm(r, m).to(data),
-            Ins::AddRegImm(r, i) => Encoder::new(if r.size() == Size::Byte { 0x80 } else { 0x81 }).rn(r, 0).immn(i as u32, r.size()).to(data),
-            Ins::AddMemImm(s, ref m, i) => Encoder::new(if s == Size::Byte { 0x80 } else { 0x81 }).mn(s, m, 0).immn(i as u32, s).to(data),
+            Ins::AddRegImm(r, i) => {
+                if (i as i64) <= (i8::MAX as i64) && (i as i64) >= (i8::MIN as i64) {
+                    Encoder::new(if r.size() == Size::Byte { 0x80 } else { 0x83 }).rn(r, 0).imm8(i as u8).to(data);
+                } else if r.class() == RegClass::Eax {
+                    match r {
+                        Reg::Al => Encoder::new(0x04).imm8(i as u8).to(data),
+                        Reg::Ax => Encoder::new(0x05).opsize_override().imm16(i as u16).to(data),
+                        Reg::Eax => Encoder::new(0x05).imm32(i as u32).to(data),
+                        Reg::Rax => Encoder::new(0x05).imm32(i as u32).long().to(data),
+                        _ => panic!() // Ah?
+                    }
+                } else {
+                    Encoder::new(0x81).rn(r, 0).immn(i as u32, r.size()).to(data)
+                }
+            }
+            Ins::AddMemImm(s, ref m, i) => {
+                if (i as i64) <= (i8::MAX as i64) && (i as i64) >= (i8::MIN as i64) {
+                    Encoder::new(if s == Size::Byte { 0x80 } else { 0x83 }).mn(s, m, 0).imm8(i as u8).to(data)
+                } else {
+                    Encoder::new(0x81).mn(s, m, 0).immn(i as u32, s).to(data)
+                }
+            },
 
             // https://www.felixcloutier.com/x86/and
             Ins::AndRegReg(a, b) => Encoder::new(if a.size() == Size::Byte { 0x20 } else { 0x21 }).rr(b, a).to(data),
@@ -209,7 +229,8 @@ impl Ins {
             // https://www.felixcloutier.com/x86/cwd:cdq:cqo
             Ins::Cdq(s) => match s {
                 Size::Byte => panic!("Cannot CDQ byte"),
-                Size::Word | Size::Double => Encoder::new(0x99).to(data),
+                Size::Word => Encoder::new(0x99).to(data),
+                Size::Double => Encoder::new(0x99).opsize_override().to(data),
                 Size::Quad => Encoder::new(0x99).long().to(data),
             },
 
@@ -218,7 +239,7 @@ impl Ins {
             Ins::CMovRegMem(c, r, ref m) => Encoder::new_long([0x0f, 0x40 + c.base()]).rm(r, m).to(data),
 
             // https://www.felixcloutier.com/x86/cmp
-            Ins::CmpRegReg(a, b) => Encoder::new(if a.size() == Size::Byte { 0x3a } else { 0x3b }).rr(a, b).to(data),
+            Ins::CmpRegReg(a, b) => Encoder::new(if a.size() == Size::Byte { 0x38 } else { 0x39 }).rr(b, a).to(data),
             Ins::CmpRegImm(r, i) => Encoder::new(if r.size() == Size::Byte { 0x80 } else { 0x81 }).rn(r, 7).immn(i as u32, r.size()).to(data),
             Ins::CmpRegMem(r, ref m) => Encoder::new(if r.size() == Size::Byte { 0x3a } else { 0x3b }).rm(r, m).to(data),
             Ins::CmpMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x38 } else { 0x39 }).rm(r, m).to(data),
@@ -261,7 +282,15 @@ impl Ins {
             Ins::MovRegReg(a, b) => Encoder::new(if a.size() == Size::Byte { 0x88 } else { 0x89 }).rr(b, a).to(data),
             Ins::MovRegMem(r, ref m) => Encoder::new(if r.size() == Size::Byte { 0x8a } else { 0x8b }).rm(r, m).to(data),
             Ins::MovMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x88 } else { 0x89 }).rm(r, m).to(data),
-            Ins::MovRegImm(r, i) => Encoder::new(if r.size() == Size::Byte { 0xb0 } else { 0xb8 }).offset(r).immnq(i, r.size()).to(data),
+            Ins::MovRegImm(r, i) => {
+                match r.size() {
+                    Size::Byte => Encoder::new(0xb0).offset(r).imm8(i as u8).to(data),
+                    Size::Word => Encoder::new(0xb8).offset(r).imm16(i as u16).to(data),
+                    Size::Double => Encoder::new(0xb8).offset(r).imm32(i as u32).to(data),
+                    Size::Quad if (i as i64) <= (i32::MAX as i64) && (i as i64) >= (i32::MIN as i64) => Encoder::new(0xb8 + r.class().id()).imm32(i as u32).to(data),
+                    Size::Quad => Encoder::new(0xb8).offset(r).imm64(i as u64).to(data),
+                }
+            },
             Ins::MovMemImm(s, ref m, i) => Encoder::new(if s == Size::Byte { 0xc6 } else { 0xc7 }).mn(s, m, 0).immn(i as u32, s).to(data),
 
             // https://www.felixcloutier.com/x86/movsx:movsxd
@@ -308,7 +337,15 @@ impl Ins {
             // https://www.felixcloutier.com/x86/push
             Ins::PushReg(r) => Encoder::new(0x50).offset(r.class().u32()).to(data),
             Ins::PushMem(ref m) => Encoder::new(0xff).mn(Size::Double, m, 6).to(data),
-            Ins::PushImm(i) => Encoder::new(0x68).imm32(i as u32).to(data), // TODO: This will change between x86/x86-64
+            Ins::PushImm(i) => {
+                if i <= 0xff {
+                    Encoder::new(0x6a).imm8(i as u8).to(data)
+                } else if i < 0xffff {
+                    Encoder::new(0x68).imm16(i as u16).opsize_override().to(data)
+                } else {
+                    Encoder::new(0x68).imm32(i as u32).to(data)
+                }
+            }, // TODO: This will change between x86/x86-64
 
             // https://www.felixcloutier.com/x86/ret
             Ins::Ret => Encoder::new(0xc3).to(data),
@@ -321,7 +358,7 @@ impl Ins {
             Ins::SubMemImm(s, ref m, i) => Encoder::new(if s == Size::Byte { 0x80 } else { 0x81 }).mn(s, m, 5).immn(i as u32, s).to(data),
 
             // https://www.felixcloutier.com/x86/test
-            Ins::TestRegReg(a, b) => Encoder::new(if a.size() == Size::Byte { 0x84 } else { 0x85 }).rr(a, b).to(data),
+            Ins::TestRegReg(a, b) => Encoder::new(if a.size() == Size::Byte { 0x84 } else { 0x85 }).rr(b, a).to(data),
             Ins::TestMemReg(ref m, r) => Encoder::new(if r.size() == Size::Byte { 0x84 } else { 0x85 }).mr(m, r).to(data),
             Ins::TestRegImm(r, i) => Encoder::new(if r.size() == Size::Byte { 0xf6 } else { 0xf7 }).rn(r, 0).immn(i as u32, r.size()).to(data),
         }

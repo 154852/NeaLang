@@ -14,7 +14,7 @@ impl Mem {
         Mem {
             base: None,
             index: None,
-            scale: 1,
+            scale: 0,
             disp: 0,
             force_disp: false
         }
@@ -64,7 +64,7 @@ impl Mem {
 
     // http://www.cs.loyola.edu/~binkley/371/Encoding_Real_x86_Instructions.html
     pub fn modrm_with(&self, r: u8, data: &mut Vec<u8>) {
-        if self.scale == 1 && self.index.is_none() {
+        if self.scale == 0 && self.index.is_none() {
             if let Some(base) = self.base {
                 if base == RegClass::Eip {
                     data.push((0b00 << 6) | (r << 3) | 0b101);
@@ -102,14 +102,25 @@ impl Mem {
                     }
                 }
             } else {
-                todo!();
+                // Raw memory location, create an SIB byte with a null register
+                data.push((0b00 << 6) | (r << 3) | 0b100);
+                data.push((0b00) | (0b100 << 3) | 0b101);
+                data.extend(&(self.disp as u32).to_le_bytes());
             }
         } else {
             if self.disp == 0 && !self.force_disp {
                 data.push((0b00 << 6) | (r << 3) | 0b100);
                 data.push(self.sib_byte());
             } else {
-                todo!()
+                if self.disp >= -128 && self.disp <= 127 {
+                    data.push((0b01 << 6) | (r << 3) | 0b100);
+                    data.push(self.sib_byte());
+                    data.push(self.disp as u8);
+                } else {
+                    data.push((0b10 << 6) | (r << 3) | 0b100);
+                    data.push(self.sib_byte());
+                    data.extend(&(self.disp as u32).to_le_bytes());
+                }
             }
         }
     }
