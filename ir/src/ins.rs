@@ -97,7 +97,7 @@ pub enum Ins {
     /// 
     /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 10));
     /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
-    /// func.push(ir::Ins::Call(0 /* some index */));
+    /// func.push(ir::Ins::Call(ir::FunctionIndex::new(0) /* some index */));
     /// func.push(ir::Ins::Ret);
     /// ```
     Call(FunctionIndex),
@@ -284,22 +284,28 @@ pub enum Ins {
     /// let mut func = ir::Function::new("loop_5_times", ir::Signature::new(vec![ ], vec![ ]));
     /// 
     /// let l1 = func.push_local(ir::Local::new(ir::StorableType::Value(ir::ValueType::I32))); // Allocate local of type i32
+    /// func.push(ir::Ins::PushPath(ir::ValuePath::new_origin_only(ir::ValuePathOrigin::Local(l1, ir::StorableType::Value(ir::ValueType::I32))), ir::ValueType::I32));
     /// func.push(ir::Ins::PushLiteral(ir::ValueType::I32, 5));
-    /// func.push(ir::Ins::PopLocalValue(ir::ValueType::I32, l1));
-    ///
+    /// func.push(ir::Ins::Pop(ir::ValueType::I32));
+    /// 
     /// func.push(ir::Ins::Loop(
     ///     vec![ // Body
     ///         // do nothing
     ///     ],
     ///     vec![ // Condition
-    ///         ir::Ins::PushLocalValue(ir::ValueType::I32, l1),
-    ///         ir::Ins::PushLocalValue(ir::ValueType::I32, 0),
+    ///         ir::Ins::PushPath(ir::ValuePath::new_origin_only(ir::ValuePathOrigin::Local(l1, ir::StorableType::Value(ir::ValueType::I32))), ir::ValueType::I32),
+    ///         ir::Ins::Push(ir::ValueType::I32),
+    ///         ir::Ins::PushLiteral(ir::ValueType::I32, 0),
     ///         ir::Ins::Ne(ir::ValueType::I32),
     ///     ],
     ///     vec![ // Increment (or in this case, decrement)
-    ///         ir::Ins::PushLocalValue(ir::ValueType::I32, l1),
+    ///         ir::Ins::PushPath(ir::ValuePath::new_origin_only(ir::ValuePathOrigin::Local(l1, ir::StorableType::Value(ir::ValueType::I32))), ir::ValueType::I32),
+    /// 
+    ///         ir::Ins::PushPath(ir::ValuePath::new_origin_only(ir::ValuePathOrigin::Local(l1, ir::StorableType::Value(ir::ValueType::I32))), ir::ValueType::I32),
+    ///         ir::Ins::Push(ir::ValueType::I32),
     ///         ir::Ins::Dec(ir::ValueType::I32, 1),
-    ///         ir::Ins::PopLocalValue(ir::ValueType::I32, l1),
+    /// 
+    ///         ir::Ins::Pop(ir::ValueType::I32),
     ///     ]
     /// ));
     /// func.push(ir::Ins::Ret);
@@ -317,6 +323,8 @@ pub enum Ins {
     /// func.push(ir::Ins::PushLiteral(ir::ValueType::Bool, 1));
     /// func.push(ir::Ins::If(vec![
     ///     // Do something
+    /// ], vec![
+    ///     // Some boolean condition
     /// ]));
     /// func.push(ir::Ins::Ret);
     /// ```
@@ -335,6 +343,8 @@ pub enum Ins {
     ///     // Do something
     /// ], vec![
     ///     // Do something else
+    /// ], vec![
+    ///     // Some boolean expression
     /// ]));
     /// func.push(ir::Ins::Ret);
     /// ```
