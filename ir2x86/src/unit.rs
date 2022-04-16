@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::registerify::StackToReg;
+use crate::registerify::{StackToReg, SYS_V_CALLEE_SAVED};
 
 pub(crate) enum LocalSymbol {
     If,
@@ -209,6 +209,14 @@ impl TranslationContext {
             x86_ins.push(x86::Ins::MovRegReg(self.mode.stack_ptr(), self.mode.base_ptr()));
             x86_ins.push(x86::Ins::PopReg(self.mode.base_ptr()));
         }
+
+        for (i, regclass) in SYS_V_CALLEE_SAVED.iter().enumerate() {
+            if ftc.stack().clobbered() & (1 << i) != 0 {
+                x86_ins.insert(0, x86::Ins::PushReg(regclass.uptr(&self.mode)));
+                x86_ins.push(x86::Ins::PopReg(regclass.uptr(&self.mode)));
+            }
+        }
+
         x86_ins.push(x86::Ins::Ret);
 
         x86_ins
