@@ -2,6 +2,9 @@ use std::collections::HashMap;
 
 use crate::*;
 
+/// Tests that the base encoding of each instruction is correct, without testing all possible variations of registers etc.
+/// Since changing something like a register has a small effect on an instruction, these variations are all tested seperately.
+/// Therefore, these are all normal tests.
 #[test]
 fn instruction_opcodes() {
     let mut local_symbols = HashMap::new();
@@ -83,6 +86,8 @@ fn instruction_opcodes() {
     assert_eq!(data, std::fs::read("src/tests/instruction_opcodes.bin").expect("Could not read instruction_opcodes.bin"));
 }
 
+/// Test that each and every register can be used, and that variations of them work together correctly - in particular with the Rn registers.
+/// The later tests are boundary tests, edge cases which may be found during normal execution but are unlikely to be.
 #[test]
 fn registers() {
     let mut local_symbols = HashMap::new();
@@ -142,6 +147,7 @@ fn registers() {
     assert_eq!(data, std::fs::read("src/tests/registers.bin").expect("Could not read registers.bin"));
 }
 
+/// Test that all forms of memory can be used, including scaling and raw displacement
 #[test]
 fn memory() {
     let mut local_symbols = HashMap::new();
@@ -163,6 +169,7 @@ fn memory() {
     assert_eq!(data, std::fs::read("src/tests/memory.bin").expect("Could not read memory.bin"));
 }
 
+/// Test that local relocations are correctly created and later filled in
 #[test]
 fn relocations() {
     let mut ctx = EncodeContext::new();
@@ -182,6 +189,7 @@ fn relocations() {
     // Note that we don't use nasm here because it does this more efficiently and provides alternative but shorter assembly using 8 bit offsets instead of the full 32 I use
     // We can check the below hex is the correct assembly by feeding it to a disassembler:
     // echo e9040000004883c0034883c1040f85f6ffffff | xxd -r -p | ndisasm -b 64 -
+    // (Alternatively use https://defuse.ca/online-x86-assembler.htm) in x64 mode
     // For comparison, nasm produces
     // echo eb044883c0034883c10475fa | xxd -r -p | ndisasm -b 64 -
     // which while shorter, is functionally identical
