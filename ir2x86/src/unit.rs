@@ -35,22 +35,16 @@ pub struct FunctionTranslationContext<'a> {
     stack: StackToReg,
     local_symbols: LocalSymbolStack,
     local_symbols_allocated: usize,
-    align_16_byte: bool
 }
 
 impl<'a> FunctionTranslationContext<'a> {
-    fn new(mode: x86::Mode, function: &'a ir::Function, unit: &'a ir::TranslationUnit, align_16_byte: bool) -> FunctionTranslationContext<'a> {
+    fn new(mode: x86::Mode, function: &'a ir::Function, unit: &'a ir::TranslationUnit) -> FunctionTranslationContext<'a> {
         FunctionTranslationContext {
             mode, function, unit,
             stack: StackToReg::new(mode),
             local_symbols: LocalSymbolStack::new(),
             local_symbols_allocated: 1, // root
-            align_16_byte
         }
-    }
-
-    pub(crate) fn should_align_16_byte(&self) -> bool {
-        self.align_16_byte
     }
 
     pub(crate) fn new_local_symbol(&mut self) -> x86::LocalSymbolID {
@@ -154,21 +148,14 @@ impl<'a> GlobalIDAllocator<'a> {
 }
 
 pub struct TranslationContext {
-    pub(crate) mode: x86::Mode,
-    alignment: u64
+    pub(crate) mode: x86::Mode
 }
 
 impl TranslationContext {
     pub fn new(mode: x86::Mode) -> TranslationContext {
         TranslationContext {
-            mode,
-            alignment: 1
+            mode
         }
-    }
-
-    /// alignment should the be full value (e.g. 1<<4), not the exponent (4)
-    pub fn set_called_maintained_alignment(&mut self, alignment: u64) {
-        self.alignment = alignment;
     }
 
     pub fn translate_function(&self, func: &ir::Function, unit: &ir::TranslationUnit) -> Vec<x86::Ins> {
@@ -176,27 +163,23 @@ impl TranslationContext {
 
         let mut x86_ins = Vec::new();
 
-        let mut ftc = FunctionTranslationContext::new(self.mode, func, unit, self.alignment == 16);
+        let mut ftc = FunctionTranslationContext::new(self.mode, func, unit);
 
-        if func.local_count() > 0 || self.alignment > self.mode.ptr_size() as u64 {
-            x86_ins.push(x86::Ins::PushReg(self.mode.base_ptr()));
-            x86_ins.push(x86::Ins::MovRegReg(self.mode.base_ptr(), self.mode.stack_ptr()));
-            
-            if func.local_count() > 0 {
-                x86_ins.push(x86::Ins::SubRegImm(self.mode.stack_ptr(), ftc.local_addr(func.last_local_index())));
-            }
+        x86_ins.push(x86::Ins::PushReg(self.mode.base_ptr()));
+        x86_ins.push(x86::Ins::MovRegReg(self.mode.base_ptr(), self.mode.stack_ptr()));
+        
+        if func.local_count() > 0 {
+            x86_ins.push(x86::Ins::SubRegImm(self.mode.stack_ptr(), ftc.local_addr(func.last_local_index())));
+        }
 
-            if self.alignment > self.mode.ptr_size() as u64 {
-                x86_ins.push(x86::Ins::AndRegImm(self.mode.stack_ptr(), -(self.alignment as i64) as u64));
-            }
-
-            // Put params into locals
-            for (p, param) in func.signature().params().iter().enumerate() {
-                x86_ins.push(x86::Ins::MovMemReg(
-                    ftc.local_mem(ir::LocalIndex::new(p)),
-                    crate::util::reg_for_value_type(param, self.mode, crate::registerify::SYS_V_ABI[p])
-                ));
-            }
+        x86_ins.push(x86::Ins::AndRegImm(self.mode.stack_ptr(), (-16 as i64) as u64));
+        
+        // Put params into locals
+        for (p, param) in func.signature().params().iter().enumerate() {
+            x86_ins.push(x86::Ins::MovMemReg(
+                ftc.local_mem(ir::LocalIndex::new(p)),
+                crate::util::reg_for_value_type(param, self.mode, crate::registerify::SYS_V_ABI[p])
+            ));
         }
 
         for ins in func.code() {
@@ -205,10 +188,8 @@ impl TranslationContext {
 
         // Root is always 0
         x86_ins.push(x86::Ins::LocalSymbol(x86::LocalSymbolID::new(0)));
-        if func.local_count() > 0 || self.alignment > self.mode.ptr_size() as u64 {
-            x86_ins.push(x86::Ins::MovRegReg(self.mode.stack_ptr(), self.mode.base_ptr()));
-            x86_ins.push(x86::Ins::PopReg(self.mode.base_ptr()));
-        }
+        x86_ins.push(x86::Ins::MovRegReg(self.mode.stack_ptr(), self.mode.base_ptr()));
+        x86_ins.push(x86::Ins::PopReg(self.mode.base_ptr()));
 
         for (i, regclass) in SYS_V_CALLEE_SAVED.iter().enumerate() {
             if ftc.stack().clobbered() & (1 << i) != 0 {

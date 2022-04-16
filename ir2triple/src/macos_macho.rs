@@ -88,8 +88,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 	// 	+ append symbols, append to strtab
 	// 	+ update dysymtab
 
-    let mut ctx = ir2x86::TranslationContext::new(x86::Mode::X8664);
-	ctx.set_called_maintained_alignment(16);
+    let ctx = ir2x86::TranslationContext::new(x86::Mode::X8664);
 
 	let mut globals_relocs = Vec::new();
 	let mut globals = Vec::new();
