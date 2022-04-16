@@ -2,6 +2,9 @@ mod lexer;
 mod ast;
 mod irgen;
 
+#[cfg(test)]
+mod tests;
+
 use std::path::{Path, PathBuf};
 
 use clap::{AppSettings, Clap};
@@ -421,6 +424,11 @@ impl Arch {
 
 /// Entry point of the build subcommand
 fn build_and_run(build_opts: &BuildOpts, run: bool) {
+    if build_opts.path.len() == 0 {
+        eprintln!("No source files given");
+        std::process::exit(1);
+    }
+
     // Parse the triple, or fail of it is invalid
     let arch = match Arch::parse_triple(&build_opts.triple) {
         Some(a) => a,
