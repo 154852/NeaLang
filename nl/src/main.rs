@@ -38,7 +38,7 @@ struct BuildOpts {
     #[clap(short, long, default_value = "a.out")]
     output: String,
 
-    /// Target triple. Valid values are linux-elf-x86_64, macos-macho-x86_64, wasm, java, none and native - which infers the type from the calling system.
+    /// Target triple. Valid values are linux-elf-x86_64, macos-macho-x86_64, macos-macho-arm64, wasm, java, none and native - which infers the type from the calling system.
     #[clap(long, short, default_value = "native")]
     triple: String,
 
@@ -275,6 +275,7 @@ impl BuildContext {
 enum Arch {
     LinuxX86,
     MacosX86,
+    MacosArm64,
     Wasm,
     Java,
     None
@@ -286,12 +287,16 @@ impl Arch {
         match triple {
             "linux-elf-x86_64" => Some(Arch::LinuxX86),
             "macos-macho-x86_64" => Some(Arch::MacosX86),
+            "macos-macho-arm64" => Some(Arch::MacosArm64),
             "wasm" => Some(Arch::Wasm),
             "java" => Some(Arch::Java),
             "none" => Some(Arch::None),
             "native" =>
-                if cfg!(target_os = "macos") {
+                if cfg!(target_os = "macos") && cfg!(target_arch="x86_64") {
                     Some(Arch::MacosX86)
+                } else if cfg!(target_os = "macos") && cfg!(target_arch="aarch64") {
+                    println!("Native arch macos-aarch64");
+                    Some(Arch::MacosArm64)
                 } else {
                     Some(Arch::LinuxX86)
                 },
@@ -303,6 +308,7 @@ impl Arch {
         match self {
             Arch::LinuxX86 => "linux-x86",
             Arch::MacosX86 => "macos-x86",
+            Arch::MacosArm64 => "macos-arm64",
             Arch::Wasm => "wasm",
             Arch::Java => "java",
             Arch::None => "none",
@@ -338,7 +344,7 @@ impl Arch {
             Arch::LinuxX86 if build_opts.link && build_opts.relocatable => {
                 let mut tmp = std::env::temp_dir();
                 tmp.push("nl-build.o");
-                ir2triple::linux_elf::encode(&ir_unit, tmp.to_str().unwrap(), true)?;
+                ir2triple::linux_elf_x86::encode(&ir_unit, tmp.to_str().unwrap(), true)?;
 
                 Arch::link(&tmp, build_opts)?;
 
@@ -349,11 +355,11 @@ impl Arch {
                 
                 Ok(())
             },
-            Arch::LinuxX86 => ir2triple::linux_elf::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
+            Arch::LinuxX86 => ir2triple::linux_elf_x86::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
             Arch::MacosX86 if build_opts.link && build_opts.relocatable => {
                 let mut tmp = std::env::temp_dir();
                 tmp.push("nl-build.o");
-                ir2triple::macos_macho::encode(&ir_unit, tmp.to_str().unwrap(), true)?;
+                ir2triple::macos_macho_x86::encode(&ir_unit, tmp.to_str().unwrap(), true)?;
 
                 Arch::link(&tmp, build_opts)?;
 
@@ -364,7 +370,22 @@ impl Arch {
                 
                 Ok(())
             },
-            Arch::MacosX86 => ir2triple::macos_macho::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
+            Arch::MacosX86 => ir2triple::macos_macho_x86::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
+            Arch::MacosArm64 if build_opts.link && build_opts.relocatable => {
+                let mut tmp = std::env::temp_dir();
+                tmp.push("nl-build.o");
+                ir2triple::macos_macho_arm64::encode(&ir_unit, tmp.to_str().unwrap(), true)?;
+
+                Arch::link(&tmp, build_opts)?;
+
+                match std::fs::remove_file(tmp) {
+                    Ok(_) => {},
+                    Err(e) => return Err(format!("{}", e))
+                }
+                
+                Ok(())
+            },
+            Arch::MacosArm64 => ir2triple::macos_macho_arm64::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
             Arch::Wasm => ir2triple::wasm::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
             Arch::Java => ir2triple::java::encode(&ir_unit, &build_opts.output, build_opts.relocatable),
             Arch::None => Ok(()) // Do nothing
@@ -373,7 +394,7 @@ impl Arch {
 
     pub fn run(&self, build_opts: &BuildOpts) -> Result<(), String> {
         match self {
-            Arch::LinuxX86 | Arch::MacosX86 => {
+            Arch::LinuxX86 | Arch::MacosX86 | Arch::MacosArm64 => {
                 match std::process::Command::new(&PathBuf::from(&build_opts.output).canonicalize().unwrap())
                     .status() {
                         Ok(code) => {

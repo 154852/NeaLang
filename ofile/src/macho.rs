@@ -4,7 +4,8 @@ use crate::EncodableInt;
 
 pub enum Cpu {
 	X86,
-	X8664
+	X8664,
+	Arm64
 }
 
 impl Cpu {
@@ -12,6 +13,7 @@ impl Cpu {
 		match self {
 			Cpu::X86 => 7,
 			Cpu::X8664 => 7 | 0x01000000,
+			Cpu::Arm64 => 12 | 0x01000000,
 		}
 	}
 
@@ -19,6 +21,7 @@ impl Cpu {
 		match self {
 			Cpu::X86 => 3,
 			Cpu::X8664 => 3,
+			Cpu::Arm64 => 0 // apparently
 		}
 	}
 }
@@ -462,29 +465,39 @@ impl Symbol {
 pub type NList = Symbol;
 
 pub enum RelocType {
-	Unsigned,
-	Signed,
-	Branch,
-	GotLoad,
-	Got,
-	Subtractor,
-	Signed1,
-	Signed2,
-	Signed4
+	X86Unsigned,
+	X86Signed,
+	X86Branch,
+	X86GotLoad,
+	X86Got,
+	X86Subtractor,
+	X86Signed1,
+	X86Signed2,
+	X86Signed4,
+
+	Arm64Unsigned,
+	Arm64Branch26,
+	Arm64Page21,
+	Arm64PageOff12,
 }
 
 impl RelocType {
 	pub fn reloc_type(&self) -> u8 {
 		match self {
-			RelocType::Unsigned => 0,
-			RelocType::Signed => 1,
-			RelocType::Branch => 2,
-			RelocType::GotLoad => 3,
-			RelocType::Got => 4,
-			RelocType::Subtractor => 5,
-			RelocType::Signed1 => 6,
-			RelocType::Signed2 => 7,
-			RelocType::Signed4 => 8,
+			RelocType::X86Unsigned => 0,
+			RelocType::X86Signed => 1,
+			RelocType::X86Branch => 2,
+			RelocType::X86GotLoad => 3,
+			RelocType::X86Got => 4,
+			RelocType::X86Subtractor => 5,
+			RelocType::X86Signed1 => 6,
+			RelocType::X86Signed2 => 7,
+			RelocType::X86Signed4 => 8,
+
+			RelocType::Arm64Unsigned => 0,
+			RelocType::Arm64Branch26 => 2,
+			RelocType::Arm64Page21 => 3,
+			RelocType::Arm64PageOff12 => 4,
 		}
 	}
 }

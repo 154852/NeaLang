@@ -3,6 +3,10 @@
 version = 3
 
 [[package]]
+name = "arm64"
+version = "0.1.0"
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -95,6 +99,14 @@ name = "ir"
 version = "0.1.0"
 
 [[package]]
+name = "ir2arm64"
+version = "0.1.0"
+dependencies = [
+ "arm64",
+ "ir",
+]
+
+[[package]]
 name = "ir2java"
 version = "0.1.0"
 dependencies = [
@@ -106,7 +118,9 @@ dependencies = [
 name = "ir2triple"
 version = "0.1.0"
 dependencies = [
+ "arm64",
  "ir",
+ "ir2arm64",
  "ir2java",
  "ir2wasm",
  "ir2x86",

@@ -1,2 +1,2 @@
 [workspace]
-members = ["syntax", "nl", "ir", "ofile", "x86", "ir2x86", "ir2triple", "wasm", "ir2wasm", "java", "ir2java"]
+members = ["syntax", "nl", "ir", "ofile", "x86", "ir2x86", "ir2triple", "wasm", "ir2wasm", "java", "ir2java", "arm64", "ir2arm64"]

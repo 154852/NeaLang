@@ -169,7 +169,7 @@ impl TranslationContext {
         x86_ins.push(x86::Ins::MovRegReg(self.mode.base_ptr(), self.mode.stack_ptr()));
         
         if func.local_count() > 0 {
-            x86_ins.push(x86::Ins::SubRegImm(self.mode.stack_ptr(), ftc.local_addr(func.last_local_index())));
+            x86_ins.push(x86::Ins::SubRegImm(self.mode.stack_ptr(), ftc.local_addr(func.last_local_index().unwrap())));
         }
 
         x86_ins.push(x86::Ins::AndRegImm(self.mode.stack_ptr(), (-16 as i64) as u64));

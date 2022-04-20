@@ -1,7 +1,7 @@
 use syntax::Span;
 
 use crate::ast::Expr;
-use crate::irgen::{IrGenCodeTarget, IrGenError, IrGenErrorKind, IrGenFunctionContext};
+use crate::irgen::{IrGenCodeTarget, IrGenError, IrGenErrorKind, IrGenFunctionContext, value_type_to_string};
 
 #[derive(Debug)]
 pub struct Assignment {
@@ -33,7 +33,9 @@ impl Assignment {
                     // 2. Push the value...
                     let vt = self.right.append_ir_value(ctx, target, Some(&expected))?;
                     if vt != expected { // ... and check it is the right type
-                        return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
+                        return Err(IrGenError::new(self.span.clone(), 
+                            IrGenErrorKind::AssignmentTypeMismatch(value_type_to_string(&vt), value_type_to_string(&expected))
+                        ));
                     }
 
                     // 3. Pop
@@ -60,7 +62,9 @@ impl Assignment {
                 // 3. Append the value...
                 let vt = self.right.append_ir_value(ctx, target, Some(&st_v))?;
                 if st_v != vt { // ... and check it is the right type
-                    return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
+                    return Err(IrGenError::new(self.span.clone(),
+                        IrGenErrorKind::AssignmentTypeMismatch(value_type_to_string(&vt), value_type_to_string(&st_v))
+                    ));
                 }
 
                 // 4. Pop

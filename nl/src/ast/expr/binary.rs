@@ -1,6 +1,6 @@
 use syntax::Span;
 
-use crate::irgen::{IrGenCodeTarget, IrGenError, IrGenErrorKind, IrGenFunctionContext};
+use crate::irgen::{IrGenCodeTarget, IrGenError, IrGenErrorKind, IrGenFunctionContext, value_type_to_string};
 
 use super::Expr;
 
@@ -41,7 +41,11 @@ impl BinaryExpr {
         let right = self.right.append_ir_value(ctx, target, if self.op.is_num() { preferred } else { Some(&left) })?;
 
         // If they don't have the same type, throw an error
-        if left != right { return Err(IrGenError::new(self.span.clone(), IrGenErrorKind::BinaryOpTypeMismatch)) }
+        if left != right {
+            return Err(IrGenError::new(self.span.clone(),
+                IrGenErrorKind::BinaryOpTypeMismatch(value_type_to_string(&left), value_type_to_string(&right))
+            ));
+        }
 
         // 3. Do the operation
         target.push(match self.op {

@@ -1,6 +1,6 @@
 use syntax::Span;
 
-use crate::irgen::{IrGenCodeTarget, IrGenError, IrGenErrorKind, IrGenFunctionContext};
+use crate::irgen::{IrGenCodeTarget, IrGenError, IrGenErrorKind, IrGenFunctionContext, value_type_to_string};
 use crate::lexer::{TokenKind, TokenStream};
 use crate::ast::{Expr, TypeExpr};
 
@@ -62,7 +62,9 @@ impl VarDeclaration {
             if let Some(expr_type) = expr_type {
                 if var_type != expr_type {
                     // If expr_type is not None, then self.expr is not None, so safe to unwrap
-                    return Err(IrGenError::new(self.expr.as_ref().unwrap().span().clone(), IrGenErrorKind::AssignmentTypeMismatch));
+                    return Err(IrGenError::new(self.expr.as_ref().unwrap().span().clone(), 
+                        IrGenErrorKind::AssignmentTypeMismatch(value_type_to_string(&expr_type), value_type_to_string(&var_type))
+                    ));
                 }
                 expr_type // ...the types are both defined, and they match, or...
             } else {

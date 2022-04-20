@@ -174,7 +174,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 							pcrel: true,
 							length: 2,
 							exter: false,
-							typ: macho::RelocType::Signed
+							typ: macho::RelocType::X86Signed
 						});
 					},
 					ir2x86::GlobalObjectId::Function(global) => {
@@ -184,7 +184,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 							pcrel: true,
 							length: 2,
 							exter: true,
-							typ: macho::RelocType::Branch
+							typ: macho::RelocType::X86Branch
 						});
 					}
 				}
@@ -212,7 +212,7 @@ pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Resu
 							pcrel: false,
 							length: 3,
 							exter: false,
-							typ: macho::RelocType::Unsigned
+							typ: macho::RelocType::X86Unsigned
 						});
 
 						if first_data_reloc.is_none() {

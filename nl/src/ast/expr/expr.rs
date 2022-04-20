@@ -121,7 +121,7 @@ impl Expr {
                 }),
             Expr::As(as_expr) => {
                 if as_expr.new_type.to_ir_value_type(ir_unit)? != *value_type {
-                    return Err(IrGenError::new(as_expr.span.clone(), IrGenErrorKind::AssignmentTypeMismatch));
+                    return Err(IrGenError::new(as_expr.span.clone(), IrGenErrorKind::CastTypeMismatch));
                 }
 
                 return as_expr.expr.as_value(ir_unit, value_type);
@@ -315,8 +315,8 @@ impl Expr {
     }
 
     fn parse_op_mul_div<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
-        let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_primary));
         let start = stream.tell_start();
+        let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_primary));
 
         loop {
             match stream.token_kind() {
@@ -345,8 +345,8 @@ impl Expr {
     }
 
     fn parse_op_add_sub<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
-        let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_op_mul_div));
         let start = stream.tell_start();
+        let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_op_mul_div));
 
         loop {
             match stream.token_kind() {
@@ -375,8 +375,8 @@ impl Expr {
     }
 
     fn parse_op_cmp<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
-        let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_op_add_sub));
         let start = stream.tell_start();
+        let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_op_add_sub));
 
         loop {
             match stream.token_kind() {
@@ -411,8 +411,8 @@ impl Expr {
     }
 
     fn parse_op_bool<'a>(stream: &mut TokenStream<'a>) -> syntax::MatchResult<Expr> {
-        let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_op_cmp));
         let start = stream.tell_start();
+        let mut expr = syntax::ex!(syntax::parse!(stream, Expr::parse_op_cmp));
 
         loop {
             match stream.token_kind() {

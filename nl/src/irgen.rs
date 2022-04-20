@@ -10,8 +10,9 @@ pub enum IrGenErrorKind {
     FunctionDoesNotExist(String), // Function name
     MethodNotStatic,
     InvalidInteger,
-    BinaryOpTypeMismatch,
-    AssignmentTypeMismatch,
+    BinaryOpTypeMismatch(String, String),
+    AssignmentTypeMismatch(String, String),
+    CastTypeMismatch,
     CannotInferType,
     CallArgParamCountMismatch(usize, usize), // Found, expected
     CallArgTypeMismatch(String, String), // Expected type, found type
@@ -62,8 +63,9 @@ impl IrGenError {
             IrGenErrorKind::VariableDoesNotExist(name) => format!("Variable '{}' does not exist", name),
             IrGenErrorKind::FunctionDoesNotExist(name) => format!("Function or method '{}' does not exist", name),
             IrGenErrorKind::InvalidInteger => format!("Invalid integer"),
-            IrGenErrorKind::BinaryOpTypeMismatch => format!("Type mismatch in binary operation"),
-            IrGenErrorKind::AssignmentTypeMismatch => format!("Type mismatch in assignment"),
+            IrGenErrorKind::BinaryOpTypeMismatch(lhs, rhs) => format!("Type mismatch in binary operation, lhs is {}, rhs is {}", lhs, rhs),
+            IrGenErrorKind::AssignmentTypeMismatch(found, expected) => format!("Type mismatch in assignment, found {}, expected {}", found, expected),
+            IrGenErrorKind::CastTypeMismatch => format!("As does not produce correct type"),
             IrGenErrorKind::CannotInferType => format!("Cannot infer type"),
             IrGenErrorKind::CallArgParamCountMismatch(found, expected) => format!("Incorrect arg count, found {}, expected {}", found, expected),
             IrGenErrorKind::CallArgTypeMismatch(found, expected) => format!("Type mismatch in arg, found {}, expected {}", found, expected),

@@ -428,7 +428,13 @@ impl Function {
     pub fn locals(&self) -> &Vec<Local> { &self.locals }
     pub fn local_count(&self) -> usize { self.locals.len() }
 
-    pub fn last_local_index(&self) -> LocalIndex { LocalIndex::new(self.locals.len() - 1) }
+    pub fn last_local_index(&self) -> Option<LocalIndex> {
+        if self.locals.len() != 0 {
+            Some(LocalIndex::new(self.locals.len() - 1))
+        } else {
+            None
+        }
+    }
 
     /// Will panic if function is extern, so should only be used when certain it is not
     pub fn code(&self) -> &Vec<Ins> {

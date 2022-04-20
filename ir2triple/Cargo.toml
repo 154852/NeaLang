@@ -14,3 +14,5 @@ x86 = { path = "../x86" }
 ir2wasm = { path = "../ir2wasm" }
 java = { path = "../java" }
 ir2java = { path = "../ir2java" }
+arm64 = { path = "../arm64" }
+ir2arm64 = { path = "../ir2arm64" }
