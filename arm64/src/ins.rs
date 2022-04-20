@@ -159,7 +159,7 @@ pub enum ImmShift {
 }
 pub enum Ins {
     LocalSymbol(LocalSymbolID),
-    Orr {
+    OrrImm {
         size: SizeFlag,
         shift_mode: ShiftMode,
         src1: Reg, src2: Reg,
@@ -243,6 +243,20 @@ pub enum Ins {
         src: Reg, shifted_src: Reg,
         shift: u32
     },
+    AndShifted {
+        size: SizeFlag,
+        shift_mode: ShiftMode,
+        dest: Reg,
+        src: Reg, shifted_src: Reg,
+        shift: u32
+    },
+    OrrShifted {
+        size: SizeFlag,
+        shift_mode: ShiftMode,
+        dest: Reg,
+        src: Reg, shifted_src: Reg,
+        shift: u32
+    },
     SubShifted {
         size: SizeFlag,
         shift_mode: ShiftMode,
@@ -300,7 +314,7 @@ impl Ins {
             Ins::LocalSymbol(_) => unreachable!(),
 
             // https://developer.arm.com/documentation/ddi0596/2021-12/Base-Instructions/ORR--immediate---Bitwise-OR--immediate--?lang=en
-            Ins::Orr { size, shift_mode, src1, src2, dest, shift } => orr(size, shift_mode, src1, src2, shift, dest),
+            Ins::OrrImm { size, shift_mode, src1, src2, dest, shift } => orr(size, shift_mode, src1, src2, shift, dest),
 
             // https://developer.arm.com/documentation/ddi0596/2021-12/Base-Instructions/MOV--bitmask-immediate---Move--bitmask-immediate---an-alias-of-ORR--immediate--?lang=en
             Ins::Mov { size, src, dest } => orr(size, ShiftMode::LogicalLeft, Reg::zero(), src, 0, dest),
@@ -360,6 +374,12 @@ impl Ins {
 
             // https://developer.arm.com/documentation/ddi0596/2021-12/Base-Instructions/ADD--shifted-register---Add--shifted-register--?lang=en
             Ins::AddShifted { size, shift_mode, src, shifted_src, dest, shift } => Res::val(((size as u32) << 31) | (0b0001011 << 24) | ((shift_mode as u32) << 22) | (src.u32() << 16) | (shift << 10) | (shifted_src.u32() << 5) | dest.u32()),
+
+            // https://developer.arm.com/documentation/ddi0596/2021-12/Base-Instructions/AND--shifted-register---Bitwise-AND--shifted-register--?lang=en
+            Ins::AndShifted { size, shift_mode, src, shifted_src, dest, shift } => Res::val(((size as u32) << 31) | (0b0001010 << 24) | ((shift_mode as u32) << 22) | (src.u32() << 16) | (shift << 10) | (shifted_src.u32() << 5) | dest.u32()),
+
+            // https://developer.arm.com/documentation/ddi0596/2021-12/Base-Instructions/ORR--shifted-register---Bitwise-OR--shifted-register--?lang=en
+            Ins::OrrShifted { size, shift_mode, src, shifted_src, dest, shift } => Res::val(((size as u32) << 31) | (0b0101010 << 24) | ((shift_mode as u32) << 22) | (src.u32() << 16) | (shift << 10) | (shifted_src.u32() << 5) | dest.u32()),
 
             // https://developer.arm.com/documentation/ddi0596/2021-12/Base-Instructions/SUB--shifted-register---Subtract--shifted-register--?lang=en
             Ins::SubShifted { size, shift_mode, src, shifted_src, dest, shift } => Res::val(((size as u32) << 31) | (0b1001011 << 24) | ((shift_mode as u32) << 22) | (src.u32() << 16) | (shift << 10) | (shifted_src.u32() << 5) | dest.u32()),

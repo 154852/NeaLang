@@ -193,12 +193,36 @@ impl TranslationContext {
         });
 
         // Put params into locals
-        for (p, _) in func.signature().params().iter().enumerate() {
-            arm64_ins.push(arm64::Ins::Stur {
-                size: arm64::SizeFlag::Size64,
-                base: arm64::Reg::fp(),
-                offset: -(ftc.local_addr(ir::LocalIndex::new(p)) as i32),
-                src: arm64::Reg(p as u32)
+        for (p, param) in func.signature().params().iter().enumerate() {
+            let off = -(ftc.local_addr(ir::LocalIndex::new(p)) as i32);
+            arm64_ins.push(match crate::util::size_for_value_type(param) {
+                8 =>
+                    arm64::Ins::Stur {
+                        size: arm64::SizeFlag::Size64,
+                        base: arm64::Reg::fp(),
+                        offset: off,
+                        src: arm64::Reg(p as u32)
+                    },
+                4 =>
+                    arm64::Ins::Stur {
+                        size: arm64::SizeFlag::Size32,
+                        base: arm64::Reg::fp(),
+                        offset: off,
+                        src: arm64::Reg(p as u32)
+                    },
+                2 =>
+                    arm64::Ins::Sturh {
+                        base: arm64::Reg::fp(),
+                        offset: off,
+                        src: arm64::Reg(p as u32)
+                    },
+                1 =>
+                    arm64::Ins::Sturb {
+                        base: arm64::Reg::fp(),
+                        offset: off,
+                        src: arm64::Reg(p as u32)
+                    },
+                _ => unreachable!()
             });
         }
         

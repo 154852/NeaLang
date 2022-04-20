@@ -391,8 +391,8 @@ impl TranslationContext {
                     shift_mode: arm64::ShiftMode::LogicalLeft,
                     shift: 0,
                     dest: ftc.stack().peek(),
-                    src: arm64::Reg::zero(),
-                    shifted_src: ftc.stack().peek()
+                    src: ftc.stack().peek(),
+                    shifted_src: arm64::Reg::zero()
                 });
             },
             ir::Ins::Eq(vt) => {
@@ -414,10 +414,30 @@ impl TranslationContext {
                 cmp!(vt, ftc, ins, Ge);
             },
             ir::Ins::BoolAnd => {
-                todo!();
+                let rhs = ftc.stack().pop();
+                let lhs = ftc.stack().peek();
+
+                ins.push(arm64::Ins::AndShifted {
+                    size: arm64::SizeFlag::Size64,
+                    shift_mode: arm64::ShiftMode::LogicalLeft,
+                    shift: 0,
+                    dest: lhs,
+                    src: rhs,
+                    shifted_src: lhs
+                });
             },
             ir::Ins::BoolOr => {
-                todo!();
+                let rhs = ftc.stack().pop();
+                let lhs = ftc.stack().peek();
+
+                ins.push(arm64::Ins::OrrShifted {
+                    size: arm64::SizeFlag::Size64,
+                    shift_mode: arm64::ShiftMode::LogicalLeft,
+                    shift: 0,
+                    dest: lhs,
+                    src: rhs,
+                    shifted_src: lhs
+                });
             },
             ir::Ins::Loop(body, condition, increment) => {
                 let start = ftc.new_local_symbol();

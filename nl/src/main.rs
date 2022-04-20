@@ -295,7 +295,6 @@ impl Arch {
                 if cfg!(target_os = "macos") && cfg!(target_arch="x86_64") {
                     Some(Arch::MacosX86)
                 } else if cfg!(target_os = "macos") && cfg!(target_arch="aarch64") {
-                    println!("Native arch macos-aarch64");
                     Some(Arch::MacosArm64)
                 } else {
                     Some(Arch::LinuxX86)
