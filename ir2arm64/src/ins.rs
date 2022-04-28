@@ -302,7 +302,7 @@ impl TranslationContext {
                 self.insert_call(ftc.unit().find_free_slice().expect("No free slice implementation included"), ftc, ins);
             },
             ir::Ins::Convert(_from, _to) => {
-                println!("WARNING Ignoring Convert");
+                // println!("WARNING Ignoring Convert");
             },
             ir::Ins::Call(idx) => self.insert_call(*idx, ftc, ins),
             ir::Ins::Ret => {

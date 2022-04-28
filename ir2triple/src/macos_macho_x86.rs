@@ -15,7 +15,9 @@ fn mangle_func_name(func: &ir::Function) -> String {
 }
 
 pub fn encode(unit: &ir::TranslationUnit, path: &str, relocatable: bool) -> Result<(), String> {
-	assert!(relocatable);
+	if !relocatable {
+		return Err("Macho files currently must be relocatable. Try building with -c.".to_string());
+	}
 
 	let mut internal_sym_count = 0;
 	let mut imported_sym_count = 0;

@@ -26,6 +26,7 @@ enum SubCommand {
 }
 
 #[derive(Clap, Debug)]
+#[clap(setting = AppSettings::ColoredHelp)]
 struct BuildOpts {
     /// Paths to root source file
     path: Vec<String>,
@@ -43,7 +44,7 @@ struct BuildOpts {
     triple: String,
 
     /// Make the target file relocatable.
-    #[clap(short = 'c')]
+    #[clap(short = 'c', long)]
     relocatable: bool,
 
     /// Link the binary using CC (only applies to linux-elf-x86_64 on linux-elf-x86_64 systems)
@@ -55,14 +56,14 @@ struct BuildOpts {
     std: bool,
 
     /// Add files to pass to CC, only applies if --link is enabled
-    #[clap(short='T')]
+    #[clap(short='T', long)]
     ldinc: Vec<String>,
 
     /// Emit the parsed AST to stdout for each file after it is parsed
     #[clap(long)]
     emit_ast: bool,
 
-    // Emit the generated IR to stdout
+    /// Emit the generated IR to stdout
     #[clap(long)]
     emit_ir: bool,
 }

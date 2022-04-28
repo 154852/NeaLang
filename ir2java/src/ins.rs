@@ -1,6 +1,5 @@
 use java::ClassFile;
-
-use crate::{TranslationContext};
+use crate::TranslationContext;
 
 enum Path {
     Local(usize, java::Descriptor),

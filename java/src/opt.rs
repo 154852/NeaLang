@@ -1,6 +1,5 @@
 pub mod ins {
-    use crate::Long;
-use crate::{ClassFile, Constant, Descriptor, Ins, Integer};
+	use crate::{ClassFile, Constant, Descriptor, Ins, Integer, Long};
 
 	pub fn ldc(idx: usize, classfile: &ClassFile) -> Ins {
 		if classfile.constant_pool_index_to_encodable_index(idx) <= 0xff {
